@@ -1,0 +1,29 @@
+{
+    "name": "Heavy Vault",
+    "action": {
+        "default_title": "Heavy Vault"
+    },
+    "manifest_version": 3,
+    "version": "0.0.1",
+    "description": "Manage your Reddit account's Vault from the browser.",
+    "permissions": [
+        "activeTab",
+        "scripting",
+        "storage"
+    ],
+    "background": {
+        "service_worker": "background.js",
+        "type": "module"
+    },
+    "web_accessible_resources": [
+        {
+            "resources": [
+                "*.js.map",
+                "*.html"
+            ],
+            "matches": [
+                "https://www.reddit.com/*"
+            ]
+        }
+    ]
+}
