@@ -1,4 +1,4 @@
-import fetchMock from "fetch-mock-jest";
+import { jest } from "@jest/globals";
 
 import {
   DEFAULT_PAGE_DATA_URL,
@@ -19,15 +19,17 @@ const html = `\
 <script></script>
 </html>`;
 
-beforeEach(() => {
-  fetchMock.restore();
-});
-
 test("parsePageJSONData() extracts JSON from #data element", () => {
   expect(parsePageJSONData(html)).toStrictEqual(pageData());
 });
 
 test("fetchPageData()", async () => {
-  fetchMock.get(DEFAULT_PAGE_DATA_URL, { body: html });
+  const fetch = jest.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+    ok: true,
+    status: 200,
+    text: async () => html,
+  } as Response);
   await expect(fetchPageData()).resolves.toStrictEqual(pageData());
+  expect(fetch).toBeCalledTimes(1);
+  expect(fetch).toBeCalledWith(DEFAULT_PAGE_DATA_URL);
 });
