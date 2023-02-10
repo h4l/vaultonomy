@@ -7,6 +7,7 @@
     "isolatedModules": true,
     "jsx": "react-jsx",
     "lib": ["DOM", "DOM.Iterable", "ESNext"],
+    "types": ["@types/jest", "@types/chrome"],
     "module": "ESNext",
     "moduleResolution": "Node",
     "noEmit": true,
@@ -16,5 +17,5 @@
     "target": "ESNext",
     "useDefineForClassFields": true
   },
-  "include": ["./src", "*.ts"]
+  "include": ["./src"]
 }

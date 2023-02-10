@@ -7,7 +7,7 @@
     "typecheck": "tsc",
     "dev:watch": "rollup -c --configPlugin @rollup/plugin-typescript --environment BUILD:development --watch",
     "build": "rollup -c --configPlugin @rollup/plugin-typescript --environment BUILD:production",
-    "test": "jest"
+    "test": "NODE_OPTIONS=--experimental-vm-modules npx jest"
   },
   "dependencies": {
     "buffer": "^6.0.3",
@@ -30,6 +30,7 @@
     "@swc/jest": "^0.2.24",
     "@testing-library/dom": "^8.20.0",
     "@trivago/prettier-plugin-sort-imports": "^4.0.0",
+    "@types/chrome": "^0.0.212",
     "@types/deepmerge": "^2.2.0",
     "@types/jest": "^29.4.0",
     "@types/react-dom": "^18.0.3",

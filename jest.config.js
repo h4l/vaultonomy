@@ -4,4 +4,7 @@ export default {
   transform: {
     "^.+\\.(t|j)sx?$": ["@swc/jest"],
   },
+  extensionsToTreatAsEsm: [".ts", ".tsx"],
+  resetMocks: true,
+  resetModules: true,
 };
