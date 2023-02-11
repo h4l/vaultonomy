@@ -2,7 +2,7 @@ import { jest } from "@jest/globals";
 
 import {
   DEFAULT_PAGE_DATA_URL,
-  InPageRedditUser,
+  PageData,
   fetchPageData,
   parsePageJSONData,
 } from "../page-data";
@@ -22,6 +22,7 @@ function pageDataLoggedIn(): Record<string, unknown> {
     },
     session: {
       accessToken: "abc-123",
+      expires: "2023-01-01T00:00:00.000Z",
     },
   };
 }
@@ -34,6 +35,7 @@ function pageDataLoggedOut(): Record<string, unknown>[] {
       },
       session: {
         accessToken: "abc-123",
+        expires: "2023-01-01T00:00:00.000Z",
       },
     },
     {
@@ -76,12 +78,18 @@ describe("fetchPageData()", () => {
       text: async () => html(pageDataLoggedIn()),
     } as Response);
 
-    const expected: InPageRedditUser = {
-      userID: "t2_abc",
-      hasPremium: true,
-      accountIconURL: "https://example.com/img",
-      username: "exampleuser",
-      authToken: "abc-123",
+    const expected: PageData = {
+      loggedIn: true,
+      user: {
+        userID: "t2_abc",
+        hasPremium: true,
+        accountIconURL: "https://example.com/img",
+        username: "exampleuser",
+      },
+      auth: {
+        token: "abc-123",
+        expires: new Date("2023-01-01T00:00:00.000Z"),
+      },
     };
     await expect(fetchPageData()).resolves.toStrictEqual(expected);
     expect(fetch).toBeCalledTimes(1);
@@ -97,7 +105,7 @@ describe("fetchPageData()", () => {
         text: async () => htmlWithLoggedOutUser,
       } as Response);
 
-      await expect(fetchPageData()).resolves.toBeUndefined();
+      await expect(fetchPageData()).resolves.toEqual({ loggedIn: false });
     }
   );
 

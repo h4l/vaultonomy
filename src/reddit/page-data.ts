@@ -7,7 +7,7 @@ import { HTTPResponseError } from "../errors/http";
 // going on, so it's smaller & faster (than say the homepage).
 export const DEFAULT_PAGE_DATA_URL = "https://www.reddit.com/coins";
 
-const PageData = z.object({
+const RawPageData = z.object({
   user: z.object({
     account: z
       .object({
@@ -22,22 +22,36 @@ const PageData = z.object({
   }),
   session: z
     .object({
-      accessToken: z.string().nullish(),
+      accessToken: z.string(),
+      expires: z.coerce.date(),
     })
     .nullish(),
 });
 
-export interface InPageRedditUser {
+export type PageData = AnonPageData | UserPageData;
+export interface AnonPageData {
+  loggedIn: false;
+}
+export interface UserPageData {
+  loggedIn: true;
+  user: RedditUser;
+  auth: RedditUserAPICredentials;
+}
+export interface RedditUserAPICredentials {
+  token: string;
+  expires: Date;
+}
+
+export interface RedditUser {
   userID: string;
   username: string;
   hasPremium: boolean;
   accountIconURL: string;
-  authToken: string;
 }
 
 export async function fetchPageData(
   pageUrl: string = DEFAULT_PAGE_DATA_URL
-): Promise<InPageRedditUser | undefined> {
+): Promise<PageData> {
   const response = await fetch(pageUrl);
   if (!response.ok) {
     throw new HTTPResponseError(`Request for data-containing page failed`, {
@@ -45,25 +59,28 @@ export async function fetchPageData(
     });
   }
   const json = parsePageJSONData(await response.text());
-  let pageData;
-  try {
-    pageData = PageData.parse(json);
-  } catch (e) {
+  const raw = RawPageData.safeParse(json);
+  if (!raw.success) {
     throw new Error(`page #data JSON value is not structured as expected`, {
-      cause: e,
+      cause: raw.error,
     });
   }
-  if (!pageData.user.account || !pageData.session?.accessToken) {
-    // not logged in
-    return undefined;
-  }
-  const account = pageData.user.account;
+
+  // not logged in
+  if (!raw.data.user.account || !raw.data.session) return { loggedIn: false };
+
   return {
-    userID: account.id,
-    username: account.displayText,
-    accountIconURL: account.accountIcon,
-    hasPremium: account.isGold,
-    authToken: pageData.session.accessToken,
+    loggedIn: true,
+    user: {
+      userID: raw.data.user.account.id,
+      username: raw.data.user.account.displayText,
+      accountIconURL: raw.data.user.account.accountIcon,
+      hasPremium: raw.data.user.account.isGold,
+    },
+    auth: {
+      token: raw.data.session.accessToken,
+      expires: raw.data.session.expires,
+    },
   };
 }
 
