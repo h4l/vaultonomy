@@ -27,15 +27,29 @@ export function defineMethod<
   };
 }
 
+type RCPMethodCaller<
+  Params extends z.ZodTypeAny,
+  Returns extends z.ZodTypeAny
+> = Params extends z.ZodNull
+  ? () => z.infer<Returns>
+  : (params: z.infer<Params>) => z.infer<Returns>;
+
 export function createRCPMethodCaller<
   Params extends z.ZodTypeAny,
   Returns extends z.ZodTypeAny
 >(options: {
   method: RPCMethodSpec<Params, Returns>;
   client: JSONRPCClient;
-}): (params: z.infer<Params>) => z.infer<Returns> {
+}): RCPMethodCaller<Params, Returns> {
   // implement() automatically validates params and the return value
-  return options.method.signature.implement(async (params) => {
+  const method = options.method.signature.implement(async (params) => {
     return await options.client.request(options.method.name, params);
   });
+
+  // Use 0-arg signature for null params
+  if (options.method.signature.parameters().safeParse([null]).success) {
+    type _Params = Parameters<typeof method>[0];
+    return (() => method(null as _Params)) as RCPMethodCaller<Params, Returns>;
+  }
+  return method as RCPMethodCaller<Params, Returns>;
 }

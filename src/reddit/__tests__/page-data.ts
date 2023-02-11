@@ -6,54 +6,7 @@ import {
   fetchPageData,
   parsePageJSONData,
 } from "../page-data";
-
-function pageDataLoggedIn(): Record<string, unknown> {
-  return {
-    other: { stuff: true },
-    user: {
-      other: { stuff: true },
-      account: {
-        other: { stuff: true },
-        id: "t2_abc",
-        isGold: true,
-        accountIcon: "https://example.com/img",
-        displayText: "exampleuser",
-      },
-    },
-    session: {
-      accessToken: "abc-123",
-      expires: "2023-01-01T00:00:00.000Z",
-    },
-  };
-}
-function pageDataLoggedOut(): Record<string, unknown>[] {
-  return [
-    {
-      other: { stuff: true },
-      user: {
-        account: null,
-      },
-      session: {
-        accessToken: "abc-123",
-        expires: "2023-01-01T00:00:00.000Z",
-      },
-    },
-    {
-      other: { stuff: true },
-      user: {
-        account: null,
-        session: {},
-      },
-    },
-    {
-      other: { stuff: true },
-      user: {
-        account: null,
-        session: null,
-      },
-    },
-  ];
-}
+import { pageDataLoggedIn, pageDataLoggedOut } from "./page-data.fixtures";
 
 const html = (pageData: Record<string, unknown>) => `\
 <!DOCTYPE html><html lang="en-US">

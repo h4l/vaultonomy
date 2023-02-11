@@ -3,66 +3,13 @@ import { jest } from "@jest/globals";
 import { assert } from "../../assert";
 import { HTTPResponseError } from "../../errors/http";
 import {
-  RedditEIP712Challenge,
   createAddressOwnershipChallenge,
   getRedditAccountVaultAddress,
   registerAddressWithAccount,
 } from "../api-client";
+import { redditEIP712Challenge } from "./api-client.fixtures";
 
-const exampleChallenge = (): RedditEIP712Challenge => ({
-  domain: {
-    chainId: "0x1",
-    name: "reddit",
-    salt: "reddit-sIvILoedIcisHANTEmpE",
-    verifyingContract: "",
-    version: "1",
-  },
-  message: {
-    address: "0x0000000000000000000000000000000000000000",
-    expiresAt: "2023-01-01T00:00:00Z",
-    nonce: "fkldsfjlksdafj",
-    redditUserName: "example",
-  },
-  primaryType: "Challenge",
-  types: {
-    Challenge: [
-      {
-        name: "address",
-        type: "address",
-      },
-      {
-        name: "nonce",
-        type: "string",
-      },
-      {
-        name: "expiresAt",
-        type: "string",
-      },
-      {
-        name: "redditUserName",
-        type: "string",
-      },
-    ],
-    EIP712Domain: [
-      {
-        name: "name",
-        type: "string",
-      },
-      {
-        name: "chainId",
-        type: "uint256",
-      },
-      {
-        name: "version",
-        type: "string",
-      },
-      {
-        name: "salt",
-        type: "string",
-      },
-    ],
-  },
-});
+const exampleChallenge = redditEIP712Challenge;
 
 describe("createAddressOwnershipChallenge()", () => {
   test("handles successful request", async () => {
