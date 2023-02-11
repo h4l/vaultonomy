@@ -4,5 +4,8 @@
 !.git
 !.gitignore
 !.swcrc
+!.vscode
 dist
 node_modules
+.vscode/*
+!.vscode/launch.example.json
