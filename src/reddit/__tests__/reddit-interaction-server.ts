@@ -2,7 +2,7 @@ import { describe, expect, jest, test } from "@jest/globals";
 import {
   JSONRPCClient,
   JSONRPCErrorException,
-  JSONRPCServerAndClient,
+  JSONRPCServer,
 } from "json-rpc-2.0";
 
 import { HTTPResponseError } from "../../errors/http";
@@ -41,18 +41,15 @@ const {
 } = await import("../api-client");
 
 describe("createServerSession()", () => {
-  let server: JSONRPCServerAndClient;
+  let server: JSONRPCServer;
   let client: JSONRPCClient;
 
   beforeEach(() => {
     jest.setSystemTime(new Date("2023-01-01T00:00:00Z"));
-    server = createServerSession({
-      sendRequestViaTransport: async (payload) => {
-        client.receive(payload);
-      },
-    });
+    server = createServerSession();
     client = new JSONRPCClient(async (payload) => {
-      await server.receiveAndSend(payload);
+      const resp = await server.receive(payload);
+      if (resp !== null) client.receive(resp);
     });
 
     // default API mock implementations

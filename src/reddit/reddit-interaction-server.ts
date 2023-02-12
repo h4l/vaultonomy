@@ -2,13 +2,7 @@
  * This is the server side of our reddit interaction RPC protocol. It's a client
  * of Reddit, but a server from the point of view of our application!
  */
-import {
-  JSONRPCClient,
-  JSONRPCErrorException,
-  JSONRPCServer,
-  JSONRPCServerAndClient,
-  SendRequest,
-} from "json-rpc-2.0";
+import { JSONRPCErrorException, JSONRPCServer } from "json-rpc-2.0";
 
 import {
   createAddressOwnershipChallenge,
@@ -27,16 +21,20 @@ import {
 export const SESSION_EXPIRY_SLOP = 1000 * 60 * 5;
 
 export function createServerSession<
-  ServerParams = void,
-  ClientParams = void
->(options: {
-  sendRequestViaTransport: SendRequest<ClientParams>;
-}): JSONRPCServerAndClient<ServerParams, ClientParams> {
-  const service = new JSONRPCServerAndClient<ServerParams, ClientParams>(
-    new JSONRPCServer({ errorListener: () => undefined }),
-    new JSONRPCClient(options.sendRequestViaTransport)
-  );
+  ServerParams = void
+>(): JSONRPCServer<ServerParams> {
+  // Currently there's no need to reddit -> extension notification. The only
+  // thing we need to notify of is the Reddit tab closing, but that disconnects
+  // the Port we use for message transport, which notifies the client end.
+  // If we did need to send notifications we can use JSONRPCServerAndClient in
+  // place of JSONRPCServer.
+  const service = new JSONRPCServer<ServerParams>({
+    errorListener: () => undefined,
+  });
 
+  // TODO: we could cache this and re-use it — fetchPageData() shouldn't change
+  //   as long as the same user is logged in, and it's probably the slowest
+  //   request we make.
   let _sessionData: Promise<PageData> | undefined;
   const getSession = async (): Promise<UserPageData> => {
     if (_sessionData === undefined) {
@@ -59,14 +57,14 @@ export function createServerSession<
     return sessionData;
   };
 
-  service.server.addMethod(
+  service.addMethod(
     RedditGetUserProfile.name,
     RedditGetUserProfile.signature.implement(async () => {
       const session = await getSession();
       return session.user;
     })
   );
-  service.server.addMethod(
+  service.addMethod(
     RedditCreateAddressOwnershipChallenge.name,
     RedditCreateAddressOwnershipChallenge.signature.implement(
       async (params) => {
@@ -78,7 +76,7 @@ export function createServerSession<
       }
     )
   );
-  service.server.addMethod(
+  service.addMethod(
     RedditRegisterAddressWithAccount.name,
     RedditRegisterAddressWithAccount.signature.implement(async (params) => {
       const session = await getSession();
@@ -90,7 +88,7 @@ export function createServerSession<
       return null;
     })
   );
-  service.server.addMethod(
+  service.addMethod(
     RedditGetAccountVaultAddress.name,
     RedditGetAccountVaultAddress.signature.implement(async () => {
       const session = await getSession();
