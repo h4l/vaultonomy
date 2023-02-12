@@ -3,7 +3,6 @@ import {
   JSONRPCRequest,
   JSONRPCResponse,
   JSONRPCServer,
-  JSONRPCServerAndClient,
   SendRequest,
 } from "json-rpc-2.0";
 
@@ -61,35 +60,5 @@ export function bindPortToJSONRPCClient({
 
   return () => {
     unbind("JSONRPCClient was unbound from Port");
-  };
-}
-
-export function bindPortToJSONRPCServerAndClient({
-  port,
-  serverAndClient,
-}: {
-  port: chrome.runtime.Port;
-  serverAndClient: JSONRPCServerAndClient;
-}): Unbind {
-  let disconnected = false;
-  const unbind = (message: string) => {
-    if (disconnected) return;
-    port.onDisconnect.removeListener(onDisconnect);
-    port.onMessage.removeListener(onMessage);
-    serverAndClient.rejectAllPendingRequests(message);
-    disconnected = true;
-  };
-  const onDisconnect = () => {
-    unbind("Port is disconnected");
-  };
-  const onMessage = (message: unknown) => {
-    serverAndClient.receiveAndSend(message);
-  };
-
-  port.onDisconnect.addListener(onDisconnect);
-  port.onMessage.addListener(onMessage);
-
-  return () => {
-    unbind("JSONRPCServerAndClient was unbound from Port");
   };
 }
