@@ -15,6 +15,8 @@ import { RedditEIP712Challenge } from "./api-client";
 // Because of JSON serialisation, we generally need to use null rather than
 // undefined in these types.
 
+export const REDDIT_INTERACTION = "reddit-interaction";
+
 export enum ErrorCode {
   USER_NOT_LOGGED_IN = 0,
   SESSION_EXPIRED = 1,
