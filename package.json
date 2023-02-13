@@ -4,14 +4,19 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "typecheck": "tsc",
-    "lint": "eslint src",
+    "build": "npm run check && rollup -c --configPlugin @rollup/plugin-typescript --environment BUILD:production",
+    "check": "npm run typecheck && npm run lint",
     "dev:watch": "rollup -c --configPlugin @rollup/plugin-typescript --environment BUILD:development --watch",
-    "build": "npm run typecheck && npm run lint && rollup -c --configPlugin @rollup/plugin-typescript --environment BUILD:production",
-    "test": "NODE_OPTIONS=--experimental-vm-modules npx jest"
+    "lint": "eslint src *.ts",
+    "test": "NODE_OPTIONS=--experimental-vm-modules npx jest",
+    "typecheck": "tsc"
   },
   "dependencies": {
+    "@typescript-eslint/eslint-plugin": "^5.51.0",
+    "@typescript-eslint/parser": "^5.51.0",
     "buffer": "^6.0.3",
+    "eslint": "^8.34.0",
+    "eslint-plugin-react": "^7.32.2",
     "ethers": "^5.7.2",
     "jest": "^29.4.2",
     "json-rpc-2.0": "^1.4.2",
