@@ -1,10 +1,47 @@
 import { assert } from "./assert";
 import { browser } from "./webextension";
 
+/*
+Tab connection strategy
+-----------------------
+
+There are 4 main ways we could approach establishing communication with Reddit:
+
+1. Include an iframe hosting a Reddit page in our UI
+  - Reddit (quite sensibly) uses X-Frame-Options to prevent being loaded in
+    iframes.
+  - iframe would go away if our UI was closed — couldn't maintain background
+    connections.
+2. Request global host permissions for reddit.com
+  - Simplest to implement, but the extension always has access to all reddit
+    pages, which is not necessary
+3. Use an optional host permission for reddit.com and request it when active.
+   possibly auto-revoke it when not active, or after some delay.
+  - More complex than 2, and potentially annoying for users to be prompted to
+    grant access.
+  - Grants access to all reddit tabs, not just a single tab
+4. Use activeTab permission require that the user trigger the extension on a
+   reddit tab.
+  - Good for privacy, as the extension has no access until triggered, and
+    closing the tab cuts off the access.
+  - No need for permission requests, either at install or runtime
+  - Potential for bad UX when opening the extension when a reddit tab is not
+    active. Or when the extension is active, but the tab the user started on is
+    closed.
+
+The Headgear extension uses 4 in conjunction with a popup window. That works
+well, as the popup can't stay open if the tab is changed. Here we're using
+either separate full tabs/windows or the sidebar, which allows the lifetime of
+the extension UI to outlive the reddit tab. Still, my feeling is that 4 is still
+a good option. Using a sidebar by default should tie the extension to a tab from
+a user POV.
+*/
+
 // const entry = await import.meta.resolve('page-entry.ts')
 
 // let window: Promise<browser.Windows.Window> | undefined;
 const activeTabs = new Set<chrome.tabs.Tab>();
+const popupTabs: chrome.tabs.Tab[] = [];
 
 export function handleAvailabilityConnections() {
   browser.runtime.onConnect.addListener((port) => {
@@ -70,18 +107,34 @@ export async function connectToActiveRedditTab(
   }
 }
 
-let popupWindow: Promise<chrome.tabs.Tab> | undefined;
+function discoverRedditTab() {
+  chrome.tabs.onUpdated.addListener(async (tabId, info, tab) => {
+    console.log("onUpdated", { url: tab.url, tabId, info, tab });
+  });
+}
+
+// let popupWindow: Promise<chrome.tabs.Tab> | undefined;
 
 // TODO: store a list of opened tabs to restore, as browser.tabs.query does not
 // seem to return extension page tabs.
 
 export async function main() {
   console.log("background main");
+  discoverRedditTab();
   handleAvailabilityConnections();
 
   browser.action.onClicked.addListener(async (tab) => {
     console.log("action clicked");
     if (!tab.id) return;
+
+    console.log("Opening side panel");
+    chrome.sidePanel.setOptions({
+      enabled: true,
+      path: "popup.html",
+      tabId: tab.id,
+    });
+    chrome.sidePanel.open({ windowId: tab.windowId });
+
     console.log("connecting #1");
     connectToActiveRedditTab(tab);
     console.log("connecting #2");
@@ -109,29 +162,32 @@ export async function main() {
     });
     console.log("allWindowtabs", allWindowtabs);
 
-    const existingTabs = await browser.tabs.query({
-      url: browser.runtime.getURL("/*"),
-      currentWindow: true,
-    });
+    // Seems to always be empty
+    // const existingTabs = await browser.tabs.query({
+    //   url: browser.runtime.getURL("/*"),
+    //   currentWindow: true,
+    // });
     //.filter((t) => typeof t.id === "number");
+    const existingTabs = popupTabs;
     console.log("existingTabs:", existingTabs, browser.runtime.getURL("/*"));
 
     if (existingTabs.length === 0) {
-      browser.tabs.create({ url: "/popup.html" });
+      existingTabs.push(await browser.tabs.create({ url: "/popup.html" }));
     } else {
       // Find the closest tab
       const activeTab = await browser.tabs.query({
         active: true,
         currentWindow: true,
       });
-      const activeTabIndex = activeTab.at(0)?.index ?? 0;
-      existingTabs.sort((a, b) => {
-        const distanceA = Math.abs(a.index - activeTabIndex);
-        const distanceB = Math.abs(b.index - activeTabIndex);
-        return distanceA - distanceB;
-      });
+      // const activeTabIndex = activeTab.at(0)?.index ?? 0;
+      // existingTabs.sort((a, b) => {
+      //   const distanceA = Math.abs(a.index - activeTabIndex);
+      //   const distanceB = Math.abs(b.index - activeTabIndex);
+      //   return distanceA - distanceB;
+      // });
       const id = existingTabs[0].id;
       assert(typeof id === "number");
+      console.log("Activating first tab from:", existingTabs[0]);
       chrome.tabs.update(id, { active: true });
     }
 
