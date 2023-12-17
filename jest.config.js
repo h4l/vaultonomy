@@ -3,7 +3,18 @@ export default {
   testEnvironment: "jsdom",
   testPathIgnorePatterns: [".(fixtures|mock|utils).tsx?$"],
   transform: {
-    "^.+\\.(t|j)sx?$": ["@swc/jest"],
+    "^.+\\.(t|j)sx?$": [
+      "@swc/jest",
+      {
+        jsc: {
+          transform: {
+            react: {
+              runtime: "automatic",
+            },
+          },
+        },
+      },
+    ],
   },
   extensionsToTreatAsEsm: [".ts", ".tsx"],
   setupFilesAfterEnv: ["<rootDir>/jest-setup.ts"],

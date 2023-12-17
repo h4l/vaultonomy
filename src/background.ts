@@ -80,6 +80,9 @@ async function investigateActiveTabQueryResults() {
     "seen active reddit tabs:",
     [...activeTabs]
   );
+
+async function loadReddit() {
+  (await import(chrome.runtime.getURL("reddit.js"))).main();
 }
 
 export async function connectToActiveRedditTab(
@@ -96,7 +99,7 @@ export async function connectToActiveRedditTab(
   try {
     await browser.scripting.executeScript({
       target: { tabId: tab.id },
-      files: ["/reddit.js"],
+      func: loadReddit,
     });
   } catch (e) {
     console.log(
