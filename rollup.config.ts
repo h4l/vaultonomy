@@ -1,14 +1,26 @@
 import commonjs from "@rollup/plugin-commonjs";
 import { nodeResolve } from "@rollup/plugin-node-resolve";
 import typescript from "@rollup/plugin-typescript";
-// import * as html from "@web/rollup-plugin-html/index.mjs";
+// import * as html from "@web/rollup-plugin-html";
+import { rollupPluginHTML as html } from "@web/rollup-plugin-html";
 import merge from "deepmerge";
 import { RollupOptions, defineConfig } from "rollup";
 import copy from "rollup-plugin-copy";
+import postcss from "rollup-plugin-postcss";
 import { fileURLToPath } from "url";
 
 const commonConfig: RollupOptions = {
-  plugins: [typescript(), commonjs(), nodeResolve({ browser: true })],
+  plugins: [
+    postcss({
+      config: {
+        path: fileURLToPath(new URL("./postcss.config.js", import.meta.url)),
+        ctx: {},
+      },
+    }),
+    typescript(),
+    commonjs(),
+    nodeResolve({ browser: true }),
+  ],
   output: {
     dir: "dist",
     entryFileNames: "[name].js",
@@ -44,9 +56,9 @@ export default [
         entryFileNames: "[name].js",
       },
       plugins: [
-        // html({
-        //   input: fileURLToPath(new URL("./html/popup.html", import.meta.url)),
-        // }),
+        html({
+          input: fileURLToPath(new URL("./html/*.html", import.meta.url)),
+        }),
         copy({
           targets: [{ src: "public/manifest.json", dest: "dist/" }],
         }),
