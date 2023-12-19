@@ -1,8 +1,15 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-  content: ["./src/**/*.{tsx}", "./html/**/*.html"],
+  content: ["./src/**/*.{ts,tsx}", "./html/**/*.html"],
   theme: {
-    extend: {},
+    extend: {
+      zIndex: {
+        100: "100",
+      },
+      backdropGrayscale: {
+        85: ".85",
+      },
+    },
   },
   plugins: [],
 };
