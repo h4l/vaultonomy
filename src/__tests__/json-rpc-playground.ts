@@ -44,7 +44,7 @@ describe("JSON RPC", () => {
       new JSONRPCClient(async (payload) => {
         const resp = await barSide.server.receive(payload);
         if (resp) fooSide.client.receive(resp);
-      })
+      }),
     );
 
     const barSide = new JSONRPCServerAndClient(
@@ -52,10 +52,10 @@ describe("JSON RPC", () => {
       new JSONRPCClient(async (payload) => {
         const resp = await fooSide.server.receive(payload);
         if (resp) barSide.client.receive(resp);
-      })
+      }),
     );
 
-    let subscription: NodeJS.Timer;
+    let subscription: NodeJS.Timeout;
     fooSide.server.addMethod(
       "subscribe",
       ({ a, b }: { a: number; b: number }) => {
@@ -63,7 +63,7 @@ describe("JSON RPC", () => {
         subscription = setInterval(() => {
           fooSide.client.notify("someEvent", { detail: (value += b) });
         }, 0);
-      }
+      },
     );
 
     let unsubscribed = false;
