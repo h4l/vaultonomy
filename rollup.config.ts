@@ -70,7 +70,7 @@ export default defineConfig({
     }),
     importFileAsString({
       include: [
-        fileURLToPath(new URL("./html/*.html", import.meta.url)),
+        fileURLToPath(new URL("./src/html/*.html", import.meta.url)),
         fileURLToPath(new URL("./src/img/*.svg", import.meta.url)),
       ],
     }),
@@ -81,7 +81,7 @@ export default defineConfig({
     copy({
       targets: [
         { src: "public/*", dest: "dist/" },
-        { src: "src/html/*.html", dest: "dist/" },
+        { src: "src/html/ui.html", dest: "dist/" },
         { src: "src/img/*.svg", dest: "dist/img/" },
       ],
     }),
