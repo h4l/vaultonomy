@@ -1,6 +1,6 @@
 {
   "name": "Reddit Vault Extension",
-  "image": "mcr.microsoft.com/devcontainers/typescript-node:0-18",
+  "image": "mcr.microsoft.com/devcontainers/base:bookworm",
 
   "mounts": [
     // If you're not using a bind mount for the workspace, you probably want to
@@ -8,6 +8,10 @@
     // browser as a development-mode extension. E.g:
     "source=${localEnv:HOME}/Documents/projects/hal/reddit-vault/dist,target=${containerWorkspaceFolder}/dist,type=bind,consistency=delegated"
   ],
+
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {}
+  },
 
   "customizations": {
     "vscode": {
