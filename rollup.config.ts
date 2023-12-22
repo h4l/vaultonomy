@@ -4,6 +4,7 @@ import replace from "@rollup/plugin-replace";
 import typescript from "@rollup/plugin-typescript";
 import { FilterPattern, createFilter } from "@rollup/pluginutils";
 import autoprefixer from "autoprefixer";
+import atImport from "postcss-import";
 import { defineConfig } from "rollup";
 import type { Plugin, TransformPluginContext, TransformResult } from "rollup";
 import copy from "rollup-plugin-copy";
@@ -57,7 +58,7 @@ export default defineConfig({
   },
   plugins: [
     postcss({
-      plugins: [tailwindcss, autoprefixer],
+      plugins: [atImport, tailwindcss, autoprefixer],
     }),
     typescript(),
     commonjs(),
