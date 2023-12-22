@@ -6,7 +6,6 @@ import "./css/main.css";
 import App from "./ui/App";
 
 const el = document.createElement("div");
-// el.className = "min-h-full";
 document.body.append(el);
 const root = createRoot(el);
 root.render(

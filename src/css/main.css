@@ -1,3 +1,15 @@
 @tailwind base;
+
+@layer base {
+  body {
+    @apply bg-neutral-50 text-neutral-900 dark:bg-neutral-900 dark:text-neutral-100;
+    /* Tailwind doesn't apply the normal font weight by default */
+    @apply font-normal;
+    /* Brave injects rules for body for sidebars, They override Tailwind's text size and font family. */
+    @apply text-base font-sans;
+  }
+  }
+}
+
 @tailwind components;
 @tailwind utilities;
