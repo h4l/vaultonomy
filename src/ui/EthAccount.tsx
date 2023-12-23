@@ -1,42 +1,40 @@
-import React from "react";
+import React, { useId } from "react";
+
+import { Heading } from "./Heading";
 
 export function EthAccount({
+  title,
   ethAddress,
   ensName,
-  header,
   footer,
 }: {
+  title: string;
   ethAddress: string;
   ensName?: string;
-  header?: React.ReactNode;
   footer?: React.ReactNode;
 }): JSX.Element {
   return (
-    <div className="grid gap-x-8 grid-cols-[auto_1fr]">
-      {header ? (
-        <div key="0" className="row-start-1 col-start-2">
-          {header}
-        </div>
-      ) : undefined}
+    <section className="grid gap-x-8 grid-cols-[auto_1fr]">
+      <Heading className="row-start-1 col-start-2">{title}</Heading>
       {ensName ? (
-        <span key="1" className="row-start-2 col-start-2 text-xl">
+        <p className="row-start-2 col-start-2 text-xl" title="">
+          <span className="sr-only">ENS name: </span>
           {ensName}
-        </span>
+        </p>
       ) : undefined}
-      <span key="3" className="row-start-3 text-4xl">
+      {/* Negative top margin is a slight hack to make the 0x baseline align
+          with the first hex digit row. */}
+      <span className="row-start-3 text-4xl -mt-2" aria-hidden="true">
         0x
       </span>
       <EthAddressHexPairs
-        key="4"
         className="row-start-3 text-xl"
         ethAddress={ethAddress}
       />
       {footer ? (
-        <div key="5" className="row-start-4 col-start-2">
-          {footer}
-        </div>
+        <div className="row-start-4 col-start-2">{footer}</div>
       ) : undefined}
-    </div>
+    </section>
   );
 }
 
@@ -51,9 +49,16 @@ export function EthAddressHexPairs({
     throw new Error(`address is not an Ethereum address`);
   }
   const hexPairs = [...Array(20).keys()].map((i) => (
-    <span key={i}>{ethAddress.substring(i * 2 + 2, i * 2 + 4)}</span>
+    <span key={i} _aria-hidden="true">
+      {ethAddress.substring(i * 2 + 2, i * 2 + 4)}
+    </span>
   ));
   return (
-    <div className={`grid grid-cols-5 ${className || ""}`}>{hexPairs}</div>
+    <div role="document" className={className}>
+      <p className="sr-only">Ethereum address: {ethAddress}</p>
+      <div aria-hidden="true" className="grid grid-cols-5">
+        {hexPairs}
+      </div>
+    </div>
   );
 }

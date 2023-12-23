@@ -1,3 +1,5 @@
+import { useId } from "react";
+
 import { RedditUserProfile } from "../reddit/reddit-interaction-spec";
 import { UserAvatar } from "./UserAvatar";
 
@@ -6,13 +8,17 @@ export function UserProfile({
 }: {
   profile?: RedditUserProfile;
 }): JSX.Element {
+  const id = useId();
   return (
-    <div className="flex flex-col items-center">
+    <section aria-describedby={id} className="flex flex-col items-center">
+      <h2 id={id} className="sr-only">
+        Reddit User
+      </h2>
       <UserAvatar className="w-40" avatarUrl={profile?.accountIconURL} />
       {profile ? (
         <Username username={profile.username} hasPremium={profile.hasPremium} />
       ) : undefined}
-    </div>
+    </section>
   );
 }
 
@@ -24,21 +30,39 @@ function Username({
   hasPremium: boolean;
 }): JSX.Element {
   return (
-    <h2 className="text-lg mt-2 text-center relative">
-      <span className="text-sm font-medium">u</span>/
-      {username ? <span aria-label="Reddit Username">{username}</span> : "???"}
+    <dl className="text-lg mt-2 text-center relative">
+      <dt className="sr-only">Username</dt>
+      <dd>
+        <span aria-hidden="true">
+          <span className="text-sm font-medium">u</span>/
+        </span>
+        {username ? <span>{username}</span> : "???"}
+      </dd>
       {hasPremium ? (
-        // Icon sits to the right of username without affecting the username's
-        // central position.
-        <RedditPremiumIcon className="inline absolute top-1/2 translate-x-1 -translate-y-1/2" />
+        <>
+          <dt className="sr-only">User type</dt>
+          <dd>
+            <span className="sr-only">Reddit Premium User</span>
+            <RedditPremiumIcon className="inline absolute top-1/2 -right-[20px] translate-x-1 -translate-y-1/2" />
+          </dd>
+        </>
       ) : undefined}
-    </h2>
+    </dl>
   );
+  // <h2 className="text-lg mt-2 text-center relative">
+  //   <span aria-role="text" aria-description="Reddit Username"></span>
+  //   {hasPremium ? (
+  //     // Icon sits to the right of username without affecting the username's
+  //     // central position.
+  //     <RedditPremiumIcon className="inline absolute top-1/2 translate-x-1 -translate-y-1/2" />
+  //   ) : undefined}
+  // </h2>
 }
 
 function RedditPremiumIcon({ className }: { className?: string }): JSX.Element {
   return (
     <svg
+      aria-hidden="true"
       className={className}
       xmlns="http://www.w3.org/2000/svg"
       width="20"
@@ -46,7 +70,7 @@ function RedditPremiumIcon({ className }: { className?: string }): JSX.Element {
       viewBox="0 0 20 21"
       fill="none"
     >
-      <title>Reddit Premium User</title>
+      <title>Reddit Premium Logo</title>
       <g clipPath="url(#clip0_24_139)">
         <path
           d="M20 10.368C20 4.84513 15.5228 0.367981 10 0.367981C4.47715 0.367981 0 4.84513 0 10.368C0 15.8908 4.47715 20.368 10 20.368C15.5228 20.368 20 15.8908 20 10.368Z"

@@ -7,7 +7,7 @@ import { VaultonomyLogo } from "./VaultonomyLogo";
 export default function App() {
   return (
     <>
-      <main className="">
+      <main>
         <header className="mt-32 mb-16 w-72 max-w-full mx-auto">
           <VaultonomyLogo className="" />
         </header>
@@ -26,9 +26,9 @@ export default function App() {
 
         <div className="m-10 flex flex-col justify-center items-center">
           <EthAccount
+            title="Reddit Vault"
             ethAddress="0xd2A2B709af3B6d0bba1cCbd1edD65f353aA42C66"
             ensName="h-a-l.eth"
-            header={<Heading>Reddit Vault</Heading>}
             footer={<span>Paired 5 minutes ago</span>}
           />
         </div>
