@@ -9,6 +9,7 @@ export function UserAvatar({
 }) {
   return (
     <svg
+      aria-hidden={avatarUrl === undefined}
       className={className}
       viewBox="0 0 308 372"
       fill="none"
