@@ -1,16 +1,15 @@
 import { Button } from "./Button";
 import { EthAccount } from "./EthAccount";
-import { Heading } from "./Heading";
 import { UserProfile } from "./UserProfile";
 import { VaultonomyLogo } from "./VaultonomyLogo";
 
 export default function App() {
   return (
     <>
+      <header className="mt-32 mb-16 w-72 max-w-full mx-auto">
+        <VaultonomyLogo className="" />
+      </header>
       <main>
-        <header className="mt-32 mb-16 w-72 max-w-full mx-auto">
-          <VaultonomyLogo className="" />
-        </header>
         <UserProfile
           profile={{
             hasPremium: true,
@@ -29,7 +28,11 @@ export default function App() {
             title="Reddit Vault"
             ethAddress="0xd2A2B709af3B6d0bba1cCbd1edD65f353aA42C66"
             ensName="h-a-l.eth"
-            footer={<span>Paired 5 minutes ago</span>}
+            footer={
+              <span aria-label="status" className="italic text-sm my-4">
+                Paired 5 minutes ago
+              </span>
+            }
           />
         </div>
 
