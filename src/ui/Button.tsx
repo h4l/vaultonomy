@@ -1,3 +1,5 @@
+import { DOMAttributes, DetailedHTMLProps } from "react";
+
 export function Button({
   children,
   className,
@@ -20,6 +22,21 @@ export function Button({
     >
       {/* Push down the baseline for better vertical centering. */}
       <span className="inline-block pt-[0.125em]">{children}</span>
+    </button>
+  );
+}
+export function LinkButton({
+  children,
+  ...attrs
+}: {
+  children: React.ReactNode;
+} & JSX.IntrinsicElements["button"]): JSX.Element {
+  return (
+    <button
+      {...attrs}
+      className={`underline decoration-from-font ${attrs.className}`}
+    >
+      {children}
     </button>
   );
 }

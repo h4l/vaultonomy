@@ -17,7 +17,7 @@ export function EthAccount({
   return (
     <section
       aria-label={`${title} Ethereum address details`}
-      className="grid gap-x-4 gap-y-[0.125rem] grid-cols-[auto_1fr_1fr_1fr_1fr_1fr] items-end"
+      className="grid gap-x-4 gap-y-[0.125rem] grid-cols-[auto_auto_auto_auto_auto_1fr] items-end"
     >
       <Heading className="row-start-1 col-start-2 col-span-5">{title}</Heading>
       {ensName ? (
@@ -65,7 +65,7 @@ export function EthAddressHexPairs({
       <span
         key={i}
         aria-hidden="true"
-        className={`row-start-${row} col-start-${col} text-2xl`}
+        className={`row-start-${row} col-start-${col} text-2xl w-[1.4em]`}
       >
         {ethAddress.substring(i * 2 + 2, i * 2 + 4)}
       </span>
