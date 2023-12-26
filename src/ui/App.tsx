@@ -1,12 +1,14 @@
 import { Button, LinkButton } from "./Button";
 import { EthAccount } from "./EthAccount";
-import { HelpModal } from "./Help";
+import { HelpContext, HelpModal, useRootHelpState } from "./Help";
 import { UserProfile } from "./UserProfile";
 import { VaultonomyLogo } from "./VaultonomyLogo";
 
 export default function App() {
+  const help = useRootHelpState();
+
   return (
-    <>
+    <HelpContext.Provider value={help}>
       <header className="mt-32 mb-16 w-72 max-w-full mx-auto">
         <VaultonomyLogo className="" />
       </header>
@@ -55,7 +57,7 @@ export default function App() {
         <UserAvatar avatarUrl="https://i.redd.it/snoovatar/avatars/7d436c39-b6be-4e4b-8d42-5c51562e1095.png" /> */}
       </main>
 
-      <HelpModal initialState="closed" />
-    </>
+      <HelpModal />
+    </HelpContext.Provider>
   );
 }

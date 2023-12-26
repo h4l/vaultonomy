@@ -1,6 +1,98 @@
-import { useEffect, useRef, useState } from "react";
+import {
+  Reducer,
+  createContext,
+  useContext,
+  useEffect,
+  useReducer,
+  useRef,
+  useState,
+} from "react";
 
 import { assert } from "../assert";
+
+interface HelpItemSelectedAction {
+  type: "help-item-selected";
+  helpId: string;
+  helpText: string;
+}
+interface HelpItemDeselectedAction {
+  type: "help-item-deselected";
+  helpId: string;
+}
+interface HelpEnabledAction {
+  type: "help-enabled";
+}
+interface HelpDisabledAction {
+  type: "help-disabled";
+}
+
+type HelpAction =
+  | HelpItemSelectedAction
+  | HelpItemDeselectedAction
+  | HelpEnabledAction
+  | HelpDisabledAction;
+
+interface HelpItem {
+  helpId: string;
+  helpText: string;
+}
+
+interface HelpState {
+  dispatch: (action: HelpAction) => void;
+  helpEnabled: boolean;
+  selectedHelpItem?: HelpItem;
+}
+
+export const HelpContext = createContext<HelpState>({
+  dispatch(action) {
+    throw new Error(
+      "dispatch() called before HelpContext has been initialised"
+    );
+  },
+  helpEnabled: false,
+});
+
+function helpReducer(help: HelpState, action: HelpAction) {
+  switch (action.type) {
+    case "help-enabled": {
+      return { ...help, helpEnabled: true };
+    }
+    case "help-disabled": {
+      return { ...help, helpEnabled: false };
+    }
+    case "help-item-selected": {
+      return {
+        ...help,
+        selectedHelpItem: { helpId: action.helpId, helpText: action.helpText },
+      };
+    }
+    case "help-item-deselected": {
+      return {
+        ...help,
+        selectedHelpItem: undefined,
+      };
+    }
+    default: {
+      assert(false, "unknown action: " + JSON.stringify(action));
+    }
+  }
+}
+
+export function useRootHelpState(): HelpState {
+  const [help, dispatch] = useReducer<Reducer<HelpState, HelpAction>>(
+    helpReducer,
+    {
+      dispatch: (action) => dispatch(action),
+      helpEnabled: false,
+    }
+  );
+  return help;
+}
+
+export function HelpItem({ helpText }: { helpText: string }): JSX.Element {
+  const help = useContext(HelpContext);
+  return <></>;
+}
 
 function useWindowWidth(): number {
   const [width, setWidth] = useState(window.innerWidth);
@@ -14,21 +106,18 @@ function useWindowWidth(): number {
   return width;
 }
 
-export function HelpModal({
-  initialState,
-}: {
-  initialState: "closed" | "open";
-}): JSX.Element {
+export function HelpModal(): JSX.Element {
+  const help = useContext(HelpContext);
   const reservedSpace = useRef<HTMLDivElement>(null);
   const ref = useRef<HTMLElement>(null);
   const [reservedSpaceOnScreen, setReservedSpaceOnScreen] = useState(false);
   const [modalHeight, setModalHeight] = useState(0);
-  const [state, setState] = useState(initialState);
+  // const [state, setState] = useState(initialState);
   const [transitionState, setTransitionState] = useState<
     "at-end" | "at-start" | "started"
   >("at-end");
   const windowWidth = useWindowWidth();
-  const backgroundClasses = state === "closed" ? "" : "";
+  const selectedHelp = useContext(HelpContext);
 
   // Track whether the space under fixed footer (to allow scrolling to the bottom)
   // is on screen, so that we don't cause a jump by removing it when visible.
@@ -48,10 +137,13 @@ export function HelpModal({
     return () => observer.unobserve(el);
   }, [reservedSpace]);
 
-  // TODO: include dynamic content as a dependency
-  useEffect(() => {
-    setModalHeight(ref.current?.offsetHeight ?? 0);
-  }, [ref, windowWidth]); // include width as a dependency to recalculate on resize
+  useEffect(
+    () => {
+      setModalHeight(ref.current?.offsetHeight ?? 0);
+    },
+    // Include width & text as a dependency to recalculate on resize.
+    [ref, windowWidth, help.selectedHelpItem]
+  );
 
   // Apply styles for the slide in/out CSS transitions. For the transitions to
   // animate correctly, these need to be applied as side-effects to ensure the
@@ -63,7 +155,7 @@ export function HelpModal({
     // screen width that affect element height cause it to remain entirely
     // off/on screen when closed/open.
     if (transitionState === "at-start") {
-      if (state === "closed") {
+      if (!help.helpEnabled) {
         ref.current.style.top = `calc(100vh - ${ref.current.offsetHeight}px)`;
         ref.current.style.bottom = "";
       } else {
@@ -72,7 +164,7 @@ export function HelpModal({
       }
       setTransitionState("started");
     } else {
-      if (state === "closed") {
+      if (!help.helpEnabled) {
         ref.current.style.top = "100vh";
         ref.current.style.bottom = "";
       } else {
@@ -80,15 +172,19 @@ export function HelpModal({
         ref.current.style.bottom = "0px";
       }
     }
-  }, [state, transitionState, modalHeight]);
+  }, [help.helpEnabled, transitionState, modalHeight]);
 
   return (
+    // This outer div provides empty space under the modal footer so that the
+    // content can scroll all the way into view, above the modal footer.
+    // By transitioning height, the scroll bars don't jump when we add/remove
+    // the space.
     <div
       ref={reservedSpace}
-      className="h-0"
+      className="h-0 transition-[height] duration-1000"
       style={{
         height:
-          state === "open" || reservedSpaceOnScreen
+          help.helpEnabled || reservedSpaceOnScreen
             ? `${modalHeight}px`
             : undefined,
       }}
@@ -96,22 +192,24 @@ export function HelpModal({
       <aside
         ref={ref}
         aria-label="help"
-        className={`fixed w-full left-0 min-h-[5rem] p-4 flex flex-row justify-center
+        className="fixed w-full left-0 min-h-[5rem] p-4 flex flex-row justify-center
                   border-t border-dashed border-neutral-400 bg-white dark:bg-neutral-950
-                  transition-[top,bottom] ${backgroundClasses}`}
+                  transition-[top,bottom]"
         onTransitionEnd={() => setTransitionState("at-end")}
       >
         <button
           className="fixed left-0 bottom-0 drop-shadow
                    "
           onClick={() => {
-            setState(state === "closed" ? "open" : "closed");
+            help.dispatch({
+              type: help.helpEnabled ? "help-disabled" : "help-enabled",
+            });
             setTransitionState("at-start");
           }}
         >
           <div
             className={`p-4 clip-circle-35 bg-green-700 transition-all ${
-              state === "open" ? "text-neutral-100" : "bg-transparent"
+              help.helpEnabled ? "text-neutral-100" : "bg-transparent"
             }`}
           >
             <HelpIconLarge />
