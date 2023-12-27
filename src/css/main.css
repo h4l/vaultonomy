@@ -16,6 +16,14 @@
     /* Brave injects rules for body for sidebars, They override Tailwind's text size and font family. */
     @apply text-base font-sans;
   }
+
+  /* Focus style is used in lots of places, and we want the same style for
+     consistency, so seems worthwhile to do it once here. */
+  *:focus {
+    @apply outline-none;
+  }
+  *:focus-visible {
+    @apply outline-none outline-dashed outline-offset-4 outline-logo-background rounded-md;
   }
 }
 

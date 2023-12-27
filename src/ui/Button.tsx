@@ -16,7 +16,6 @@ export function Button({
         active:bg-white dark:active:bg-neutral-850
       hover:border-neutral-300 hover:border-l-neutral-400 hover:border-b-neutral-400 dark:hover:border-neutral-750 dark:hover:border-l-neutral-700 dark:hover:border-b-neutral-700
       active:shadow-solid-bottomleft active:shadow-neutral-500 dark:active:shadow-neutral-600
-      focus:outline-none focus-visible:outline-none focus-visible:outline-dashed focus-visible:outline-offset-4 focus-visible:outline-logo-background
       px-7 py-5
       text-4xl italic ${className || ""}`}
     >
