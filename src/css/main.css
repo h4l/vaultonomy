@@ -3,6 +3,12 @@
 @tailwind base;
 
 @layer base {
+  /* Webkit shows a light blue background when tapping elements on touch
+     devices. Looks janky. */
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+
   body {
     @apply bg-neutral-50 text-neutral-900 dark:bg-neutral-900 dark:text-neutral-100;
     /* Tailwind doesn't apply the normal font weight by default */
