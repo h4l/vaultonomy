@@ -131,7 +131,31 @@ function buttonPosition(
   return { top: `${(containerHeight * 0.9 - buttonHeight) / 2}px` };
 }
 
-export const HelpButton = forwardRef(function HelpButton(
+function ScreenReaderHelp({
+  helpId: _helpId,
+  helpText,
+  children,
+}: {
+  helpId?: string;
+  helpText: string;
+  children?: ReactNode;
+}): JSX.Element {
+  const help = useContext(HelpContext);
+  const helpId = _helpId ?? helpText;
+  const isPinned = getSelectedHelpItem(help, { helpId, mode: "pin" });
+  return (
+    <div
+      role="note"
+      aria-label={isPinned ? "pinned extra help" : "extra help"}
+      aria-hidden={help.helpEnabled ? undefined : "true"}
+    >
+      <span className="sr-only">{helpText}</span>
+      {children}
+    </div>
+  );
+}
+
+const HelpButton = forwardRef(function HelpButton(
   {
     helpId: _helpId,
     helpText,
@@ -168,7 +192,12 @@ export const HelpButton = forwardRef(function HelpButton(
   return (
     <button
       ref={ref}
-      className={`${help.helpEnabled ? "" : "hidden"}
+      aria-hidden={help.helpEnabled ? undefined : "true"}
+      aria-label={
+        isPinned ? "unpin help from help area" : "pin help to help area"
+      }
+      className={`group
+                  ${help.helpEnabled ? "" : "hidden"}
                   ${isSelected ? "drop-shadow" : ""}
                   ${className || ""}`}
       onClick={() => {
@@ -184,7 +213,8 @@ export const HelpButton = forwardRef(function HelpButton(
       onBlur={() => deselectForPreview()}
     >
       <div
-        className={`p-[0.125rem] bg-green-700 transition-all _ease-foo duration-300
+        className={`p-[0.125rem]  group-hover:scale-110 group-focus-visible:scale-110 group-active:scale-125
+                    bg-green-700 transition-all duration-300
         ${isPinned ? "clip-circle" : "clip-circle-40"}
         ${isSelected ? "text-neutral-100" : "bg-transparent"}`}
       >
@@ -210,7 +240,9 @@ export function WithInlineHelp({
 
   return (
     <div ref={container} className="relative">
-      <HelpButton ref={button} {...props} className="absolute -left-8" />
+      <ScreenReaderHelp helpText={props.helpText}>
+        <HelpButton ref={button} {...props} className="absolute -left-8" />
+      </ScreenReaderHelp>
       {children}
     </div>
   );
@@ -316,13 +348,18 @@ export function HelpModal(): JSX.Element {
       <aside
         ref={ref}
         aria-label="help"
-        className="fixed w-full left-0 min-h-[5rem] p-4 flex flex-row justify-center
-                  border-t border-dashed border-neutral-400 bg-white dark:bg-neutral-950
+        className="fixed w-full left-0 min-h-[5rem]
+                   flex flex-row justify-center
+                   p-4 pl-24 pr-8 lg:px-24
+                  border-t-2 border-dashed border-neutral-400 bg-white dark:bg-neutral-950
                   transition-[top,bottom]"
         onTransitionEnd={() => setTransitionState("at-end")}
       >
         <button
-          className={`fixed left-0 bottom-0
+          aria-label={
+            help.helpEnabled ? "Disable extra help" : "Enable extra help"
+          }
+          className={`fixed left-1 bottom-1 group focus-visible:outline-offset-0
           ${help.helpEnabled && selectedHelpItem ? "drop-shadow" : ""}`}
           onClick={() => {
             help.dispatch({
@@ -332,26 +369,59 @@ export function HelpModal(): JSX.Element {
           }}
         >
           <div
-            className={`p-4 transition-all
+            className={`p-3 transition-all duration-300
+                        group-hover:scale-110 group-focus-visible:scale-110 group-active:scale-125
             ${
               help.helpEnabled && selectedHelpItem
                 ? "bg-green-700 text-neutral-100"
                 : ""
             }
-            ${hasPinnedHelpItem ? "clip-circle-35" : "clip-circle-30"}
+            ${
+              hasPinnedHelpItem &&
+              selectedHelpItem?.helpId === help.pinnedHelpItem?.helpId
+                ? "clip-circle-39"
+                : "clip-circle-33"
+            }
             `}
+            // ${hasPinnedHelpItem ? "clip-circle-39" : "clip-circle-33"}
           >
             <HelpIconLarge />
           </div>
         </button>
         <div className="max-w-prose flex flex-col justify-center">
-          {selectedHelpItem ? (
-            <p>{selectedHelpItem.helpText}</p>
-          ) : (
-            <p>
-              Click a <HelpIcon className="inline" /> to show help.
+          {help.helpEnabled ? (
+            <p className="sr-only">
+              Extra help is currently enabled. Screen readers can find the help
+              alongside the items in the page. If an item's help is pinned it
+              will appear here.
             </p>
+          ) : (
+            <p className="sr-only">Extra help is currently disabled.</p>
           )}
+
+          <p
+            // Using role="status" could make sense here. We're not doing that
+            // because it causes the SR to read the contents of this element
+            // when it changes, and that's repetitive because we include help
+            // inline as a note.
+            role="note"
+            aria-hidden={help.helpEnabled ? undefined : "true"}
+            aria-label={
+              selectedHelpItem
+                ? "pinned help"
+                : "pinned help with nothing pinned"
+            }
+            aria-disabled={selectedHelpItem ? undefined : "true"}
+          >
+            {selectedHelpItem ? (
+              selectedHelpItem.helpText
+            ) : (
+              <i className="italic">
+                Press a <span className="sr-only">pin help button</span>
+                <HelpIcon className="inline" /> to show help here.
+              </i>
+            )}
+          </p>
         </div>
       </aside>
     </div>
