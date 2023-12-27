@@ -13,13 +13,17 @@ import {
 
 import { assert } from "../assert";
 
+type SelectionMode = "preview" | "pin";
+
 interface HelpItemSelectedAction {
   type: "help-item-selected";
+  mode: SelectionMode;
   helpId: string;
   helpText: string;
 }
 interface HelpItemDeselectedAction {
   type: "help-item-deselected";
+  mode: SelectionMode;
   helpId: string;
 }
 interface HelpEnabledAction {
@@ -43,7 +47,23 @@ interface HelpItem {
 interface HelpState {
   dispatch: (action: HelpAction) => void;
   helpEnabled: boolean;
-  selectedHelpItem?: HelpItem;
+  pinnedHelpItem?: HelpItem;
+  previewHelpItem?: HelpItem;
+}
+
+/** Return a HelpItem that's selected and matches the given helpId, or undefined. */
+function getSelectedHelpItem(
+  helpState: HelpState,
+  { helpId, mode }: { helpId?: string; mode?: SelectionMode } = {}
+): HelpItem | undefined {
+  const selected =
+    mode === "pin"
+      ? helpState.pinnedHelpItem
+      : mode === "preview"
+      ? helpState.previewHelpItem
+      : helpState.previewHelpItem ?? helpState.pinnedHelpItem;
+  if (helpId && selected?.helpId !== helpId) return undefined;
+  return selected;
 }
 
 export const HelpContext = createContext<HelpState>({
@@ -66,13 +86,17 @@ function helpReducer(help: HelpState, action: HelpAction) {
     case "help-item-selected": {
       return {
         ...help,
-        selectedHelpItem: { helpId: action.helpId, helpText: action.helpText },
+        [action.mode === "pin" ? "pinnedHelpItem" : "previewHelpItem"]: {
+          helpId: action.helpId,
+          helpText: action.helpText,
+        },
       };
     }
     case "help-item-deselected": {
       return {
         ...help,
-        selectedHelpItem: undefined,
+        [action.mode === "pin" ? "pinnedHelpItem" : "previewHelpItem"]:
+          undefined,
       };
     }
     default: {
@@ -121,7 +145,25 @@ export const HelpButton = forwardRef(function HelpButton(
 ): JSX.Element {
   const helpId = _helpId ?? helpText;
   const help = useContext(HelpContext);
-  const isSelected = help.selectedHelpItem?.helpId === helpId;
+  const isPinned =
+    getSelectedHelpItem(help, { helpId, mode: "pin" }) !== undefined;
+  const isSelected = getSelectedHelpItem(help, { helpId }) !== undefined;
+
+  function selectForPreview() {
+    help.dispatch({
+      type: "help-item-selected",
+      mode: "preview",
+      helpId,
+      helpText,
+    });
+  }
+  function deselectForPreview() {
+    help.dispatch({
+      type: "help-item-deselected",
+      mode: "preview",
+      helpId,
+    });
+  }
 
   return (
     <button
@@ -131,16 +173,20 @@ export const HelpButton = forwardRef(function HelpButton(
                   ${className || ""}`}
       onClick={() => {
         help.dispatch(
-          isSelected
-            ? { type: "help-item-deselected", helpId }
-            : { type: "help-item-selected", helpId, helpText }
+          isPinned
+            ? { type: "help-item-deselected", mode: "pin", helpId }
+            : { type: "help-item-selected", mode: "pin", helpId, helpText }
         );
       }}
+      onMouseEnter={() => selectForPreview()}
+      onMouseLeave={() => deselectForPreview()}
+      onFocus={() => selectForPreview()}
+      onBlur={() => deselectForPreview()}
     >
       <div
-        className={`p-[0.125rem] clip-circle bg-green-700 transition-all ${
-          isSelected ? "text-neutral-100" : "bg-transparent"
-        }`}
+        className={`p-[0.125rem] bg-green-700 transition-all _ease-foo duration-300
+        ${isPinned ? "clip-circle" : "clip-circle-40"}
+        ${isSelected ? "text-neutral-100" : "bg-transparent"}`}
       >
         <HelpIcon />
       </div>
@@ -156,12 +202,10 @@ export function WithInlineHelp({
   const button = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    console.log("WithInlineHelp useEffect:", container.current, button.current);
     if (!(container.current && button.current)) return;
     const ch = container.current.offsetHeight;
     const bh = button.current.offsetHeight;
     button.current.style.top = buttonPosition(ch, bh).top;
-    console.log("WithInlineHelp useEffect: top:", buttonPosition(ch, bh).top);
   });
 
   return (
@@ -186,6 +230,9 @@ function useWindowWidth(): number {
 
 export function HelpModal(): JSX.Element {
   const help = useContext(HelpContext);
+  const hasPinnedHelpItem =
+    getSelectedHelpItem(help, { mode: "pin" }) !== undefined;
+  const selectedHelpItem = getSelectedHelpItem(help);
   const reservedSpace = useRef<HTMLDivElement>(null);
   const ref = useRef<HTMLElement>(null);
   const [reservedSpaceOnScreen, setReservedSpaceOnScreen] = useState(false);
@@ -195,7 +242,6 @@ export function HelpModal(): JSX.Element {
     "at-end" | "at-start" | "started"
   >("at-end");
   const windowWidth = useWindowWidth();
-  const selectedHelp = useContext(HelpContext);
 
   // Track whether the space under fixed footer (to allow scrolling to the bottom)
   // is on screen, so that we don't cause a jump by removing it when visible.
@@ -220,7 +266,7 @@ export function HelpModal(): JSX.Element {
       setModalHeight(ref.current?.offsetHeight ?? 0);
     },
     // Include width & text as a dependency to recalculate on resize.
-    [ref, windowWidth, help.selectedHelpItem]
+    [ref, windowWidth, selectedHelpItem]
   );
 
   // Apply styles for the slide in/out CSS transitions. For the transitions to
@@ -276,9 +322,8 @@ export function HelpModal(): JSX.Element {
         onTransitionEnd={() => setTransitionState("at-end")}
       >
         <button
-          className={`fixed left-0 bottom-0 ${
-            help.helpEnabled ? "drop-shadow" : ""
-          }`}
+          className={`fixed left-0 bottom-0
+          ${help.helpEnabled && selectedHelpItem ? "drop-shadow" : ""}`}
           onClick={() => {
             help.dispatch({
               type: help.helpEnabled ? "help-disabled" : "help-enabled",
@@ -287,16 +332,21 @@ export function HelpModal(): JSX.Element {
           }}
         >
           <div
-            className={`p-4 clip-circle-35 bg-green-700 transition-all ${
-              help.helpEnabled ? "text-neutral-100" : "bg-transparent"
-            }`}
+            className={`p-4 transition-all
+            ${
+              help.helpEnabled && selectedHelpItem
+                ? "bg-green-700 text-neutral-100"
+                : ""
+            }
+            ${hasPinnedHelpItem ? "clip-circle-35" : "clip-circle-30"}
+            `}
           >
             <HelpIconLarge />
           </div>
         </button>
         <div className="max-w-prose flex flex-col justify-center">
-          {help.selectedHelpItem ? (
-            <p>{help.selectedHelpItem.helpText}</p>
+          {selectedHelpItem ? (
+            <p>{selectedHelpItem.helpText}</p>
           ) : (
             <p>
               Click a <HelpIcon className="inline" /> to show help.
