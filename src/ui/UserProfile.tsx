@@ -1,4 +1,5 @@
 import { RedditUserProfile } from "../reddit/reddit-interaction-spec";
+import { WithInlineHelp } from "./Help";
 import { UserAvatar } from "./UserAvatar";
 
 export function UserProfile({
@@ -16,9 +17,23 @@ export function UserProfile({
           ? "Disconnected from Reddit"
           : "Connected to Reddit"}
       </span>
-      <UserAvatar className="w-40" avatarUrl={profile?.accountIconURL} />
+      <WithInlineHelp
+        iconOffsetLeft="0.5rem"
+        iconOffsetBottom="3.875rem"
+        helpText="Your Reddit account's avatar."
+      >
+        <UserAvatar className="w-40" avatarUrl={profile?.accountIconURL} />
+      </WithInlineHelp>
       {profile ? (
-        <Username username={profile.username} hasPremium={profile.hasPremium} />
+        <WithInlineHelp
+          iconOffsetTop="58%"
+          helpText="Your Reddit account's username."
+        >
+          <Username
+            username={profile.username}
+            hasPremium={profile.hasPremium}
+          />
+        </WithInlineHelp>
       ) : undefined}
     </section>
   );

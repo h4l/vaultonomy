@@ -1,6 +1,7 @@
 import React, { useId, useState } from "react";
 
 import { Heading } from "./Heading";
+import { WithInlineHelp } from "./Help";
 import { Link } from "./Link";
 
 export function EthAccount({
@@ -21,21 +22,27 @@ export function EthAccount({
     >
       <Heading className="row-start-1 col-start-2 col-span-5">{title}</Heading>
       {ensName ? (
-        <p
-          aria-label="ENS name"
-          className="row-start-2 col-start-2 col-span-5 text-2xl"
+        <WithInlineHelp
+          className="row-start-2 col-start-2 col-span-5"
+          helpText={`The primary ENS (Ethereum Name Service) name linked to this ${title}.`}
         >
-          {/* TODO: should we link an ENS address to something? We could link to itself if it has a contenthash set. */}
-          {ensName}
-        </p>
+          <p aria-label="ENS name" className="text-2xl">
+            {/* TODO: should we link an ENS address to something? We could link to itself if it has a contenthash set. */}
+            {ensName}
+          </p>
+        </WithInlineHelp>
       ) : undefined}
-      <p
+      <div
         aria-label={`Ethereum address`}
         className="row-start-3 text-4xl min-w-[4rem]"
       >
-        <span className="sr-only">{ethAddress}</span>
-        <span aria-hidden="true">0x</span>
-      </p>
+        <WithInlineHelp
+          helpText={`The 0x… address that uniquely identifies this ${title}'s Ethereum account.`}
+        >
+          <span className="sr-only">{ethAddress}</span>
+          <span aria-hidden="true">0x</span>
+        </WithInlineHelp>
+      </div>
       <EthAddressHexPairs
         className="row-start-3 text-xl"
         ethAddress={ethAddress}
@@ -88,31 +95,40 @@ function EthAddressActions({
 }): JSX.Element {
   return (
     <>
-      {/* <span className="row-start-4 material-symbols-outlined text-[1.7rem] font-[375] -translate-y-1">
-        content_copy
-      </span> */}
-      {/* <button className="">
-        <CopyIcon className="row-start-4 self-start w-6 mt-[0.05rem]" />
-      </button> */}
-      <CopyButton
-        className="row-start-4 self-start mt-[0.05rem]"
-        iconClassName="w-6"
-        textToCopy={ethAddress}
-      />
-      <Link
-        href={etherscanAddressDetailUrl(ethAddress)}
+      <WithInlineHelp
+        className="row-start-4 self-start"
+        helpText={`Copy the ${title}'s 0x… address to the clipboard.`}
+      >
+        <CopyButton
+          className="mt-[0.05rem]"
+          iconClassName="w-6"
+          textToCopy={ethAddress}
+        />
+      </WithInlineHelp>
+      <WithInlineHelp
         className="row-start-5 self-start"
+        helpText={`View this ${title} on Etherscan to see its past activity.`}
       >
-        <span className="sr-only">View {title} on Etherscan</span>
-        <EtherscanIcon className="w-6 mt-[0.05rem]" />
-      </Link>
-      <Link
-        href={openseaAddressDetailUrl(ethAddress)}
+        <Link
+          href={etherscanAddressDetailUrl(ethAddress)}
+          className="inline-block"
+        >
+          <span className="sr-only">View this {title} on Etherscan</span>
+          <EtherscanIcon className="w-6 mt-[0.05rem]" />
+        </Link>
+      </WithInlineHelp>
+      <WithInlineHelp
         className="row-start-6 self-start"
+        helpText={`View this ${title} on OpenSea to see the NFTs it holds.`}
       >
-        <span className="sr-only">View {title} on OpenSea</span>
-        <OpenSeaIcon className="w-6 mt-[0.05rem]" />
-      </Link>
+        <Link
+          href={openseaAddressDetailUrl(ethAddress)}
+          className="inline-block"
+        >
+          <span className="sr-only">View this {title} on OpenSea</span>
+          <OpenSeaIcon className="w-6 mt-[0.05rem]" />
+        </Link>
+      </WithInlineHelp>
     </>
   );
 }
@@ -145,14 +161,11 @@ function CopyButton({
     overlayType: "done",
     overlayState: "hidden",
   });
-  console.log(`CopyButton() state:`, state);
 
   async function doCopy() {
-    console.log("doCopy");
     if (isDisabled) return;
     try {
       // FIXME: maybe remove this
-      console.log("DEBUG", process.env.NODE_ENV, window.isSecureContext);
       if (process.env.NODE_ENV === "development" && !window.isSecureContext) {
         console.warn(
           `Not copying text due to dev mode insecure context. textToCopy=${JSON.stringify(

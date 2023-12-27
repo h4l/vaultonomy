@@ -1,6 +1,11 @@
 import { Button, LinkButton } from "./Button";
 import { EthAccount } from "./EthAccount";
-import { HelpContext, HelpModal, useRootHelpState } from "./Help";
+import {
+  HelpContext,
+  HelpModal,
+  WithInlineHelp,
+  useRootHelpState,
+} from "./Help";
 import { UserProfile } from "./UserProfile";
 import { VaultonomyLogo } from "./VaultonomyLogo";
 
@@ -32,9 +37,11 @@ export default function App() {
             ethAddress="0xd2A2B709af3B6d0bba1cCbd1edD65f353aA42C66"
             ensName="h-a-l.eth"
             footer={
-              <span aria-label="status" className="italic text-sm">
-                Paired 5 minutes ago
-              </span>
+              <WithInlineHelp helpText="The date when this Ethereum account was paired with your Reddit account to create this Vault.">
+                <span aria-label="status" className="italic text-sm">
+                  Paired 5 minutes ago
+                </span>
+              </WithInlineHelp>
             }
           />
         </div>
