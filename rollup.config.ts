@@ -83,7 +83,7 @@ export default defineConfig({
       targets: [
         { src: "public/*", dest: "dist/" },
         { src: "src/html/ui.html", dest: "dist/" },
-        { src: "src/img/*.svg", dest: "dist/img/" },
+        { src: "src/img/*.{png,svg}", dest: "dist/img/" },
       ],
     }),
   ],
