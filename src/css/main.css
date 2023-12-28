@@ -34,13 +34,13 @@
   .clip-circle {
     clip-path: circle(49%);
   }
+  .clip-circle-44 {
+    clip-path: circle(44%);
+  }
   .clip-circle-40 {
     clip-path: circle(40%);
   }
-  .clip-circle-39 {
-    clip-path: circle(39%);
-  }
-  .clip-circle-33 {
-    clip-path: circle(33%);
+  .clip-circle-37 {
+    clip-path: circle(37%);
   }
 }

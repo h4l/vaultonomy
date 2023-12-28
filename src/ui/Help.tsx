@@ -1,4 +1,5 @@
 import {
+  CSSProperties,
   ForwardedRef,
   ReactNode,
   Reducer,
@@ -121,16 +122,6 @@ interface HelpProps {
   helpText: string;
 }
 
-function buttonPosition(
-  containerHeight: number,
-  buttonHeight: number
-): { top: string } {
-  // Vertically-center the (?) icon. Use 90% of container height to shift the
-  // button up slightly, as we typically apply to single text lines which are
-  // visually biased towards the top of their height.
-  return { top: `${(containerHeight * 0.9 - buttonHeight) / 2}px` };
-}
-
 function ScreenReaderHelp({
   helpId: _helpId,
   helpText,
@@ -160,10 +151,12 @@ const HelpButton = forwardRef(function HelpButton(
     helpId: _helpId,
     helpText,
     className,
+    style,
   }: {
     helpId?: string;
     helpText: string;
     className?: string;
+    style?: CSSProperties;
   },
   ref: ForwardedRef<HTMLButtonElement>
 ): JSX.Element {
@@ -196,7 +189,8 @@ const HelpButton = forwardRef(function HelpButton(
       aria-label={
         isPinned ? "unpin help from help area" : "pin help to help area"
       }
-      className={`group
+      style={style}
+      className={`group focus-visible:outline-offset-1
                   ${help.helpEnabled ? "" : "hidden"}
                   ${isSelected ? "drop-shadow" : ""}
                   ${className || ""}`}
@@ -226,22 +220,48 @@ const HelpButton = forwardRef(function HelpButton(
 
 export function WithInlineHelp({
   children,
+  className,
+  iconOffsetLeft,
+  iconOffsetTop,
+  iconOffsetBottom,
   ...props
-}: HelpProps & { children: ReactNode }): JSX.Element {
+}: HelpProps & {
+  iconOffsetLeft?: string;
+  iconOffsetTop?: string;
+  iconOffsetBottom?: string;
+  children: ReactNode;
+  className?: string;
+}): JSX.Element {
+  if (iconOffsetTop && iconOffsetBottom) {
+    throw new Error(
+      "Both iconOffsetTop and iconOffsetBottom are set, which is ambiguous"
+    );
+  }
+
   const container = useRef<HTMLDivElement>(null);
   const button = useRef<HTMLButtonElement>(null);
 
-  useEffect(() => {
-    if (!(container.current && button.current)) return;
-    const ch = container.current.offsetHeight;
-    const bh = button.current.offsetHeight;
-    button.current.style.top = buttonPosition(ch, bh).top;
-  });
+  const helpButtonSize = "1.75rem";
+  const fromTop = iconOffsetBottom === undefined;
+  const style: CSSProperties = {
+    left: `calc(${iconOffsetLeft ?? "-0.25rem"} + -${helpButtonSize})`,
+    top: fromTop
+      ? `calc(${iconOffsetTop ?? "45%"} - (${helpButtonSize} / 2))`
+      : undefined,
+    bottom: !fromTop
+      ? `calc(${iconOffsetBottom} - (${helpButtonSize} / 2))`
+      : undefined,
+  };
 
   return (
-    <div ref={container} className="relative">
+    <div ref={container} className={`${className || ""} relative`}>
       <ScreenReaderHelp helpText={props.helpText}>
-        <HelpButton ref={button} {...props} className="absolute -left-8" />
+        <HelpButton
+          ref={button}
+          {...props}
+          style={style}
+          className="absolute __-left-8 __top-[calc(45%_-_0.875rem)]"
+        />
       </ScreenReaderHelp>
       {children}
     </div>
@@ -312,7 +332,7 @@ export function HelpModal(): JSX.Element {
     // off/on screen when closed/open.
     if (transitionState === "at-start") {
       if (!help.helpEnabled) {
-        ref.current.style.top = `calc(100vh - ${ref.current.offsetHeight}px)`;
+        ref.current.style.top = `calc(100% - ${ref.current.offsetHeight}px)`;
         ref.current.style.bottom = "";
       } else {
         ref.current.style.top = "";
@@ -321,7 +341,7 @@ export function HelpModal(): JSX.Element {
       setTransitionState("started");
     } else {
       if (!help.helpEnabled) {
-        ref.current.style.top = "100vh";
+        ref.current.style.top = "100%";
         ref.current.style.bottom = "";
       } else {
         ref.current.style.top = "";
@@ -359,7 +379,7 @@ export function HelpModal(): JSX.Element {
           aria-label={
             help.helpEnabled ? "Disable extra help" : "Enable extra help"
           }
-          className={`fixed left-1 bottom-1 group focus-visible:outline-offset-0
+          className={`fixed left-2 bottom-2 group focus-visible:outline-offset-0
           ${help.helpEnabled && selectedHelpItem ? "drop-shadow" : ""}`}
           onClick={() => {
             help.dispatch({
@@ -369,21 +389,20 @@ export function HelpModal(): JSX.Element {
           }}
         >
           <div
-            className={`p-3 transition-all duration-300
+            className={`p-2 transition-all duration-300
                         group-hover:scale-110 group-focus-visible:scale-110 group-active:scale-125
             ${
               help.helpEnabled && selectedHelpItem
                 ? "bg-green-700 text-neutral-100"
-                : ""
+                : "bg-neutral-50/75"
             }
             ${
               hasPinnedHelpItem &&
               selectedHelpItem?.helpId === help.pinnedHelpItem?.helpId
-                ? "clip-circle-39"
-                : "clip-circle-33"
+                ? "clip-circle-44"
+                : "clip-circle-37"
             }
             `}
-            // ${hasPinnedHelpItem ? "clip-circle-39" : "clip-circle-33"}
           >
             <HelpIconLarge />
           </div>
@@ -418,7 +437,7 @@ export function HelpModal(): JSX.Element {
             ) : (
               <i className="italic">
                 Press a <span className="sr-only">pin help button</span>
-                <HelpIcon className="inline" /> to show help here.
+                <HelpIcon className="inline" /> to show more information here.
               </i>
             )}
           </p>
