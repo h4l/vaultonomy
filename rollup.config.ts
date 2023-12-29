@@ -1,14 +1,20 @@
 import alias from "@rollup/plugin-alias";
 import commonjs from "@rollup/plugin-commonjs";
-import { nodeResolve } from "@rollup/plugin-node-resolve";
+import json from "@rollup/plugin-json";
+import {
+  nodeResolve,
+  DEFAULTS as nodeResolveDefaults,
+} from "@rollup/plugin-node-resolve";
 import replace from "@rollup/plugin-replace";
-import typescript from "@rollup/plugin-typescript";
+import swc from "@rollup/plugin-swc";
 import { FilterPattern, createFilter } from "@rollup/pluginutils";
 import autoprefixer from "autoprefixer";
+import { readFile } from "fs/promises";
 import atImport from "postcss-import";
 import { defineConfig } from "rollup";
 import type { Plugin, TransformPluginContext, TransformResult } from "rollup";
 import copy from "rollup-plugin-copy";
+import nodePolyfills from "rollup-plugin-polyfill-node";
 import postcss from "rollup-plugin-postcss";
 import tailwindcss from "tailwindcss";
 import { fileURLToPath } from "url";
@@ -16,6 +22,8 @@ import { fileURLToPath } from "url";
 const IGNORED_WARNINGS: ReadonlyArray<string> = [
   'Module level directives cause errors when bundled, "use client" in "',
 ];
+
+const swcrc = JSON.parse(await readFile("./.swcrc", { encoding: "utf-8" }));
 
 function importFileAsString(
   options: { include?: FilterPattern; exclude?: FilterPattern } = {}
@@ -65,9 +73,16 @@ export default defineConfig({
     postcss({
       plugins: [atImport, tailwindcss, autoprefixer],
     }),
-    typescript(),
+    importFileAsString({
+      include: [
+        fileURLToPath(new URL("./src/html/*.html", import.meta.url)),
+        fileURLToPath(new URL("./src/img/*.svg", import.meta.url)),
+      ],
+    }),
+    json(),
+    // SWC transforms our .ts and .tsx files
+    swc({ swc: swcrc, include: "src/**/*.{ts,tsx}" }),
     commonjs(),
-    nodeResolve({ browser: true, preferBuiltins: false }),
     alias({
       entries: [
         // @walletconnect/time 1.0.2 ships ESM modules, but its package.json
@@ -79,17 +94,24 @@ export default defineConfig({
         },
       ],
     }),
+    nodeResolve({
+      browser: true,
+      preferBuiltins: true,
+      extensions: [
+        ...nodeResolveDefaults.extensions,
+        // Without listing ts* extensions here, rollup fails to resolve imports
+        // from our src/* modules. I guess because @rollup/plugin-typescript
+        // includes a resolver hook for .ts extensions, but swc doesn't.
+        ".ts",
+        ".tsx",
+      ],
+    }),
+    nodePolyfills(),
     replace({
       values: {
         "process.env.NODE_ENV": JSON.stringify(parseBuildMode()),
       },
       preventAssignment: true,
-    }),
-    importFileAsString({
-      include: [
-        fileURLToPath(new URL("./src/html/*.html", import.meta.url)),
-        fileURLToPath(new URL("./src/img/*.svg", import.meta.url)),
-      ],
     }),
     copy({
       targets: [{ src: "src/assets", dest: "dist/" }],
