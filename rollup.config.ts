@@ -67,7 +67,7 @@ export default defineConfig({
     }),
     typescript(),
     commonjs(),
-    nodeResolve({ browser: true }),
+    nodeResolve({ browser: true, preferBuiltins: false }),
     alias({
       entries: [
         // @walletconnect/time 1.0.2 ships ESM modules, but its package.json
