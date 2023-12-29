@@ -12,6 +12,10 @@ import postcss from "rollup-plugin-postcss";
 import tailwindcss from "tailwindcss";
 import { fileURLToPath } from "url";
 
+const IGNORED_WARNINGS: ReadonlyArray<string> = [
+  'Module level directives cause errors when bundled, "use client" in "',
+];
+
 function importFileAsString(
   options: { include?: FilterPattern; exclude?: FilterPattern } = {}
 ): Plugin {
@@ -87,4 +91,13 @@ export default defineConfig({
       ],
     }),
   ],
+  onLog(level, log, defaultHandler) {
+    if (level === "warn") {
+      const matchesIgnorePattern = IGNORED_WARNINGS.some(
+        (substring) => log.message.indexOf(substring) >= 0
+      );
+      if (matchesIgnorePattern) return;
+    }
+    defaultHandler(level, log);
+  },
 });
