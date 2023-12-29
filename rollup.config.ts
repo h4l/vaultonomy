@@ -1,3 +1,4 @@
+import alias from "@rollup/plugin-alias";
 import commonjs from "@rollup/plugin-commonjs";
 import { nodeResolve } from "@rollup/plugin-node-resolve";
 import replace from "@rollup/plugin-replace";
@@ -67,6 +68,17 @@ export default defineConfig({
     typescript(),
     commonjs(),
     nodeResolve({ browser: true }),
+    alias({
+      entries: [
+        // @walletconnect/time 1.0.2 ships ESM modules, but its package.json
+        // only references the CJS modules. This causes warnings as rollup can't
+        // tell that a specific name is exported from the CJS index module.
+        {
+          find: "@walletconnect/time",
+          replacement: "@walletconnect/time/dist/esm/index.js",
+        },
+      ],
+    }),
     replace({
       values: {
         "process.env.NODE_ENV": JSON.stringify(parseBuildMode()),
