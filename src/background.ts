@@ -178,7 +178,7 @@ export async function main() {
     });
     chrome.sidePanel.setOptions({
       enabled: true,
-      path: "ui.html",
+      path: "index.html",
       // tabId: tab.id,
     });
     chrome.sidePanel.open({ windowId: tab.windowId });

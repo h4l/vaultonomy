@@ -1,4 +1,4 @@
-import { utils } from "ethers";
+import { getAddress } from "viem";
 import { z } from "zod";
 
 /** An Ethereum 0x... address.
@@ -10,7 +10,7 @@ import { z } from "zod";
  */
 export const EthAddress = z.string().transform((arg, context): string => {
   try {
-    return utils.getAddress(arg);
+    return getAddress(arg);
   } catch (e) {
     const reason =
       (e as { reason?: string }).reason === "bad address checksum"

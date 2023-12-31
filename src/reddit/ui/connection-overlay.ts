@@ -1,7 +1,7 @@
 import { assert } from "../../assert";
-import mainCss from "../../css/main.css";
-import overlayHtml from "../../html/overlay.html";
-import vaultonomyLogoSvg from "../../img/vaultonomy-logo.svg";
+import mainCss from "../../css/main.css?inline";
+import overlayHtml from "../../html/overlay.html?raw";
+import vaultonomyLogoSvg from "../../img/vaultonomy-logo.svg?raw";
 
 function replaceOverlayHtmlPlaceholders() {
   return overlayHtml.replaceAll("{{logo}}", vaultonomyLogoSvg);
@@ -16,10 +16,10 @@ export class ConnectionOverlay {
   constructor(
     options: {
       onRemoved?: (connectionOverlay: ConnectionOverlay) => void;
-    } = {}
+    } = {},
   ) {
     this.htmlElObserver = new MutationObserver(() =>
-      setTimeout(() => this.applyHtmlElementStyle)
+      setTimeout(() => this.applyHtmlElementStyle),
     );
     this.warnOnUnload = (e) => e.preventDefault();
     this.onRemoved = options.onRemoved;

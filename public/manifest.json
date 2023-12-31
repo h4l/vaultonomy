@@ -37,6 +37,6 @@
     }
   ],
   "side_panel": {
-    "default_path": "ui.html"
+    "default_path": "index.html"
   }
 }

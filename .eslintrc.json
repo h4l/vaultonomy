@@ -15,6 +15,7 @@
     "plugin:react/jsx-runtime"
   ],
   "parser": "@typescript-eslint/parser",
+  "plugins": ["react-refresh"],
   "parserOptions": {
     "ecmaVersion": "latest",
     "sourceType": "module"
@@ -23,6 +24,10 @@
     "@typescript-eslint/no-unused-vars": [
       "error",
       { "varsIgnorePattern": "^_" }
+    ],
+    "react-refresh/only-export-components": [
+      "warn",
+      { "allowConstantExport": true }
     ]
   }
 }
