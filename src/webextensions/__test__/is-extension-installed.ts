@@ -11,7 +11,7 @@ jest.unstable_mockModule("./src/webextension", () => {
 });
 
 const { browser } = await import("../../webextension");
-const { isExtensionInstalled } = await import("../extension-detection");
+const { isExtensionInstalled } = await import("../is-extension-installed");
 
 describe("isExtensionInstalled", () => {
   test("reports installed when messaging succeeds", async () => {

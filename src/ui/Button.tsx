@@ -1,5 +1,3 @@
-import { DOMAttributes, DetailedHTMLProps } from "react";
-
 export function Button({
   children,
   className,
@@ -16,11 +14,10 @@ export function Button({
         active:bg-white dark:active:bg-neutral-850
       hover:border-neutral-300 hover:border-l-neutral-400 hover:border-b-neutral-400 dark:hover:border-neutral-750 dark:hover:border-l-neutral-700 dark:hover:border-b-neutral-700
       active:shadow-solid-bottomleft active:shadow-neutral-500 dark:active:shadow-neutral-600
-      px-7 py-5
+      px-7 py-5 pt-[1.375]
       text-4xl italic ${className || ""}`}
     >
-      {/* Push down the baseline for better vertical centering. */}
-      <span className="inline-block pt-[0.125em]">{children}</span>
+      {children}
     </button>
   );
 }

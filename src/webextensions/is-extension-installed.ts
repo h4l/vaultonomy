@@ -28,7 +28,7 @@ export async function isExtensionInstalled(
         setTimeout(() => resolve(undefined), PORT_CONNECT_ERROR_TIMEOUT)
       ),
     ]);
-    // We got no error within the timeout — presume connection succeeded and
+    // We got no error within the timeout — presume connection succeeded and
     // therefore extension is installed.
     return true;
   } catch (e) {

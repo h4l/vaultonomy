@@ -1,3 +1,4 @@
+import { WagmiConfigManager } from "../wagmi";
 import { Button, LinkButton } from "./Button";
 import { EthAccount } from "./EthAccount";
 import {
@@ -6,14 +7,31 @@ import {
   WithInlineHelp,
   useRootHelpState,
 } from "./Help";
+import { Profile } from "./Profile";
 import { UserProfile } from "./UserProfile";
 import { VaultonomyLogo } from "./VaultonomyLogo";
+import { Wallet } from "./Wallet";
+import { VaultonomyRoot } from "./state/VaultonomyState";
 
-export default function App() {
+export function App({
+  wagmiConfigManager,
+}: {
+  wagmiConfigManager: WagmiConfigManager;
+}) {
   const help = useRootHelpState();
 
   return (
-    <HelpContext.Provider value={help}>
+    <VaultonomyRoot wagmiConfigManager={wagmiConfigManager}>
+      <HelpContext.Provider value={help}>
+        <AppUI />
+      </HelpContext.Provider>
+    </VaultonomyRoot>
+  );
+}
+
+function AppUI() {
+  return (
+    <>
       <header className="mt-32 mb-16 w-72 max-w-full mx-auto">
         <VaultonomyLogo className="" />
       </header>
@@ -60,11 +78,16 @@ export default function App() {
           />
         </div>
 
+        <div className="m-10 flex flex-col justify-center items-center">
+          <Wallet />
+          {/* <Profile /> */}
+        </div>
+
         {/* <UserAvatar avatarUrl="https://i.redd.it/snoovatar/avatars/nftv2_bmZ0X2VpcDE1NToxMzdfOWQ4NTQyZWYxMjM3OTMzYmFkYmU4NjcyOTFmNmMwNDM0YjhkMzE1Y18yNzEz_rare_0411a65f-b673-43bf-ae65-b7cc7c9349a2.png" />
         <UserAvatar avatarUrl="https://i.redd.it/snoovatar/avatars/7d436c39-b6be-4e4b-8d42-5c51562e1095.png" /> */}
       </main>
 
       <HelpModal />
-    </HelpContext.Provider>
+    </>
   );
 }

@@ -1,4 +1,5 @@
 import { browser } from "./webextension";
+import { isExtensionInstalled } from "./webextensions/is-extension-installed";
 
 /*
 Tab connection strategy
@@ -164,6 +165,11 @@ function discoverRedditTab() {
 // seem to return extension page tabs.
 
 export async function main() {
+  console.log(
+    "metamask installed?",
+    await isExtensionInstalled("nkbihfbeogaeaoehlefnkodbefgpgknn")
+  );
+
   console.log("background main");
   discoverRedditTab();
   handleAvailabilityConnections();

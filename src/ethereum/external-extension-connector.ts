@@ -30,7 +30,7 @@ function getExtensionName(extensionTypeOrId: string): string {
   );
 }
 
-function hasWebExtensionConnectAPI(): boolean {
+export function hasWebExtensionConnectAPI(): boolean {
   return (
     chrome && chrome.runtime && typeof chrome.runtime.connect === "function"
   );
@@ -58,6 +58,7 @@ function hasWebExtensionConnectAPI(): boolean {
  */
 export class ExternalExtensionConnector extends InjectedConnector {
   readonly id: string = "externalExtensionConnector";
+  readonly ready: boolean = true;
   #extensionTypeOrId: string;
   #provider?: StreamProvider;
 
@@ -70,26 +71,36 @@ export class ExternalExtensionConnector extends InjectedConnector {
   } = {}) {
     const extensionTypeOrId = options_?.extensionTypeOrId ?? "stable";
     const name = options_?.name ?? getExtensionName(extensionTypeOrId);
+    // The superclass calls options.getProvider() in its constructor, which
+    // means the function we provide there cannot access `this` from our
+    // constructor context. This is rather limiting, so instead we pass a
+    // function that returns undefined, and override the class's getProvider()
+    // method.
     const options: InjectedConnectorOptions = {
       name,
       shimDisconnect: false,
-      getProvider: (): WindowProvider | undefined => {
-        if (!hasWebExtensionConnectAPI()) {
-          console.warn(
-            "ExternalExtensionConnector is not available as this environment lacks chrome.runtime.connect()"
-          );
-          return undefined;
-        }
-        // The StreamProvider is an EIP1193Provider, but doesn't have the isMetamask
-        // property or other internal quirks WindowProvider has:
-        // https://github.com/wevm/wagmi/blob/c83f9b8b67dd2bd20c58d13f41f7d0aee23e5b7a/packages/connectors/src/types.ts#L65
-        // However these additional properties aren't used by our superclass in
-        // practice, so we can tell a white lie about the type.
-        return this.#getOrCreateProvider() as unknown as WindowProvider;
-      },
+      getProvider: () => undefined,
     };
     super({ chains, options });
+    if (!hasWebExtensionConnectAPI()) {
+      console.warn(
+        "ExternalExtensionConnector is not available as this environment lacks chrome.runtime.connect()"
+      );
+      this.ready = false;
+    } else {
+      this.ready = true;
+    }
     this.#extensionTypeOrId = extensionTypeOrId;
+  }
+
+  async getProvider(): Promise<WindowProvider | undefined> {
+    // The StreamProvider is an EIP1193Provider, but doesn't have the isMetamask
+    // property or other internal quirks WindowProvider has:
+    // https://github.com/wevm/wagmi/blob/c83f9b8b67dd2bd20c58d13f41f7d0aee23e5b7a/packages/connectors/src/types.ts#L65
+    // However these additional properties aren't used by our superclass in
+    // practice, so we can tell a white lie about the type.
+    console.log("ExternalExtensionConnector.options.getProvider()");
+    return this.#getOrCreateProvider() as unknown as WindowProvider;
   }
 
   #getOrCreateProvider(): StreamProvider {

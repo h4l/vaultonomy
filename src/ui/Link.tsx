@@ -12,6 +12,7 @@ export function Link({
   return (
     <a
       target="_blank"
+      rel="noreferrer"
       href={href}
       className={`underline decoration-from-font visited:decoration-double ${
         className || ""

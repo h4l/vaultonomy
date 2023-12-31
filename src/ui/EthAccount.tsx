@@ -1,4 +1,4 @@
-import React, { useId, useState } from "react";
+import React, { useState } from "react";
 
 import { Heading } from "./Heading";
 import { WithInlineHelp } from "./Help";
@@ -43,10 +43,7 @@ export function EthAccount({
           <span aria-hidden="true">0x</span>
         </WithInlineHelp>
       </div>
-      <EthAddressHexPairs
-        className="row-start-3 text-xl"
-        ethAddress={ethAddress}
-      />
+      <EthAddressHexPairs ethAddress={ethAddress} />
       <EthAddressActions title={title} ethAddress={ethAddress} />
       {footer ? (
         <div className="row-start-7 col-start-2 col-span-5">{footer}</div>
@@ -57,10 +54,8 @@ export function EthAccount({
 
 export function EthAddressHexPairs({
   ethAddress,
-  className,
 }: {
   ethAddress: string;
-  className?: string;
 }): JSX.Element {
   if (ethAddress.length != 42) {
     throw new Error(`address is not an Ethereum address`);
@@ -79,7 +74,7 @@ export function EthAddressHexPairs({
     );
   });
   return <>{hexPairs}</>;
-  const heyTailwindPleaseIncludeTheseDynamicallyCreatedClasses = (
+  const _heyTailwindPleaseIncludeTheseDynamicallyCreatedClasses = (
     <template className="row-start-1 row-start-2 row-start-3 row-start-4 row-start-5 col-start-1 col-start-2 col-start-3 col-start-4 col-start-5 col-start-6" />
   );
 }
@@ -87,11 +82,9 @@ export function EthAddressHexPairs({
 function EthAddressActions({
   title,
   ethAddress,
-  className,
 }: {
   title: string;
   ethAddress: string;
-  className?: string;
 }): JSX.Element {
   return (
     <>
@@ -192,7 +185,7 @@ function CopyButton({
     }
   }
 
-  let overlayOpacity =
+  const overlayOpacity =
     state.overlayState === "shown" ? "opacity-100" : "opacity-0";
 
   let overlay: JSX.Element = <></>;

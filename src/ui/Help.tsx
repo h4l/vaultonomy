@@ -68,7 +68,7 @@ function getSelectedHelpItem(
 }
 
 export const HelpContext = createContext<HelpState>({
-  dispatch(action) {
+  dispatch() {
     throw new Error(
       "dispatch() called before HelpContext has been initialised"
     );
@@ -76,7 +76,7 @@ export const HelpContext = createContext<HelpState>({
   helpEnabled: false,
 });
 
-function helpReducer(help: HelpState, action: HelpAction) {
+function helpReducer(help: HelpState, action: HelpAction): HelpState {
   switch (action.type) {
     case "help-enabled": {
       return { ...help, helpEnabled: true };
@@ -411,8 +411,8 @@ export function HelpModal(): JSX.Element {
           {help.helpEnabled ? (
             <p className="sr-only">
               Extra help is currently enabled. Screen readers can find the help
-              alongside the items in the page. If an item's help is pinned it
-              will appear here.
+              alongside the items in the page. If an item&apos;s help is pinned
+              it will appear here.
             </p>
           ) : (
             <p className="sr-only">Extra help is currently disabled.</p>
