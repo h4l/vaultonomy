@@ -43,6 +43,45 @@ export default {
         // extrabold: '800',
         // black: '900',
       },
+      animation: {
+        "indeterminate-progress-1":
+          "indeterminate-progress-1 1.5s linear infinite",
+        "indeterminate-progress-2":
+          "indeterminate-progress-2 1.5s linear infinite",
+      },
+      keyframes: {
+        "indeterminate-progress-1": {
+          "0%": {
+            transform: "translateX(0) scaleX(0)",
+          },
+          "30%": {
+            transform: "translateX(0) scaleX(0.6)",
+          },
+          "60%": {
+            transform: "translateX(80%) scaleX(0.3)",
+          },
+          "75%": {
+            transform: "translateX(100%) scaleX(0.3)",
+          },
+          "100%": {
+            transform: "translateX(100%) scaleX(0.3)",
+          },
+        },
+        "indeterminate-progress-2": {
+          "0%": {
+            transform: "translateX(0) scaleX(0)",
+          },
+          "15%": {
+            transform: "translateX(0) scaleX(0.1)",
+          },
+          "75%": {
+            transform: "translateX(100%) scaleX(0.8)",
+          },
+          "100%": {
+            transform: "translateX(100%) scaleX(0.8)",
+          },
+        },
+      },
     },
   },
   plugins: [],
