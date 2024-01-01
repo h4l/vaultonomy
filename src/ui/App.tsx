@@ -1,4 +1,3 @@
-import { WagmiConfigManager } from "../wagmi";
 import { Button, LinkButton } from "./Button";
 import { EthAccount } from "./EthAccount";
 import {
@@ -13,15 +12,11 @@ import { VaultonomyLogo } from "./VaultonomyLogo";
 import { Wallet } from "./Wallet";
 import { VaultonomyRoot } from "./state/VaultonomyState";
 
-export function App({
-  wagmiConfigManager,
-}: {
-  wagmiConfigManager: WagmiConfigManager;
-}) {
+export function App() {
   const help = useRootHelpState();
 
   return (
-    <VaultonomyRoot wagmiConfigManager={wagmiConfigManager}>
+    <VaultonomyRoot>
       <HelpContext.Provider value={help}>
         <AppUI />
       </HelpContext.Provider>
