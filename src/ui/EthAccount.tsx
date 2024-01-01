@@ -6,15 +6,17 @@ import { Link } from "./Link";
 
 export function EthAccount({
   title,
-  ethAddress,
+  ethAddress: _ethAddress,
   ensName,
   footer,
 }: {
   title: string;
-  ethAddress: string;
+  ethAddress?: string;
   ensName?: string;
   footer?: React.ReactNode;
 }): JSX.Element {
+  const ethAddress = _ethAddress ?? `0x${"0".repeat(40)}`;
+  const isDisabled = _ethAddress === undefined;
   return (
     <section
       aria-label={`${title} Ethereum address details`}
@@ -40,11 +42,18 @@ export function EthAccount({
           helpText={`The 0x… address that uniquely identifies this ${title}'s Ethereum account.`}
         >
           <span className="sr-only">{ethAddress}</span>
-          <span aria-hidden="true">0x</span>
+          <span
+            aria-hidden="true"
+            className={isDisabled ? "opacity-30" : undefined}
+          >
+            0x
+          </span>
         </WithInlineHelp>
       </div>
-      <EthAddressHexPairs ethAddress={ethAddress} />
-      <EthAddressActions title={title} ethAddress={ethAddress} />
+      <EthAddressHexPairs ethAddress={_ethAddress} />
+      {isDisabled ? undefined : (
+        <EthAddressActions title={title} ethAddress={ethAddress} />
+      )}
       {footer ? (
         <div className="row-start-7 col-start-2 col-span-5">{footer}</div>
       ) : undefined}
@@ -53,10 +62,12 @@ export function EthAccount({
 }
 
 export function EthAddressHexPairs({
-  ethAddress,
+  ethAddress: _ethAddress,
 }: {
-  ethAddress: string;
+  ethAddress?: string;
 }): JSX.Element {
+  const ethAddress = _ethAddress ?? `0x${"0".repeat(40)}`;
+  const isDisabled = _ethAddress === undefined;
   if (ethAddress.length != 42) {
     throw new Error(`address is not an Ethereum address`);
   }
@@ -67,7 +78,9 @@ export function EthAddressHexPairs({
       <span
         key={i}
         aria-hidden="true"
-        className={`row-start-${row} col-start-${col} text-2xl w-[1.4em]`}
+        className={`row-start-${row} col-start-${col} text-2xl w-[1.4em] ${
+          isDisabled ? "opacity-30" : ""
+        }`}
       >
         {ethAddress.substring(i * 2 + 2, i * 2 + 4)}
       </span>
@@ -162,8 +175,8 @@ function CopyButton({
       if (process.env.NODE_ENV === "development" && !window.isSecureContext) {
         console.warn(
           `Not copying text due to dev mode insecure context. textToCopy=${JSON.stringify(
-            textToCopy
-          )}`
+            textToCopy,
+          )}`,
         );
       } else {
         await navigator.clipboard.writeText(textToCopy);
@@ -172,7 +185,7 @@ function CopyButton({
       setState({ overlayType: "done", overlayState: "shown" });
       setTimeout(
         () => setState({ overlayType: "done", overlayState: "hidden" }),
-        1500
+        1500,
       );
     } catch (e) {
       console.warn("failed to copy to clipboard:", e);
@@ -180,7 +193,7 @@ function CopyButton({
       setState({ overlayType: "failed", overlayState: "shown" });
       setTimeout(
         () => setState({ overlayType: "failed", overlayState: "hidden" }),
-        1500
+        1500,
       );
     }
   }
