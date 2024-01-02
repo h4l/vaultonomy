@@ -5,6 +5,7 @@ import {
   createConfig,
   mainnet,
 } from "wagmi";
+import { UserRejectedRequestError } from "viem";
 import { CoinbaseWalletConnector } from "wagmi/connectors/coinbaseWallet";
 import { InjectedConnector } from "wagmi/connectors/injected";
 import { MetaMaskConnector } from "wagmi/connectors/metaMask";
@@ -222,4 +223,20 @@ export class WagmiConfigManager {
     assert(Object.is(config, setConfig));
     return config;
   }
+}
+
+// https://github.com/WalletConnect/walletconnect-monorepo/commit/6b0931e4f9e38cbe5b7c8b2bf679d89021bd97fc#diff-0afa19560917fc59dfab1cf6bd7c1f7763161ed201b94ab806033002adb0115bR251
+const walletConnectProviderConnectUserCancelErrorMessage =
+  "Connection request reset. Please try again.";
+
+export function isUserRejectedRequestError(_error: unknown): boolean {
+  // wagmi's Connectors try to detect user-cancellation and throw
+  // UserRejectedRequestError, but the Coinbase and WalletConnect Connectors
+  // don't succeed currently, so user cancels are treated as actual errors by
+  // default.
+  const error = _error as { code?: unknown; message?: unknown };
+  return (
+    error.code === UserRejectedRequestError.code ||
+    error.message === walletConnectProviderConnectUserCancelErrorMessage
+  );
 }

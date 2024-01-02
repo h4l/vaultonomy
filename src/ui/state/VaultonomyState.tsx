@@ -3,22 +3,21 @@ import {
   createContext,
   useEffect,
   useReducer,
-  useRef,
   useState,
 } from "react";
-import { Address, Config, WagmiConfig } from "wagmi";
+import { UserRejectedRequestError } from "viem";
+import { Address } from "wagmi";
 
 import { assert, assertUnreachable } from "../../assert";
 import {
   ConfigRequirements,
   WagmiConfigManager,
   WalletConnectorType,
+  isUserRejectedRequestError,
   walletConnectorTypes,
 } from "../../wagmi";
 import { getMetaMaskExtensionId } from "../../webextensions/extension-ids";
 import { connect, disconnect, fetchEnsName, getAccount } from "wagmi/actions";
-
-import { getConfig } from "@wagmi/core";
 
 type DispatchFn = (action: VaultonomyAction) => void;
 
@@ -82,6 +81,9 @@ interface WalletBeganDisconnectingAction {
 interface WalletDidDisconnectAction {
   type: "walletDidDisconnect";
 }
+interface UserCancelledWalletConnectAction {
+  type: "userCancelledWalletConnect";
+}
 interface WalletFailedToConnectAction {
   type: "walletFailedToConnect";
   walletType: WalletConnectorType;
@@ -110,6 +112,7 @@ type VaultonomyAction =
   | WalletBeganConnectingAction
   | WalletBeganDisconnectingAction
   | WalletDidDisconnectAction
+  | UserCancelledWalletConnectAction
   | WalletFailedToConnectAction
   | WalletDidConnectAction
   | WalletConnectorUsabilityChangedAction
@@ -183,6 +186,16 @@ export function vaultonomyStateReducer(
       return {
         ...vaultonomy,
         walletState: { state: "disconnected" },
+      };
+    }
+    case "userCancelledWalletConnect": {
+      return {
+        ...vaultonomy,
+        walletState: { state: "disconnected" },
+        intendedWalletState: {
+          state: "disconnected",
+          id: vaultonomy.intendedWalletState.id + 1,
+        },
       };
     }
     case "walletFailedToConnect": {
@@ -405,13 +418,15 @@ class WalletDriver extends AsyncDriver<VaultonomyState, VaultonomyAction> {
         if (!getAccount().isDisconnected) {
           await this.doDisconnect(dispatch);
         }
+        let address: Address | undefined;
         try {
           dispatch({
             type: "walletBeganConnecting",
             walletType: vaultonomy.intendedWalletState.walletType,
           });
           await connect({ connector });
-          const { address, status } = getAccount();
+          let status;
+          ({ address, status } = getAccount());
           if (!address) {
             throw new Error(
               `no address available after connect succeeded; status=${status}`,
@@ -422,16 +437,30 @@ class WalletDriver extends AsyncDriver<VaultonomyState, VaultonomyAction> {
             walletType: vaultonomy.intendedWalletState.walletType,
             address,
           });
-          await this.fetchAndDispatchAccountDetails(address, dispatch);
         } catch (error) {
           this.lastFailedConnectionIntendedWalletStateId =
             vaultonomy.intendedWalletState.id;
+          if (isUserRejectedRequestError(error)) {
+            dispatch({ type: "userCancelledWalletConnect" });
+            return;
+          }
           dispatch({
             type: "walletFailedToConnect",
             walletType: vaultonomy.intendedWalletState.walletType,
             reason: (error as Error | undefined)?.message ?? "Unknown error",
           });
           return;
+        }
+
+        try {
+          await this.fetchAndDispatchAccountDetails(address, dispatch);
+        } catch (e) {
+          // Currently this is just resolving the ENS name of the address, it's
+          // not a blocker if this doesn't work.
+          console.log(
+            `Request to fetch account details after connect failed: `,
+            e,
+          );
         }
       }
     }
