@@ -1,9 +1,7 @@
 {
-  "importOrder": [
-    "\\.mock(\\.ts)?$",
-    "^[./]"
-  ],
+  "importOrder": ["\\.mock(\\.ts)?$", "^[./]"],
   "importOrderSeparation": true,
   "importOrderSortSpecifiers": true,
-  "proseWrap": "always"
+  "proseWrap": "always",
+  "plugins": ["@trivago/prettier-plugin-sort-imports"]
 }

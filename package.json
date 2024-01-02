@@ -12,6 +12,7 @@
     "__dev:watch": "rollup -c --configPlugin @rollup/plugin-typescript --environment BUILD:development --watch",
     "check": "npm run typecheck && npm run lint",
     "lint": "eslint src *.ts",
+    "prettier": "prettier --check src *.ts",
     "test": "NODE_OPTIONS=--experimental-vm-modules npx jest",
     "typecheck": "tsc"
   },
