@@ -59,7 +59,7 @@ describe("fetchPageData()", () => {
       } as Response);
 
       await expect(fetchPageData()).resolves.toEqual({ loggedIn: false });
-    }
+    },
   );
 
   test.each`
@@ -78,6 +78,6 @@ describe("fetchPageData()", () => {
       } as Response);
 
       await expect(fetchPageData()).rejects.toThrow(options.message);
-    }
+    },
   );
 });

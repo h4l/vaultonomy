@@ -17,7 +17,7 @@ const PORT_CONNECT_ERROR_TIMEOUT = 100;
  * background and the result cached, rather than interactively.
  */
 export async function isExtensionInstalled(
-  extensionId: string
+  extensionId: string,
 ): Promise<boolean> {
   try {
     // sendMessage can block for long periods of time, e.g. Chrome seems to not
@@ -25,7 +25,7 @@ export async function isExtensionInstalled(
     await Promise.race([
       browser.runtime.sendMessage(extensionId, null),
       new Promise((resolve) =>
-        setTimeout(() => resolve(undefined), PORT_CONNECT_ERROR_TIMEOUT)
+        setTimeout(() => resolve(undefined), PORT_CONNECT_ERROR_TIMEOUT),
       ),
     ]);
     // We got no error within the timeout — presume connection succeeded and

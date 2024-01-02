@@ -26,7 +26,7 @@ export function bindPortToJSONRPCServer({
 }
 
 export function createPortSendRequestFn(
-  port: chrome.runtime.Port
+  port: chrome.runtime.Port,
 ): SendRequest<void> {
   return async (payload) => {
     port.postMessage(payload);

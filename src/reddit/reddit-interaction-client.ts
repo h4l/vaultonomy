@@ -41,7 +41,7 @@ export class RedditProvider {
    */
   public static from(
     port: chrome.runtime.Port,
-    options?: { propagateDisconnect?: boolean }
+    options?: { propagateDisconnect?: boolean },
   ) {
     const client = new JSONRPCClient(createPortSendRequestFn(port));
     const rp = new RedditProvider({ redditInteractionClient: client });
@@ -83,10 +83,10 @@ export class RedditProvider {
 
   getUserProfile: () => Promise<RedditUserProfile>;
   createAddressOwnershipChallenge: (
-    params: RedditCreateAddressOwnershipChallengeParams
+    params: RedditCreateAddressOwnershipChallengeParams,
   ) => Promise<RedditEIP712Challenge>;
   registerAddressWithAccount: (
-    params: RedditRegisterAddressWithAccountParams
+    params: RedditRegisterAddressWithAccountParams,
   ) => Promise<null>;
   getAccountVaultAddress: () => Promise<string | null>;
 }

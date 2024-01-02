@@ -55,14 +55,14 @@ interface HelpState {
 /** Return a HelpItem that's selected and matches the given helpId, or undefined. */
 function getSelectedHelpItem(
   helpState: HelpState,
-  { helpId, mode }: { helpId?: string; mode?: SelectionMode } = {}
+  { helpId, mode }: { helpId?: string; mode?: SelectionMode } = {},
 ): HelpItem | undefined {
   const selected =
     mode === "pin"
       ? helpState.pinnedHelpItem
       : mode === "preview"
-      ? helpState.previewHelpItem
-      : helpState.previewHelpItem ?? helpState.pinnedHelpItem;
+        ? helpState.previewHelpItem
+        : helpState.previewHelpItem ?? helpState.pinnedHelpItem;
   if (helpId && selected?.helpId !== helpId) return undefined;
   return selected;
 }
@@ -70,7 +70,7 @@ function getSelectedHelpItem(
 export const HelpContext = createContext<HelpState>({
   dispatch() {
     throw new Error(
-      "dispatch() called before HelpContext has been initialised"
+      "dispatch() called before HelpContext has been initialised",
     );
   },
   helpEnabled: false,
@@ -112,7 +112,7 @@ export function useRootHelpState(): HelpState {
     {
       dispatch: (action) => dispatch(action),
       helpEnabled: false,
-    }
+    },
   );
   return help;
 }
@@ -158,7 +158,7 @@ const HelpButton = forwardRef(function HelpButton(
     className?: string;
     style?: CSSProperties;
   },
-  ref: ForwardedRef<HTMLButtonElement>
+  ref: ForwardedRef<HTMLButtonElement>,
 ): JSX.Element {
   const helpId = _helpId ?? helpText;
   const help = useContext(HelpContext);
@@ -198,7 +198,7 @@ const HelpButton = forwardRef(function HelpButton(
         help.dispatch(
           isPinned
             ? { type: "help-item-deselected", mode: "pin", helpId }
-            : { type: "help-item-selected", mode: "pin", helpId, helpText }
+            : { type: "help-item-selected", mode: "pin", helpId, helpText },
         );
       }}
       onMouseEnter={() => selectForPreview()}
@@ -234,7 +234,7 @@ export function WithInlineHelp({
 }): JSX.Element {
   if (iconOffsetTop && iconOffsetBottom) {
     throw new Error(
-      "Both iconOffsetTop and iconOffsetBottom are set, which is ambiguous"
+      "Both iconOffsetTop and iconOffsetBottom are set, which is ambiguous",
     );
   }
 
@@ -318,7 +318,7 @@ export function HelpModal(): JSX.Element {
       setModalHeight(ref.current?.offsetHeight ?? 0);
     },
     // Include width & text as a dependency to recalculate on resize.
-    [ref, windowWidth, selectedHelpItem]
+    [ref, windowWidth, selectedHelpItem],
   );
 
   // Apply styles for the slide in/out CSS transitions. For the transitions to

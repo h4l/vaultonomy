@@ -54,7 +54,7 @@ export function handleRedditInteractionConnections() {
     // Shutdown all RPC connections when the availability connection drops.
     availabilityConnection?.onDisconnect.addListener(() => {
       console.log(
-        "disconnecting RPC Port due to availability Port disconnecting"
+        "disconnecting RPC Port due to availability Port disconnecting",
       );
       port.disconnect();
     });

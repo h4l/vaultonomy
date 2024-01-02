@@ -3,7 +3,7 @@ import { z } from "zod";
 
 export interface RPCMethodSpec<
   Params extends z.ZodTypeAny,
-  Returns extends z.ZodTypeAny
+  Returns extends z.ZodTypeAny,
 > {
   readonly name: string;
   readonly signature: z.ZodFunction<
@@ -14,7 +14,7 @@ export interface RPCMethodSpec<
 
 export function defineMethod<
   Params extends z.ZodTypeAny,
-  Returns extends z.ZodTypeAny
+  Returns extends z.ZodTypeAny,
 >(options: {
   name: string;
   params: Params;
@@ -29,14 +29,14 @@ export function defineMethod<
 
 type RCPMethodCaller<
   Params extends z.ZodTypeAny,
-  Returns extends z.ZodTypeAny
+  Returns extends z.ZodTypeAny,
 > = Params extends z.ZodNull
   ? () => z.infer<Returns>
   : (params: z.infer<Params>) => z.infer<Returns>;
 
 export function createRCPMethodCaller<
   Params extends z.ZodTypeAny,
-  Returns extends z.ZodTypeAny
+  Returns extends z.ZodTypeAny,
 >(options: {
   method: RPCMethodSpec<Params, Returns>;
   client: JSONRPCClient;

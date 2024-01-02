@@ -27,11 +27,11 @@ describe("RedditProvider()", () => {
 
         expect(port.onMessage.removeListener).toHaveBeenCalled();
         expect(jest.mocked(port.disconnect).mock.calls.length).toEqual(
-          propagateDisconnect ? 1 : 0
+          propagateDisconnect ? 1 : 0,
         );
         // As with Port, initiating a disconnect does not notify ourself.
         expect(rpDisconnected).not.toHaveBeenCalled();
-      }
+      },
     );
 
     test("provider fires disconnected when its Port's other end disconnects", async () => {
@@ -67,7 +67,7 @@ describe("RedditProvider()", () => {
         address: `0x${"0".repeat(40)}`,
       });
       port.receiveMessage(
-        createJSONRPCSuccessResponse(1, redditEIP712Challenge())
+        createJSONRPCSuccessResponse(1, redditEIP712Challenge()),
       );
       await expect(resp).resolves.toEqual(redditEIP712Challenge());
     });
@@ -84,7 +84,7 @@ describe("RedditProvider()", () => {
     test("getAccountVaultAddress()", async () => {
       const resp = reddit.getAccountVaultAddress();
       port.receiveMessage(
-        createJSONRPCSuccessResponse(1, `0x${"0".repeat(40)}`)
+        createJSONRPCSuccessResponse(1, `0x${"0".repeat(40)}`),
       );
       await expect(resp).resolves.toEqual(`0x${"0".repeat(40)}`);
     });

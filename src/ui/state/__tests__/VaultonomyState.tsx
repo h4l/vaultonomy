@@ -22,7 +22,10 @@ type ExtensionDetectionModule =
 
 test("foo", () => {
   class Foo {
-    constructor(public a: string, public b: number) {}
+    constructor(
+      public a: string,
+      public b: number,
+    ) {}
 
     frob(): string {
       return `a=${this.a}, b=${this.b}`;

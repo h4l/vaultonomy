@@ -1,10 +1,10 @@
 import { useContext } from "react";
 
+import { WalletConnectorType } from "../wagmi";
 import { Button, LinkButton } from "./Button";
 import { EthAccount } from "./EthAccount";
-import { VaultonomyStateContext } from "./state/VaultonomyState";
-import { WalletConnectorType } from "../wagmi";
 import { IndeterminateProgressBar } from "./IndeterminateProgressBar";
+import { VaultonomyStateContext } from "./state/VaultonomyState";
 
 export function Wallet(): JSX.Element {
   const [vaultonomy, dispatch] = useContext(VaultonomyStateContext);

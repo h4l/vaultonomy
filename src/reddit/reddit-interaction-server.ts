@@ -21,7 +21,7 @@ import {
 export const SESSION_EXPIRY_SLOP = 1000 * 60 * 5;
 
 export function createServerSession<
-  ServerParams = void
+  ServerParams = void,
 >(): JSONRPCServer<ServerParams> {
   // Currently there's no need to reddit -> extension notification. The only
   // thing we need to notify of is the Reddit tab closing, but that disconnects
@@ -44,7 +44,7 @@ export function createServerSession<
     if (!sessionData.loggedIn)
       throw new JSONRPCErrorException(
         "User is not logged in to the Reddit website",
-        ErrorCode.USER_NOT_LOGGED_IN
+        ErrorCode.USER_NOT_LOGGED_IN,
       );
 
     // Expire a little before the actual expiry date so that we don't actually
@@ -52,7 +52,7 @@ export function createServerSession<
     if (Date.now() >= sessionData.auth.expires.getTime() - SESSION_EXPIRY_SLOP)
       throw new JSONRPCErrorException(
         "User auth credentials have expired",
-        ErrorCode.SESSION_EXPIRED
+        ErrorCode.SESSION_EXPIRED,
       );
     return sessionData;
   };
@@ -62,7 +62,7 @@ export function createServerSession<
     RedditGetUserProfile.signature.implement(async () => {
       const session = await getSession();
       return session.user;
-    })
+    }),
   );
   service.addMethod(
     RedditCreateAddressOwnershipChallenge.name,
@@ -73,8 +73,8 @@ export function createServerSession<
           authToken: session.auth.token,
           address: params.address,
         });
-      }
-    )
+      },
+    ),
   );
   service.addMethod(
     RedditRegisterAddressWithAccount.name,
@@ -86,7 +86,7 @@ export function createServerSession<
         challengeSignature: params.challengeSignature,
       });
       return null;
-    })
+    }),
   );
   service.addMethod(
     RedditGetAccountVaultAddress.name,
@@ -98,7 +98,7 @@ export function createServerSession<
           username: session.user.username,
         })) ?? null
       );
-    })
+    }),
   );
 
   return service;

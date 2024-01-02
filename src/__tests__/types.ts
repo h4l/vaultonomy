@@ -3,23 +3,23 @@ import { EthAddress, EthHexSignature } from "../types";
 describe("EthAddress", () => {
   test("accepts address with valid checksum", () => {
     expect(
-      EthAddress.parse("0xd2A2B709af3B6d0bba1cCbd1edD65f353aA42C66")
+      EthAddress.parse("0xd2A2B709af3B6d0bba1cCbd1edD65f353aA42C66"),
     ).toEqual("0xd2A2B709af3B6d0bba1cCbd1edD65f353aA42C66");
   });
 
   test("accepts address with no embedded checksum (lowercase)", () => {
     expect(
       EthAddress.parse(
-        "0xd2A2B709af3B6d0bba1cCbd1edD65f353aA42C66".toLowerCase()
-      )
+        "0xd2A2B709af3B6d0bba1cCbd1edD65f353aA42C66".toLowerCase(),
+      ),
     ).toEqual("0xd2A2B709af3B6d0bba1cCbd1edD65f353aA42C66");
   });
 
   test("rejects address with invalid checksum", () => {
     expect(() =>
       EthAddress.parse(
-        "0xd2A2B709af3B6d0bba1cCbd1edD65f353aA42C66".replace("A", "a")
-      )
+        "0xd2A2B709af3B6d0bba1cCbd1edD65f353aA42C66".replace("A", "a"),
+      ),
     ).toThrowError("Invalid address checksum");
   });
 
@@ -41,7 +41,7 @@ describe("EthHexSignature", () => {
     ${` ${sig} `}
   `("rejects non-signature value $thing", ({ thing }: { thing: unknown }) => {
     expect(() => EthHexSignature.parse(thing)).toThrowError(
-      "Invalid hex signature string"
+      "Invalid hex signature string",
     );
   });
 });

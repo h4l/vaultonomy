@@ -9,7 +9,7 @@ describe("UserAvatarImage", () => {
     render(
       <svg>
         <UserAvatarImage url="example" />
-      </svg>
+      </svg>,
     );
 
     expect(await screen.getByTestId("user-avatar-image")).not.toBeVisible();
@@ -20,25 +20,25 @@ describe("UserAvatarImage", () => {
     render(
       <svg>
         <UserAvatarImage url="example" />
-      </svg>
+      </svg>,
     );
 
     const image = (await screen.getByTestId(
-      "user-avatar-image"
+      "user-avatar-image",
     )) as unknown as SVGImageElement;
     const initialY = image.getAttribute("y");
 
     act(() => {
       // simulate the image having loaded
-      image.getBBox = () => ({ height: 410 } as DOMRect);
+      image.getBBox = () => ({ height: 410 }) as DOMRect;
       image.dispatchEvent(new Event("load"));
     });
 
     await waitFor(() =>
-      expect(screen.getByTestId("user-avatar-image")).toBeVisible()
+      expect(screen.getByTestId("user-avatar-image")).toBeVisible(),
     );
     expect(
-      await screen.queryByTestId("placeholder-avatar-image")
+      await screen.queryByTestId("placeholder-avatar-image"),
     ).not.toBeInTheDocument();
 
     const calculatedY = screen

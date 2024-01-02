@@ -62,7 +62,7 @@ export function handleAvailabilityConnections() {
     if (!isRedditTab(tab)) return;
     if (redditTab && isRedditTab(redditTab.tab)) {
       console.warn(
-        `Port connected for "availability" with a tab already available, closing new connection`
+        `Port connected for "availability" with a tab already available, closing new connection`,
       );
       port.disconnect();
       return;
@@ -112,7 +112,7 @@ async function loadReddit() {
 }
 
 export async function connectToActiveRedditTab(
-  tab: chrome.tabs.Tab
+  tab: chrome.tabs.Tab,
 ): Promise<void> {
   if (redditTab !== undefined) {
     console.log("already connected to a reddit tab, ignoring");
@@ -135,7 +135,7 @@ export async function connectToActiveRedditTab(
     console.log(
       "Failed to connect to tab that was previously a reddit tab. ",
       "It may have navigated to another domain.",
-      e
+      e,
     );
   }
 }
@@ -167,7 +167,7 @@ function discoverRedditTab() {
 export async function main() {
   console.log(
     "metamask installed?",
-    await isExtensionInstalled("nkbihfbeogaeaoehlefnkodbefgpgknn")
+    await isExtensionInstalled("nkbihfbeogaeaoehlefnkodbefgpgknn"),
   );
 
   console.log("background main");

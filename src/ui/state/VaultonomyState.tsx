@@ -7,6 +7,7 @@ import {
 } from "react";
 import { UserRejectedRequestError } from "viem";
 import { Address } from "wagmi";
+import { connect, disconnect, fetchEnsName, getAccount } from "wagmi/actions";
 
 import { assert, assertUnreachable } from "../../assert";
 import {
@@ -17,7 +18,6 @@ import {
   walletConnectorTypes,
 } from "../../wagmi";
 import { getMetaMaskExtensionId } from "../../webextensions/extension-ids";
-import { connect, disconnect, fetchEnsName, getAccount } from "wagmi/actions";
 
 type DispatchFn = (action: VaultonomyAction) => void;
 

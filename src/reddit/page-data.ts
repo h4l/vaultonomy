@@ -50,7 +50,7 @@ export interface RedditUser {
 }
 
 export async function fetchPageData(
-  pageUrl: string = DEFAULT_PAGE_DATA_URL
+  pageUrl: string = DEFAULT_PAGE_DATA_URL,
 ): Promise<PageData> {
   const response = await fetch(pageUrl);
   if (!response.ok) {
@@ -89,7 +89,7 @@ export function parsePageJSONData(html: string): object {
   const dataScript = doc.querySelector("#data");
   if (!dataScript) throw new Error("page contains no #data element");
   const dataScriptContent = /^\s*window\.\w+\s*=\s*(.*?);?\s*$/m.exec(
-    dataScript.innerHTML
+    dataScript.innerHTML,
   );
   if (!dataScriptContent)
     throw new Error("#data element's content is not structured as expected");

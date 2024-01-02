@@ -29,7 +29,7 @@ jest.unstable_mockModule<typeof originalApiclient>(
       getRedditAccountVaultAddress:
         jest.fn<APIClientMod["getRedditAccountVaultAddress"]>(),
     };
-  }
+  },
 );
 
 const { createServerSession } = await import("../reddit-interaction-server");
@@ -79,8 +79,8 @@ describe("createServerSession()", () => {
       await expect(resp).rejects.toEqual(
         new JSONRPCErrorException(
           "User is not logged in to the Reddit website",
-          ErrorCode.USER_NOT_LOGGED_IN
-        )
+          ErrorCode.USER_NOT_LOGGED_IN,
+        ),
       );
     });
 
@@ -97,8 +97,8 @@ describe("createServerSession()", () => {
       await expect(resp).rejects.toEqual(
         new JSONRPCErrorException(
           "User auth credentials have expired",
-          ErrorCode.SESSION_EXPIRED
-        )
+          ErrorCode.SESSION_EXPIRED,
+        ),
       );
     });
   });
@@ -107,7 +107,7 @@ describe("createServerSession()", () => {
     test("responds with challenge data", async () => {
       const response = await client.request(
         "reddit_createAddressOwnershipChallenge",
-        { address: "0x" + "0".repeat(40) }
+        { address: "0x" + "0".repeat(40) },
       );
 
       expect(RedditEIP712Challenge.safeParse(response).success).toBeTruthy();
@@ -122,14 +122,14 @@ describe("createServerSession()", () => {
         .mockRejectedValue(
           new HTTPResponseError("createAddressOwnershipChallenge failed", {
             response: undefined as unknown as Response,
-          })
+          }),
         );
 
       const resp = client.request("reddit_createAddressOwnershipChallenge", {
         address: "0x" + "0".repeat(40),
       });
       await expect(resp).rejects.toEqual(
-        new JSONRPCErrorException("createAddressOwnershipChallenge failed", 0)
+        new JSONRPCErrorException("createAddressOwnershipChallenge failed", 0),
       );
     });
   });
@@ -142,7 +142,7 @@ describe("createServerSession()", () => {
     test("handles valid request", async () => {
       const resp = client.request(
         "reddit_registerAddressWithAccount",
-        params()
+        params(),
       );
 
       await expect(resp).resolves.toBeNull();
@@ -156,15 +156,15 @@ describe("createServerSession()", () => {
         .mockRejectedValue(
           new HTTPResponseError("registerAddressWithAccount failed", {
             response: undefined as unknown as Response,
-          })
+          }),
         );
 
       const resp = client.request(
         "reddit_registerAddressWithAccount",
-        params()
+        params(),
       );
       await expect(resp).rejects.toEqual(
-        new JSONRPCErrorException("registerAddressWithAccount failed", 0)
+        new JSONRPCErrorException("registerAddressWithAccount failed", 0),
       );
     });
   });
@@ -188,12 +188,12 @@ describe("createServerSession()", () => {
         .mockRejectedValue(
           new HTTPResponseError("getRedditAccountVaultAddress failed", {
             response: undefined as unknown as Response,
-          })
+          }),
         );
 
       const resp = client.request("reddit_getAccountVaultAddress", null);
       await expect(resp).rejects.toEqual(
-        new JSONRPCErrorException("getRedditAccountVaultAddress failed", 0)
+        new JSONRPCErrorException("getRedditAccountVaultAddress failed", 0),
       );
     });
   });

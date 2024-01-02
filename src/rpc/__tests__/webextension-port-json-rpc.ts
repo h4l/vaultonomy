@@ -35,7 +35,7 @@ describe("server — bindPortToJSONRPCServer()", () => {
 
     expect(port.postMessage).toBeCalledTimes(1);
     expect(port.postMessage).toBeCalledWith(
-      createJSONRPCSuccessResponse(1, { paramsReceived: "Hello" })
+      createJSONRPCSuccessResponse(1, { paramsReceived: "Hello" }),
     );
   });
 
@@ -76,12 +76,12 @@ describe("bindPortToJSONRPCClient()", () => {
 
     const futureResponse = client.request("greet", "hi");
     await expect(
-      Promise.race([futureResponse, sleep().then(() => "slept")])
+      Promise.race([futureResponse, sleep().then(() => "slept")]),
     ).resolves.toEqual("slept");
 
     expect(port.postMessage).toHaveBeenCalledTimes(1);
     expect(port.postMessage).toHaveBeenCalledWith(
-      createJSONRPCRequest(1, "greet", "hi")
+      createJSONRPCRequest(1, "greet", "hi"),
     );
 
     port.receiveMessage(createJSONRPCSuccessResponse(1, "hi to you too"));
@@ -101,7 +101,7 @@ describe("bindPortToJSONRPCClient()", () => {
     unbind();
     // pending responses are cancelled after unbinding
     await expect(response2).rejects.toEqual(
-      new JSONRPCErrorException("JSONRPCClient was unbound from Port", 0)
+      new JSONRPCErrorException("JSONRPCClient was unbound from Port", 0),
     );
     port.receiveMessage(createJSONRPCSuccessResponse(1, "hi to you too"));
     await sleep();
@@ -119,7 +119,7 @@ describe("bindPortToJSONRPCClient()", () => {
     port.receiveDisconnect();
 
     await expect(response1).rejects.toEqual(
-      new JSONRPCErrorException("Port is disconnected", 0)
+      new JSONRPCErrorException("Port is disconnected", 0),
     );
   });
 });

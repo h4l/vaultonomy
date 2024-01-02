@@ -17,7 +17,7 @@ test("defineMethod()", async () => {
     method.signature.implement(async ({ name, msg }) => `${msg} ${name}`)({
       msg: "hi",
       name: "Bob",
-    })
+    }),
   ).resolves.toEqual("hi Bob");
 });
 
@@ -43,7 +43,7 @@ describe("createRCPMethodCaller()", () => {
     const result = greet({ name: 42 as unknown as string, msg: "hi" });
     await expect(result).rejects.toThrowError(ZodError);
     await expect(result).rejects.toThrowError(
-      "Expected string, received number"
+      "Expected string, received number",
     );
   });
 
@@ -52,7 +52,7 @@ describe("createRCPMethodCaller()", () => {
     const result = greet({ name: "Bob", msg: "hi" });
     await expect(result).rejects.toThrowError(ZodError);
     await expect(result).rejects.toThrowError(
-      "Expected string, received boolean"
+      "Expected string, received boolean",
     );
   });
 

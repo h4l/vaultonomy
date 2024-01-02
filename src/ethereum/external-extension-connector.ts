@@ -84,7 +84,7 @@ export class ExternalExtensionConnector extends InjectedConnector {
     super({ chains, options });
     if (!hasWebExtensionConnectAPI()) {
       console.warn(
-        "ExternalExtensionConnector is not available as this environment lacks chrome.runtime.connect()"
+        "ExternalExtensionConnector is not available as this environment lacks chrome.runtime.connect()",
       );
       this.ready = false;
     } else {

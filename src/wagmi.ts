@@ -1,3 +1,5 @@
+import { getConfig } from "@wagmi/core";
+import { UserRejectedRequestError } from "viem";
 import {
   Config,
   Connector,
@@ -5,12 +7,10 @@ import {
   createConfig,
   mainnet,
 } from "wagmi";
-import { UserRejectedRequestError } from "viem";
+import { getAccount } from "wagmi/actions";
 import { CoinbaseWalletConnector } from "wagmi/connectors/coinbaseWallet";
-import { InjectedConnector } from "wagmi/connectors/injected";
 import { MetaMaskConnector } from "wagmi/connectors/metaMask";
 import { WalletConnectConnector } from "wagmi/connectors/walletConnect";
-// import { alchemyProvider } from 'wagmi/providers/alchemy'
 import { publicProvider } from "wagmi/providers/public";
 
 import { assert, assertUnreachable } from "./assert";
@@ -18,9 +18,6 @@ import {
   ExternalExtensionConnector,
   hasWebExtensionConnectAPI,
 } from "./ethereum/external-extension-connector";
-
-import { getConfig } from "@wagmi/core";
-import { getAccount } from "wagmi/actions";
 
 // Configure chains & providers with the Alchemy provider.
 // Two popular providers are Alchemy (alchemy.com) and Infura (infura.io)

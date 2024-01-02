@@ -74,7 +74,7 @@ type CreateAddressOwnershipChallengeOptions = z.infer<
  * the link.
  */
 export async function createAddressOwnershipChallenge(
-  options: CreateAddressOwnershipChallengeOptions
+  options: CreateAddressOwnershipChallengeOptions,
 ): Promise<RedditEIP712Challenge> {
   const { address, timestamp, authToken } =
     CreateAddressOwnershipChallengeOptions.parse(options);
@@ -93,12 +93,12 @@ export async function createAddressOwnershipChallenge(
         address: address.toLowerCase(),
         challengeType: "registration-challenge-EIP712",
       }),
-    }
+    },
   );
   if (!response.ok) {
     throw new HTTPResponseError(
       `HTTP request to create address ownership challenge failed`,
-      { response }
+      { response },
     );
   }
   const body = ChallengeResponse.parse(await response.json());
@@ -120,7 +120,7 @@ type RegisterAddressWithAccountOptions = z.infer<
  * created by & obtained from createAddressOwnershipChallenge().
  */
 export async function registerAddressWithAccount(
-  options: RegisterAddressWithAccountOptions
+  options: RegisterAddressWithAccountOptions,
 ): Promise<void> {
   const { address, challengeSignature, authToken, timestamp } =
     RegisterAddressWithAccountOptions.parse(options);
@@ -140,12 +140,12 @@ export async function registerAddressWithAccount(
         registrationType: "crypto-registration-EIP712",
         signature: challengeSignature,
       }),
-    }
+    },
   );
   if (!response.ok) {
     throw new HTTPResponseError(
       `HTTP request to register address with account failed`,
-      { response }
+      { response },
     );
   }
 }
@@ -169,13 +169,13 @@ const CryptoContactsResponse = z.object({
           userId: z.string(),
           username: z.string(),
         })
-        .array()
+        .array(),
     )
     .optional(),
 });
 
 export async function getRedditAccountVaultAddress(
-  options: GetRedditAccountVaultAddressOptions
+  options: GetRedditAccountVaultAddressOptions,
 ): Promise<string | undefined> {
   const { username, authToken } =
     GetRedditAccountVaultAddressOptions.parse(options);
@@ -190,12 +190,12 @@ export async function getRedditAccountVaultAddress(
         authorization: `Bearer ${authToken}`,
         "content-type": "application/json",
       },
-    }
+    },
   );
   if (!response.ok) {
     throw new HTTPResponseError(
       `HTTP request to get reddit account vault address failed`,
-      { response }
+      { response },
     );
   }
   const body = CryptoContactsResponse.parse(await response.json());

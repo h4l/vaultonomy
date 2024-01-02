@@ -19,7 +19,7 @@ describe("isExtensionInstalled", () => {
     await expect(isExtensionInstalled("installed")).resolves.toBeTruthy();
     expect(browser.runtime.sendMessage).toHaveBeenLastCalledWith(
       "installed",
-      null
+      null,
     );
   });
 
@@ -28,7 +28,7 @@ describe("isExtensionInstalled", () => {
     await expect(isExtensionInstalled("notinstalled")).resolves.toBeFalsy();
     expect(browser.runtime.sendMessage).toHaveBeenLastCalledWith(
       "notinstalled",
-      null
+      null,
     );
   });
 });

@@ -32,7 +32,7 @@ describe("createAddressOwnershipChallenge()", () => {
       Record<string, string>
     >;
     expect(fetchUrl).toMatchInlineSnapshot(
-      `"https://meta-api.reddit.com/crypto/ethereum/challenges?request_timestamp=42"`
+      `"https://meta-api.reddit.com/crypto/ethereum/challenges?request_timestamp=42"`,
     );
     expect(fetchHeaders?.authorization).toEqual("Bearer secret");
     expect(fetchHeaders?.["content-type"]).toEqual("application/json");
@@ -75,7 +75,7 @@ describe("registerAddressWithAccount()", () => {
           "0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
         timestamp: 42,
         authToken: "secret",
-      })
+      }),
     ).resolves.toBeUndefined();
 
     expect(fetch).toHaveBeenCalledTimes(1);
@@ -84,7 +84,7 @@ describe("registerAddressWithAccount()", () => {
       Record<string, string>
     >;
     expect(fetchUrl).toEqual(
-      "https://meta-api.reddit.com/crypto/ethereum/registrations?request_timestamp=42"
+      "https://meta-api.reddit.com/crypto/ethereum/registrations?request_timestamp=42",
     );
     expect(fetchHeaders?.authorization).toEqual("Bearer secret");
     expect(fetchHeaders?.["content-type"]).toEqual("application/json");
@@ -140,7 +140,7 @@ describe("getRedditAccountVaultAddress()", () => {
       getRedditAccountVaultAddress({
         username: "exampleusername",
         authToken: "secret",
-      })
+      }),
     ).resolves.toEqual("0x0000000000000000000000000000000000000000");
 
     expect(fetch).toHaveBeenCalledTimes(1);
@@ -149,7 +149,7 @@ describe("getRedditAccountVaultAddress()", () => {
       Record<string, string>
     >;
     expect(fetchUrl).toEqual(
-      "https://meta-api.reddit.com/crypto-contacts?usernames=exampleusername"
+      "https://meta-api.reddit.com/crypto-contacts?usernames=exampleusername",
     );
     expect(fetchHeaders?.authorization).toEqual("Bearer secret");
     expect(fetchHeaders?.["content-type"]).toEqual("application/json");
@@ -194,7 +194,7 @@ describe("getRedditAccountVaultAddress()", () => {
       getRedditAccountVaultAddress({
         username: "exampleusername2",
         authToken: "secret",
-      })
+      }),
     ).resolves.toEqual("0x0000000000000000000000000000000000000002");
 
     expect(fetch).toHaveBeenCalledTimes(1);
@@ -211,7 +211,7 @@ describe("getRedditAccountVaultAddress()", () => {
       getRedditAccountVaultAddress({
         username: "exampleusername",
         authToken: "secret",
-      })
+      }),
     ).resolves.toBeUndefined();
     expect(fetch).toHaveBeenCalledTimes(1);
   });
