@@ -40,11 +40,11 @@ function AppUI() {
               "https://i.redd.it/snoovatar/avatars/nftv2_bmZ0X2VpcDE1NToxMzdfOWQ4NTQyZWYxMjM3OTMzYmFkYmU4NjcyOTFmNmMwNDM0YjhkMzE1Y18yNzEz_rare_0411a65f-b673-43bf-ae65-b7cc7c9349a2.png",
           }}
         />
-        <div className="m-10 flex flex-col justify-center items-center">
+        {/* <div className="m-10 flex flex-col justify-center items-center">
           <Button className="">Connect to Wallet</Button>
-        </div>
+        </div> */}
 
-        <div className="m-10 flex flex-col justify-center items-center">
+        <div className="m-10 flex flex-row flex-wrap justify-center gap-x-40 gap-y-20">
           <EthAccount
             title="Reddit Vault"
             ethAddress="0xd2A2B709af3B6d0bba1cCbd1edD65f353aA42C66"
@@ -57,25 +57,7 @@ function AppUI() {
               </WithInlineHelp>
             }
           />
-        </div>
-
-        <div className="m-10 flex flex-col justify-center items-center">
-          <EthAccount
-            title="Wallet"
-            ethAddress="0xd2A2B709af3B6d0bba1cCbd1edD65f353aA42C66"
-            ensName="h-a-l.eth"
-            footer={
-              <LinkButton className="italic text-sm">Disconnect</LinkButton>
-              // <span aria-label="status" >
-              //   Disconnect
-              // </span>
-            }
-          />
-        </div>
-
-        <div className="m-10 flex flex-col justify-center items-center">
           <Wallet />
-          {/* <Profile /> */}
         </div>
 
         {/* <UserAvatar avatarUrl="https://i.redd.it/snoovatar/avatars/nftv2_bmZ0X2VpcDE1NToxMzdfOWQ4NTQyZWYxMjM3OTMzYmFkYmU4NjcyOTFmNmMwNDM0YjhkMzE1Y18yNzEz_rare_0411a65f-b673-43bf-ae65-b7cc7c9349a2.png" />

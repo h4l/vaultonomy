@@ -24,7 +24,7 @@ export function EthAccount({
   return (
     <section
       aria-label={`${title} details${isDisabled ? " [disconnected]" : ""}`}
-      className="w-80 grid gap-x-4 gap-y-[0.125rem] grid-cols-[auto_auto_auto_auto_auto_1fr] items-end"
+      className="w-80 grid gap-x-4 gap-y-[0.125rem] auto-rows-min grid-cols-[auto_auto_auto_auto_auto_1fr] items-end"
     >
       <Heading
         className={`row-start-1 col-start-1 col-span-6 flex flex-row justify-center`}
