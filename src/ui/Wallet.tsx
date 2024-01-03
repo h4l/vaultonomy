@@ -3,6 +3,7 @@ import { useContext } from "react";
 import { WalletConnectorType } from "../wagmi";
 import { Button, LinkButton } from "./Button";
 import { EthAccount } from "./EthAccount";
+import { WithInlineHelp } from "./Help";
 import { IndeterminateProgressBar } from "./IndeterminateProgressBar";
 import { VaultonomyStateContext } from "./state/VaultonomyState";
 
@@ -21,7 +22,7 @@ export function Wallet(): JSX.Element {
               onClick={() => dispatch({ type: "userDisconnectedWallet" })}
               className="italic text-sm"
             >
-              Disconnect
+              Disconnect wallet
             </LinkButton>
           }
         />
@@ -30,33 +31,42 @@ export function Wallet(): JSX.Element {
   } else {
     return (
       <>
-        <EthAccount title="Wallet" />
-        <ConnectWallet />
+        <EthAccount title="Wallet" subtitle="Not connected">
+          <ConnectWallet className="relative z-10 -mt-32" />
+        </EthAccount>
       </>
     );
   }
 }
 
-function ConnectWallet(): JSX.Element {
+function ConnectWallet({ className }: { className?: string }): JSX.Element {
   const [vaultonomy, dispatch] = useContext(VaultonomyStateContext);
 
   return (
-    <div className="z-10 -mt-32">
+    <section aria-label="Connect to Wallet" className={className}>
       <div className="h-24 bg-gradient-to-t from-neutral-50 via-neutral-50/80 via-50%" />
-      <div className="flex flex-col gap-2 bg-default">
-        <ConnectButton walletType={WalletConnectorType.MetaMask} />
-        <ConnectButton walletType={WalletConnectorType.Coinbase} />
-        <ConnectButton walletType={WalletConnectorType.WalletConnect} />
+      <WithInlineHelp
+        iconOffsetTop="0rem"
+        iconOffsetLeft="-0.5rem"
+        helpText="Connect your crypto Wallet to Vaultonomy. You can pair your Wallet with your Reddit account after connecting."
+      >
+        <div className="flex flex-col gap-2 bg-default">
+          <ConnectButton walletType={WalletConnectorType.MetaMask} />
+          <ConnectButton walletType={WalletConnectorType.Coinbase} />
+          <WithInlineHelp helpText="Wallets other than MetaMask and Coinbase can connect using WalletConnect.">
+            <ConnectButton walletType={WalletConnectorType.WalletConnect} />
+          </WithInlineHelp>
 
-        {/* TODO: Do something better with connection errors — need to distinguish user cancelation from actual error  */}
-        {vaultonomy.walletState.state === "disconnected" &&
-        vaultonomy.walletState.failedAttempt ? (
-          <div className="text-red-500">
-            {vaultonomy.walletState.failedAttempt.connectionError}
-          </div>
-        ) : undefined}
-      </div>
-    </div>
+          {/* TODO: Do something better with connection errors — need to distinguish user cancelation from actual error  */}
+          {vaultonomy.walletState.state === "disconnected" &&
+          vaultonomy.walletState.failedAttempt ? (
+            <div className="text-red-500">
+              {vaultonomy.walletState.failedAttempt.connectionError}
+            </div>
+          ) : undefined}
+        </div>
+      </WithInlineHelp>
+    </section>
   );
 }
 
@@ -101,7 +111,7 @@ function ConnectButton({
           chosenWalletType: walletType,
         })
       }
-      className={`relative w-80 ${
+      className={`relative w-full ${
         isDisabled ? "opacity-50 grayscale-[60%]" : ""
       }`}
       paddingClassName=""

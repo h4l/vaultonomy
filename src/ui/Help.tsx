@@ -118,6 +118,7 @@ export function useRootHelpState(): HelpState {
 }
 
 interface HelpProps {
+  disabled?: boolean;
   helpId?: string;
   helpText: string;
 }
@@ -219,6 +220,7 @@ const HelpButton = forwardRef(function HelpButton(
 });
 
 export function WithInlineHelp({
+  disabled,
   children,
   className,
   iconOffsetLeft,
@@ -255,14 +257,16 @@ export function WithInlineHelp({
 
   return (
     <div ref={container} className={`${className || ""} relative`}>
-      <ScreenReaderHelp helpText={props.helpText}>
-        <HelpButton
-          ref={button}
-          {...props}
-          style={style}
-          className="absolute __-left-8 __top-[calc(45%_-_0.875rem)]"
-        />
-      </ScreenReaderHelp>
+      {disabled ? undefined : (
+        <ScreenReaderHelp helpText={props.helpText}>
+          <HelpButton
+            ref={button}
+            {...props}
+            style={style}
+            className="absolute __-left-8 __top-[calc(45%_-_0.875rem)]"
+          />
+        </ScreenReaderHelp>
+      )}
       {children}
     </div>
   );
@@ -368,7 +372,7 @@ export function HelpModal(): JSX.Element {
       <aside
         ref={ref}
         aria-label="help"
-        className="fixed w-full left-0 min-h-[5rem]
+        className="fixed z-10 w-full left-0 min-h-[5rem]
                    flex flex-row justify-center
                    p-4 pl-24 pr-8 lg:px-24
                   border-t-2 border-dashed border-neutral-400 bg-white dark:bg-neutral-950

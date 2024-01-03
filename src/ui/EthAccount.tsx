@@ -6,23 +6,43 @@ import { Link } from "./Link";
 
 export function EthAccount({
   title,
+  subtitle,
   ethAddress: _ethAddress,
   ensName,
   footer,
+  children,
 }: {
   title: string;
+  subtitle?: string;
   ethAddress?: string;
   ensName?: string;
   footer?: React.ReactNode;
+  children?: React.ReactNode;
 }): JSX.Element {
   const ethAddress = _ethAddress ?? `0x${"0".repeat(40)}`;
   const isDisabled = _ethAddress === undefined;
   return (
     <section
-      aria-label={`${title} Ethereum address details`}
-      className="grid gap-x-4 gap-y-[0.125rem] grid-cols-[auto_auto_auto_auto_auto_1fr] items-end"
+      aria-label={`${title} details${isDisabled ? " [disconnected]" : ""}`}
+      className="w-80 grid gap-x-4 gap-y-[0.125rem] grid-cols-[auto_auto_auto_auto_auto_1fr] items-end"
     >
-      <Heading className="row-start-1 col-start-2 col-span-5">{title}</Heading>
+      <Heading
+        className={`row-start-1 col-start-1 col-span-6 flex flex-row justify-center`}
+      >
+        {subtitle ? (
+          <span className="relative">
+            {title}
+            <span
+              role="note"
+              className="inline-block absolute left-[0.625rem] -bottom-2 text-sm font-normal"
+            >
+              {subtitle}
+            </span>
+          </span>
+        ) : (
+          title
+        )}
+      </Heading>
       {ensName ? (
         <WithInlineHelp
           className="row-start-2 col-start-2 col-span-5"
@@ -39,9 +59,14 @@ export function EthAccount({
         className="row-start-3 text-4xl min-w-[4rem]"
       >
         <WithInlineHelp
+          disabled={isDisabled}
           helpText={`The 0x… address that uniquely identifies this ${title}'s Ethereum account.`}
         >
-          <span className="sr-only">{ethAddress}</span>
+          <span className="sr-only">
+            {isDisabled
+              ? `${title} is not connected yet. Information will be here after connecting.`
+              : ethAddress}
+          </span>
           <span
             aria-hidden="true"
             className={isDisabled ? "opacity-30" : undefined}
@@ -57,8 +82,12 @@ export function EthAccount({
       {footer ? (
         <div className="row-start-7 col-start-2 col-span-5">{footer}</div>
       ) : undefined}
+      {children ? (
+        <div className="row-start-8 col-start-1 col-span-6">{children}</div>
+      ) : undefined}
     </section>
   );
+  const _test = <div className="row-start-8" />;
 }
 
 export function EthAddressHexPairs({
