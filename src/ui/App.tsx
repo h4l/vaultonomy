@@ -6,6 +6,7 @@ import {
   WithInlineHelp,
   useRootHelpState,
 } from "./Help";
+import { Pairing } from "./Pairing";
 import { Profile } from "./Profile";
 import { UserProfile } from "./UserProfile";
 import { VaultonomyLogo } from "./VaultonomyLogo";
@@ -40,9 +41,6 @@ function AppUI() {
               "https://i.redd.it/snoovatar/avatars/nftv2_bmZ0X2VpcDE1NToxMzdfOWQ4NTQyZWYxMjM3OTMzYmFkYmU4NjcyOTFmNmMwNDM0YjhkMzE1Y18yNzEz_rare_0411a65f-b673-43bf-ae65-b7cc7c9349a2.png",
           }}
         />
-        {/* <div className="m-10 flex flex-col justify-center items-center">
-          <Button className="">Connect to Wallet</Button>
-        </div> */}
 
         <div className="m-10 flex flex-row flex-wrap justify-center gap-x-40 gap-y-20">
           <EthAccount
@@ -59,6 +57,8 @@ function AppUI() {
           />
           <Wallet />
         </div>
+
+        <Pairing/>
 
         {/* <UserAvatar avatarUrl="https://i.redd.it/snoovatar/avatars/nftv2_bmZ0X2VpcDE1NToxMzdfOWQ4NTQyZWYxMjM3OTMzYmFkYmU4NjcyOTFmNmMwNDM0YjhkMzE1Y18yNzEz_rare_0411a65f-b673-43bf-ae65-b7cc7c9349a2.png" />
         <UserAvatar avatarUrl="https://i.redd.it/snoovatar/avatars/7d436c39-b6be-4e4b-8d42-5c51562e1095.png" /> */}

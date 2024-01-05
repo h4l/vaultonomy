@@ -1,9 +1,12 @@
+import typography from "@tailwindcss/typography";
+
 const tailwindDefaultSansFontFamily =
   'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"';
 
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ["./src/**/*.{ts,tsx}", "./src/html/**/*.html"],
+  plugins: [typography],
   theme: {
     extend: {
       fontFamily: {
@@ -33,6 +36,7 @@ export default {
         // thin: '100',
         // extralight: '200',
         // light: '300',
+        light: "335",
         // normal: '400',
         normal: "375",
         // medium: '500',

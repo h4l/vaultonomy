@@ -42,6 +42,10 @@ type WalletState =
       ensName?: string;
     };
 
+type PairingState =
+  | { userState: "disinterested" }
+  | { userState: "interested" };
+
 /**
  * ## Wallet States
  *
@@ -57,6 +61,7 @@ export interface VaultonomyState {
   intendedWalletState: IntendedWalletState;
   walletState: WalletState;
   usableWalletConnectors: Record<WalletConnectorType, boolean>;
+  intendedPairingState: PairingState;
 }
 
 interface SystemProbedForMetaMaskExtensionAction {
@@ -104,6 +109,9 @@ interface WalletAddressEnsNameFetchedAction {
   address: Address;
   ensName: string;
 }
+interface UserExpressedInterestInPairingAction {
+  type: "userExpressedInterestInPairing";
+}
 
 type VaultonomyAction =
   | SystemProbedForMetaMaskExtensionAction
@@ -116,7 +124,8 @@ type VaultonomyAction =
   | WalletFailedToConnectAction
   | WalletDidConnectAction
   | WalletConnectorUsabilityChangedAction
-  | WalletAddressEnsNameFetchedAction;
+  | WalletAddressEnsNameFetchedAction
+  | UserExpressedInterestInPairingAction;
 
 export function vaultonomyStateReducer(
   vaultonomy: VaultonomyState,
@@ -222,6 +231,12 @@ export function vaultonomyStateReducer(
         walletState: { ...vaultonomy.walletState, ensName: action.ensName },
       };
     }
+    case "userExpressedInterestInPairing": {
+      return {
+        ...vaultonomy,
+        intendedPairingState: { userState: "interested" },
+      };
+    }
   }
   assertUnreachable(action);
 }
@@ -235,6 +250,7 @@ function defaultVaultonomyState(): VaultonomyState {
       [WalletConnectorType.Coinbase]: false,
       [WalletConnectorType.WalletConnect]: false,
     },
+    intendedPairingState: { userState: "disinterested" },
   };
 }
 
