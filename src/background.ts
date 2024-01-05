@@ -1,5 +1,9 @@
+import {
+  RedditTabBecameAvailableEvent,
+  RedditTabBecameUnavailableEvent,
+  availabilityPortName,
+} from "./messaging";
 import { browser } from "./webextension";
-import { isExtensionInstalled } from "./webextensions/is-extension-installed";
 
 /*
 Tab connection strategy
@@ -37,9 +41,6 @@ a good option. Using a sidebar by default should tie the extension to a tab from
 a user POV.
 */
 
-// const entry = await import.meta.resolve('page-entry.ts')
-
-// let window: Promise<browser.Windows.Window> | undefined;
 interface ConnectedRedditTab {
   tab: chrome.tabs.Tab;
   port: chrome.runtime.Port;
@@ -48,40 +49,63 @@ interface ConnectedRedditTab {
 let redditTab: ConnectedRedditTab | undefined;
 
 function isRedditTab(tab: chrome.tabs.Tab): boolean {
+  // TODO: maybe allow aliases like new.reddit.com?
   return tab.url?.startsWith("https://www.reddit.com/") || false;
 }
 
 export function handleAvailabilityConnections() {
   browser.runtime.onConnect.addListener((port) => {
-    if (port.name !== "availability") return;
+    if (port.name !== availabilityPortName) return;
 
     const tab = port.sender?.tab;
-    if (!tab) {
-      throw new Error(`Port connected for "availability" without a sender.tab`);
+    if (!tab || !tab.id) {
+      throw new Error(`Port connected for availability without a sender.tab`);
     }
     if (!isRedditTab(tab)) return;
     if (redditTab && isRedditTab(redditTab.tab)) {
       console.warn(
-        `Port connected for "availability" with a tab already available, closing new connection`,
+        `Port connected for availability with a tab already available, closing new connection`,
       );
       port.disconnect();
       return;
     }
     console.log("received availability connection from tab:", tab);
     redditTab = { tab, port };
-
-    // investigateActiveTabQueryResults();
+    sendMessageAndIgnoreResponses<RedditTabBecameAvailableEvent>({
+      type: "redditTabBecameAvailable",
+      tabId: tab.id,
+    });
 
     port.onDisconnect.addListener((port) => {
       console.log("availability port disconnected:", port);
       if (redditTab?.port === port) {
+        const tabId = tab.id;
         redditTab = undefined;
-      }
 
-      // FIXME: rm this, I think it was just experimentation
-      // Try to re-connect to tab
-      // console.log("trying to re-connect to disconnected reddit tab");
-      // connectToActiveRedditTab(tab);
+        browser.action.setBadgeText({ text: "" });
+
+        if (!tabId) {
+          console.warn(
+            "Tab associated with disconnected availability port has no tabId — not broadcasting disconnection",
+          );
+          return;
+        }
+        sendMessageAndIgnoreResponses<RedditTabBecameUnavailableEvent>({
+          type: "redditTabBecameUnavailable",
+          tabId: tabId,
+        });
+      }
+    });
+  });
+}
+
+function sendMessageAndIgnoreResponses<M extends { type: string }>(
+  message: M,
+): void {
+  browser.runtime.sendMessage<M, void>(message).catch((error) => {
+    console.error(`Receiver of '${message.type}' message failed:`, {
+      message,
+      error,
     });
   });
 }
@@ -115,21 +139,23 @@ export async function connectToActiveRedditTab(
   tab: chrome.tabs.Tab,
 ): Promise<void> {
   if (redditTab !== undefined) {
-    console.log("already connected to a reddit tab, ignoring");
+    console.log("Already connected to a Reddit tab — ignoring.");
     return;
   }
   if (!isRedditTab(tab)) {
-    console.log("active tab is not a Reddit tab, ignoring");
+    console.log("Active tab is not a Reddit tab — ignoring.");
     return;
   }
   if (!tab.id) {
-    console.warn("active tab has no id, ignoring");
+    console.warn("Active tab has no id — ignoring.");
     return;
   }
   try {
+    console.log("Running Vaultonomy's reddit client in active Reddit tab.");
     await browser.scripting.executeScript({
       target: { tabId: tab.id },
-      func: loadReddit,
+      // func: loadReddit,
+      files: ["reddit-contentscript.js"],
     });
   } catch (e) {
     console.log(
@@ -164,15 +190,49 @@ function discoverRedditTab() {
 // TODO: store a list of opened tabs to restore, as browser.tabs.query does not
 // seem to return extension page tabs.
 
-export async function main() {
-  console.log(
-    "metamask installed?",
-    await isExtensionInstalled("nkbihfbeogaeaoehlefnkodbefgpgknn"),
-  );
+export function handleActionButtonClick(tab: chrome.tabs.Tab) {
+  console.log("handleActionButtonClick()");
+  if (!tab.id) {
+    console.warn("handleActionButtonClick: ignored click with no tab.id");
+    return;
+  }
+  ensureSidePanelIsOpenAndDisplayingVaultonomy(tab);
 
+  // TODO: review & tidy this
+  connectToActiveRedditTab(tab);
+}
+
+function ensureSidePanelIsOpenAndDisplayingVaultonomy(tab: chrome.tabs.Tab) {
+  console.log("Opening side panel");
+  // Enable our page in the side panel for the whole current window, not just
+  // the current tab. So our page remains open when changing tabs. Users can
+  // close the side panel, or open a different side-panel page and re-open our
+  // page later by triggering this again by clicking our Action button.
+  //
+  // We could open just on the current tab, but it seems useful to be able to
+  // view our sidepanel while viewing a different website, e.g. to follow
+  // instructions. And opening on a single tab would result in multiple
+  // instances being open on different tabs, each with their own state. That
+  // would surely be confusing.
+  chrome.sidePanel.setOptions({
+    enabled: true,
+    path: "index.html",
+  });
+  chrome.sidePanel.open({ windowId: tab.windowId });
+}
+
+export async function main() {
   console.log("background main");
-  discoverRedditTab();
+
+  // console.log(
+  //   "metamask installed?",
+  //   await isExtensionInstalled("nkbihfbeogaeaoehlefnkodbefgpgknn"),
+  // );
+
+  // discoverRedditTab();
   handleAvailabilityConnections();
+  browser.action.onClicked.addListener(handleActionButtonClick);
+  return;
 
   browser.action.onClicked.addListener(async (tab) => {
     console.log("action clicked");
