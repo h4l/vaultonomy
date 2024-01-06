@@ -1,6 +1,6 @@
 /** @type {import('jest').Config} */
 export default {
-  testEnvironment: "jsdom",
+  testEnvironment: "<rootDir>/jest-environment-jsdom.ts",
   testPathIgnorePatterns: [".(fixtures|mock|utils).tsx?$"],
   transform: {
     "^.+\\.(t|j)sx?$": [
