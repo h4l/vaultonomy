@@ -1,4 +1,4 @@
-import { getAddress } from "viem";
+import { Address, getAddress, isAddress } from "viem";
 import { z } from "zod";
 
 /** An Ethereum 0x... address.
@@ -8,17 +8,28 @@ import { z } from "zod";
  *
  * The value is transformed into a checksum address if it's not already.
  */
-export const EthAddress = z.string().transform((arg, context): string => {
-  try {
-    return getAddress(arg);
-  } catch (e) {
-    const reason =
-      (e as { reason?: string }).reason === "bad address checksum"
-        ? "Invalid address checksum"
-        : "Invalid address";
-    context.addIssue({ message: reason, code: z.ZodIssueCode.custom });
+export const EthAddress = z.string().transform((arg, context): Address => {
+  if (!isAddress(arg)) {
+    context.addIssue({
+      message: "Invalid address",
+      code: z.ZodIssueCode.custom,
+    });
+    return z.NEVER;
   }
-  return arg;
+
+  const checksumAddress = getAddress(arg);
+
+  // If the address is lowercase we don't validate its checksum
+  if (arg.toLowerCase() === arg) return checksumAddress;
+
+  if (checksumAddress !== arg) {
+    context.addIssue({
+      message: "Invalid address checksum",
+      code: z.ZodIssueCode.custom,
+    });
+    return z.NEVER;
+  }
+  return checksumAddress;
 });
 
 export const EthHexSignature = z
