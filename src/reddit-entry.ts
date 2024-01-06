@@ -1,6 +1,6 @@
 import { main } from "./reddit";
 
-main();
+export default main;
 // import browser from "webextension-polyfill";
 
 // console.log("reddit-entry.ts");

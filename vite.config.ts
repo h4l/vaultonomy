@@ -5,23 +5,23 @@ import { defineConfig } from "vite";
 // https://vitejs.dev/config/
 export default defineConfig({
   build: {
-    rollupOptions: {
-      input: {
+    lib: {
+      entry: {
+        reddit: "src/reddit-entry.ts",
         background: "src/background-entry.ts",
-        reddit: "src/reddit.ts",
-        ui: "index.html",
+        ui: "src/ui-entry.tsx",
       },
-      output: {
-        dir: "dist",
-        entryFileNames: "[name].js",
-      },
+      formats: ["es"],
     },
+    sourcemap: true,
   },
   plugins: [
     replace({
       values: {
         // Some dependency refers to this
-        "process.env.NODE_DEBUG": JSON.stringify(false),
+        "process.env.NODE_DEBUG": "false",
+        // react uses this
+        "process.env.NODE_ENV": "import.meta.env.MODE",
       },
       preventAssignment: true,
     }),
