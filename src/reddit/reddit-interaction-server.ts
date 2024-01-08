@@ -6,6 +6,7 @@ import { JSONRPCErrorException, JSONRPCServer } from "json-rpc-2.0";
 
 import {
   createAddressOwnershipChallenge,
+  getRedditAccountVaultAddresses,
   getRedditUserVaultAddress,
   registerAddressWithAccount,
 } from "./api-client";
@@ -13,6 +14,7 @@ import { PageData, UserPageData, fetchPageData } from "./page-data";
 import {
   ErrorCode,
   RedditCreateAddressOwnershipChallenge,
+  RedditGetAccountVaultAddresses,
   RedditGetUserProfile,
   RedditGetUserVaultAddress,
   RedditRegisterAddressWithAccount,
@@ -98,6 +100,15 @@ export function createServerSession<
           username: params.username,
         })) ?? null
       );
+    }),
+  );
+  service.addMethod(
+    RedditGetAccountVaultAddresses.name,
+    RedditGetAccountVaultAddresses.signature.implement(async () => {
+      const session = await getSession();
+      return await getRedditAccountVaultAddresses({
+        authToken: session.auth.token,
+      });
     }),
   );
 

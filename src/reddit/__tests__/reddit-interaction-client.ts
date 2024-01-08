@@ -4,6 +4,7 @@ import { createJSONRPCSuccessResponse } from "json-rpc-2.0";
 import { MockPort } from "../../__tests__/webextension.mock";
 
 import { sleep } from "../../__tests__/testing.utils";
+import { AccountVaultAddress } from "../api-client";
 import { RedditProvider } from "../reddit-interaction-client";
 import { redditEIP712Challenge } from "./api-client.fixtures";
 import { loggedInUser } from "./page-data.fixtures";
@@ -87,6 +88,20 @@ describe("RedditProvider()", () => {
         createJSONRPCSuccessResponse(1, `0x${"0".repeat(40)}`),
       );
       await expect(resp).resolves.toEqual(`0x${"0".repeat(40)}`);
+    });
+
+    test("getAccountVaultAddresses()", async () => {
+      const resp = reddit.getAccountVaultAddresses();
+      const addresses = (): Array<AccountVaultAddress> => [
+        {
+          address: "0x5318810BD26f9209c3d4ff22891F024a2b0A739a",
+          createdAt: 1704694321215,
+          isActive: true,
+          modifiedAt: 1704694321215,
+        },
+      ];
+      port.receiveMessage(createJSONRPCSuccessResponse(1, addresses()));
+      await expect(resp).resolves.toEqual(addresses());
     });
   });
 });

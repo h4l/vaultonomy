@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { defineMethod } from "../rpc/typing";
 import { EthAddress, EthHexSignature } from "../types";
-import { RedditEIP712Challenge } from "./api-client";
+import { AccountVaultAddress, RedditEIP712Challenge } from "./api-client";
 
 // This RPC protocol is connection-oriented — a connection implies a single
 // session context, in which one reddit account is the subject of the
@@ -75,4 +75,10 @@ export const RedditGetUserVaultAddress = defineMethod({
   name: "reddit_getUserVaultAddress",
   params: RedditGetUserVaultAddressParams,
   returns: EthAddress.nullable(),
+});
+
+export const RedditGetAccountVaultAddresses = defineMethod({
+  name: "reddit_getAccountVaultAddresses",
+  params: z.null(),
+  returns: z.array(AccountVaultAddress),
 });

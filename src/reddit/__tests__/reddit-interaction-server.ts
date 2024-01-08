@@ -6,7 +6,7 @@ import {
 } from "json-rpc-2.0";
 
 import { HTTPResponseError } from "../../errors/http";
-import { RedditEIP712Challenge } from "../api-client";
+import { AccountVaultAddress, RedditEIP712Challenge } from "../api-client";
 import { ErrorCode, RedditUserProfile } from "../reddit-interaction-spec";
 import { redditEIP712Challenge } from "./api-client.fixtures";
 import { anonUser, loggedInUser } from "./page-data.fixtures";
@@ -28,6 +28,8 @@ jest.unstable_mockModule<typeof originalApiclient>(
         jest.fn<APIClientMod["registerAddressWithAccount"]>(),
       getRedditUserVaultAddress:
         jest.fn<APIClientMod["getRedditUserVaultAddress"]>(),
+      getRedditAccountVaultAddresses:
+        jest.fn<APIClientMod["getRedditAccountVaultAddresses"]>(),
     };
   },
 );
@@ -38,6 +40,7 @@ const {
   createAddressOwnershipChallenge,
   registerAddressWithAccount,
   getRedditUserVaultAddress,
+  getRedditAccountVaultAddresses,
 } = await import("../api-client");
 
 describe("createServerSession()", () => {
@@ -61,6 +64,7 @@ describe("createServerSession()", () => {
     jest
       .mocked(getRedditUserVaultAddress)
       .mockResolvedValueOnce("0x" + "0".repeat(40));
+    jest.mocked(getRedditAccountVaultAddresses).mockResolvedValue([]);
   });
 
   describe("reddit_getUserProfile", () => {
@@ -169,7 +173,7 @@ describe("createServerSession()", () => {
     });
   });
 
-  describe("reddit_getAccountVaultAddress", () => {
+  describe("reddit_getUserVaultAddress", () => {
     test("handles valid request", async () => {
       const resp = client.request("reddit_getUserVaultAddress", {
         username: "otheruser",
@@ -198,6 +202,48 @@ describe("createServerSession()", () => {
       });
       await expect(resp).rejects.toEqual(
         new JSONRPCErrorException("getRedditUserVaultAddress failed", 0),
+      );
+    });
+  });
+
+  describe("reddit_getAccountVaultAddresses", () => {
+    const addresses = (): Array<AccountVaultAddress> => [
+      {
+        address: "0x5318810BD26f9209c3d4ff22891F024a2b0A739a",
+        createdAt: 1704694321215,
+        isActive: true,
+        modifiedAt: 1704694321215,
+      },
+    ];
+
+    test("handles valid request", async () => {
+      jest
+        .mocked(getRedditAccountVaultAddresses)
+        .mockReset()
+        .mockResolvedValue(addresses());
+
+      const resp = client.request("reddit_getAccountVaultAddresses", null);
+
+      await expect(resp).resolves.toEqual(addresses());
+      expect(getRedditAccountVaultAddresses).toBeCalledTimes(1);
+      expect(getRedditAccountVaultAddresses).toBeCalledWith({
+        authToken: "secret",
+      });
+    });
+
+    test("responds with error when API request fails", async () => {
+      jest
+        .mocked(getRedditAccountVaultAddresses)
+        .mockReset()
+        .mockRejectedValue(
+          new HTTPResponseError("getRedditAccountVaultAddresses failed", {
+            response: undefined as unknown as Response,
+          }),
+        );
+
+      const resp = client.request("reddit_getAccountVaultAddresses", null);
+      await expect(resp).rejects.toEqual(
+        new JSONRPCErrorException("getRedditAccountVaultAddresses failed", 0),
       );
     });
   });

@@ -7,10 +7,11 @@ import {
   bindPortToJSONRPCClient,
   createPortSendRequestFn,
 } from "../rpc/webextension-port-json-rpc";
-import { RedditEIP712Challenge } from "./api-client";
+import { AccountVaultAddress, RedditEIP712Challenge } from "./api-client";
 import {
   RedditCreateAddressOwnershipChallenge,
-  RedditCreateAddressOwnershipChallengeParams, // RedditGetAccountVaultAddress,
+  RedditCreateAddressOwnershipChallengeParams,
+  RedditGetAccountVaultAddresses, // RedditGetAccountVaultAddress,
   RedditGetUserProfile,
   RedditGetUserVaultAddress,
   RedditGetUserVaultAddressParams,
@@ -81,6 +82,10 @@ export class RedditProvider {
       method: RedditGetUserVaultAddress,
       client,
     });
+    this.getAccountVaultAddresses = createRCPMethodCaller({
+      method: RedditGetAccountVaultAddresses,
+      client,
+    });
   }
 
   getUserProfile: () => Promise<RedditUserProfile>;
@@ -93,4 +98,5 @@ export class RedditProvider {
   getUserVaultAddress: (
     params: RedditGetUserVaultAddressParams,
   ) => Promise<Address | null>;
+  getAccountVaultAddresses: () => Promise<Array<AccountVaultAddress>>;
 }
