@@ -11,10 +11,10 @@ export const pageDataLoggedIn = (): Record<string, unknown> => ({
       accountIcon: "https://example.com/img",
       displayText: "exampleuser",
     },
-  },
-  session: {
-    accessToken: "abc-123",
-    expires: "2023-01-01T00:00:00.000Z",
+    session: {
+      accessToken: "abc-123",
+      expires: "2023-01-01T00:00:00.000Z",
+    },
   },
 });
 
@@ -23,10 +23,10 @@ export const pageDataLoggedOut = (): Record<string, unknown>[] => [
     other: { stuff: true },
     user: {
       account: null,
-    },
-    session: {
-      accessToken: "abc-123",
-      expires: "2023-01-01T00:00:00.000Z",
+      session: {
+        accessToken: "abc-123",
+        expires: "2023-01-01T00:00:00.000Z",
+      },
     },
   },
   {

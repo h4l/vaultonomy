@@ -19,13 +19,13 @@ const RawPageData = z.object({
         displayText: z.string(),
       })
       .nullish(),
+    session: z
+      .object({
+        accessToken: z.string().nullish(),
+        expires: z.coerce.date().nullish(),
+      })
+      .nullish(),
   }),
-  session: z
-    .object({
-      accessToken: z.string(),
-      expires: z.coerce.date(),
-    })
-    .nullish(),
 });
 
 export type PageData = AnonPageData | UserPageData;
@@ -67,7 +67,11 @@ export async function fetchPageData(
   }
 
   // not logged in
-  if (!raw.data.user.account || !raw.data.session) return { loggedIn: false };
+  if (
+    !raw.data.user.account ||
+    !(raw.data.user.session?.accessToken && raw.data.user.session?.expires)
+  )
+    return { loggedIn: false };
 
   return {
     loggedIn: true,
@@ -78,8 +82,8 @@ export async function fetchPageData(
       hasPremium: raw.data.user.account.isGold,
     },
     auth: {
-      token: raw.data.session.accessToken,
-      expires: raw.data.session.expires,
+      token: raw.data.user.session.accessToken,
+      expires: raw.data.user.session.expires,
     },
   };
 }
