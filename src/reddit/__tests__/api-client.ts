@@ -4,7 +4,7 @@ import { assert } from "../../assert";
 import { HTTPResponseError } from "../../errors/http";
 import {
   createAddressOwnershipChallenge,
-  getRedditAccountVaultAddress,
+  getRedditUserVaultAddress,
   registerAddressWithAccount,
 } from "../api-client";
 import { redditEIP712Challenge } from "./api-client.fixtures";
@@ -114,7 +114,7 @@ describe("registerAddressWithAccount()", () => {
   });
 });
 
-describe("getRedditAccountVaultAddress()", () => {
+describe("getRedditUserVaultAddress()", () => {
   const responseBody = () => ({
     contacts: {
       exampleUserId: [
@@ -137,7 +137,7 @@ describe("getRedditAccountVaultAddress()", () => {
     } as Response);
 
     await expect(
-      getRedditAccountVaultAddress({
+      getRedditUserVaultAddress({
         username: "exampleusername",
         authToken: "secret",
       }),
@@ -191,7 +191,7 @@ describe("getRedditAccountVaultAddress()", () => {
     } as Response);
 
     await expect(
-      getRedditAccountVaultAddress({
+      getRedditUserVaultAddress({
         username: "exampleusername2",
         authToken: "secret",
       }),
@@ -208,7 +208,7 @@ describe("getRedditAccountVaultAddress()", () => {
     } as Response);
 
     await expect(
-      getRedditAccountVaultAddress({
+      getRedditUserVaultAddress({
         username: "exampleusername",
         authToken: "secret",
       }),
@@ -224,7 +224,7 @@ describe("getRedditAccountVaultAddress()", () => {
     } as Response);
 
     const [result] = await Promise.allSettled([
-      getRedditAccountVaultAddress({
+      getRedditUserVaultAddress({
         username: "exampleusername",
         authToken: "secret",
       }),

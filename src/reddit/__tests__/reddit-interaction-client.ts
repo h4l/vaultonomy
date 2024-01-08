@@ -82,7 +82,7 @@ describe("RedditProvider()", () => {
     });
 
     test("getAccountVaultAddress()", async () => {
-      const resp = reddit.getAccountVaultAddress();
+      const resp = reddit.getUserVaultAddress({ username: "example" });
       port.receiveMessage(
         createJSONRPCSuccessResponse(1, `0x${"0".repeat(40)}`),
       );

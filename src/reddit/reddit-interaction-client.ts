@@ -1,5 +1,6 @@
 import { JSONRPCClient } from "json-rpc-2.0";
 import { Emitter, createNanoEvents } from "nanoevents";
+import { Address } from "viem";
 
 import { createRCPMethodCaller } from "../rpc/typing";
 import {
@@ -9,9 +10,10 @@ import {
 import { RedditEIP712Challenge } from "./api-client";
 import {
   RedditCreateAddressOwnershipChallenge,
-  RedditCreateAddressOwnershipChallengeParams,
-  RedditGetAccountVaultAddress,
+  RedditCreateAddressOwnershipChallengeParams, // RedditGetAccountVaultAddress,
   RedditGetUserProfile,
+  RedditGetUserVaultAddress,
+  RedditGetUserVaultAddressParams,
   RedditRegisterAddressWithAccount,
   RedditRegisterAddressWithAccountParams,
   RedditUserProfile,
@@ -75,8 +77,8 @@ export class RedditProvider {
       method: RedditRegisterAddressWithAccount,
       client,
     });
-    this.getAccountVaultAddress = createRCPMethodCaller({
-      method: RedditGetAccountVaultAddress,
+    this.getUserVaultAddress = createRCPMethodCaller({
+      method: RedditGetUserVaultAddress,
       client,
     });
   }
@@ -88,5 +90,7 @@ export class RedditProvider {
   registerAddressWithAccount: (
     params: RedditRegisterAddressWithAccountParams,
   ) => Promise<null>;
-  getAccountVaultAddress: () => Promise<string | null>;
+  getUserVaultAddress: (
+    params: RedditGetUserVaultAddressParams,
+  ) => Promise<Address | null>;
 }

@@ -64,8 +64,15 @@ export const RedditRegisterAddressWithAccount = defineMethod({
   returns: z.null(),
 });
 
-export const RedditGetAccountVaultAddress = defineMethod({
-  name: "reddit_getAccountVaultAddress",
-  params: z.null(),
+export const RedditGetUserVaultAddressParams = z.object({
+  username: z.string(),
+});
+export type RedditGetUserVaultAddressParams = z.infer<
+  typeof RedditGetUserVaultAddressParams
+>;
+
+export const RedditGetUserVaultAddress = defineMethod({
+  name: "reddit_getUserVaultAddress",
+  params: RedditGetUserVaultAddressParams,
   returns: EthAddress.nullable(),
 });

@@ -150,11 +150,11 @@ export async function registerAddressWithAccount(
   }
 }
 
-const GetRedditAccountVaultAddressOptions = APIOptions.extend({
+const GetRedditUserVaultAddressOptions = APIOptions.extend({
   username: z.string(),
 });
-export type GetRedditAccountVaultAddressOptions = z.infer<
-  typeof GetRedditAccountVaultAddressOptions
+export type GetRedditUserVaultAddressOptions = z.infer<
+  typeof GetRedditUserVaultAddressOptions
 >;
 
 const CryptoContactsResponse = z.object({
@@ -174,11 +174,11 @@ const CryptoContactsResponse = z.object({
     .optional(),
 });
 
-export async function getRedditAccountVaultAddress(
-  options: GetRedditAccountVaultAddressOptions,
+export async function getRedditUserVaultAddress(
+  options: GetRedditUserVaultAddressOptions,
 ): Promise<string | undefined> {
   const { username, authToken } =
-    GetRedditAccountVaultAddressOptions.parse(options);
+    GetRedditUserVaultAddressOptions.parse(options);
   const params = new URLSearchParams({
     usernames: username,
   });

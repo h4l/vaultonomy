@@ -26,8 +26,8 @@ jest.unstable_mockModule<typeof originalApiclient>(
         jest.fn<APIClientMod["createAddressOwnershipChallenge"]>(),
       registerAddressWithAccount:
         jest.fn<APIClientMod["registerAddressWithAccount"]>(),
-      getRedditAccountVaultAddress:
-        jest.fn<APIClientMod["getRedditAccountVaultAddress"]>(),
+      getRedditUserVaultAddress:
+        jest.fn<APIClientMod["getRedditUserVaultAddress"]>(),
     };
   },
 );
@@ -37,7 +37,7 @@ const { fetchPageData } = await import("../page-data");
 const {
   createAddressOwnershipChallenge,
   registerAddressWithAccount,
-  getRedditAccountVaultAddress,
+  getRedditUserVaultAddress,
 } = await import("../api-client");
 
 describe("createServerSession()", () => {
@@ -59,7 +59,7 @@ describe("createServerSession()", () => {
       .mockResolvedValueOnce(redditEIP712Challenge());
     jest.mocked(registerAddressWithAccount).mockResolvedValue(undefined);
     jest
-      .mocked(getRedditAccountVaultAddress)
+      .mocked(getRedditUserVaultAddress)
       .mockResolvedValueOnce("0x" + "0".repeat(40));
   });
 
@@ -171,29 +171,33 @@ describe("createServerSession()", () => {
 
   describe("reddit_getAccountVaultAddress", () => {
     test("handles valid request", async () => {
-      const resp = client.request("reddit_getAccountVaultAddress", null);
+      const resp = client.request("reddit_getUserVaultAddress", {
+        username: "otheruser",
+      });
 
       await expect(resp).resolves.toEqual("0x" + "0".repeat(40));
-      expect(getRedditAccountVaultAddress).toBeCalledTimes(1);
-      expect(getRedditAccountVaultAddress).toBeCalledWith({
-        username: "exampleuser",
+      expect(getRedditUserVaultAddress).toBeCalledTimes(1);
+      expect(getRedditUserVaultAddress).toBeCalledWith({
+        username: "otheruser",
         authToken: "secret",
       });
     });
 
     test("responds with error when API request fails", async () => {
       jest
-        .mocked(getRedditAccountVaultAddress)
+        .mocked(getRedditUserVaultAddress)
         .mockReset()
         .mockRejectedValue(
-          new HTTPResponseError("getRedditAccountVaultAddress failed", {
+          new HTTPResponseError("getRedditUserVaultAddress failed", {
             response: undefined as unknown as Response,
           }),
         );
 
-      const resp = client.request("reddit_getAccountVaultAddress", null);
+      const resp = client.request("reddit_getUserVaultAddress", {
+        username: "otheruser",
+      });
       await expect(resp).rejects.toEqual(
-        new JSONRPCErrorException("getRedditAccountVaultAddress failed", 0),
+        new JSONRPCErrorException("getRedditUserVaultAddress failed", 0),
       );
     });
   });
