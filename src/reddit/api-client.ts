@@ -194,7 +194,7 @@ export async function getRedditUserVaultAddress(
   );
   if (!response.ok) {
     throw new HTTPResponseError(
-      `HTTP request to get reddit account vault address failed`,
+      `HTTP request to get vault address of reddit user failed`,
       { response },
     );
   }
@@ -207,4 +207,72 @@ export async function getRedditUserVaultAddress(
     }
   }
   return undefined;
+}
+
+const AccountVaultAddressesResponse = z.object({
+  // The response omits the top-level addresses prop for accounts with no vault.
+  addresses: z
+    .object({
+      ethereum: z
+        .array(
+          z
+            .object({
+              address: EthAddress,
+              createdAt: z.number(),
+              modifiedAt: z.number().nullish(),
+              isActive: z.boolean().nullish(),
+            })
+            .nullish(),
+        )
+        .nullish(),
+    })
+    .nullish(),
+});
+
+export const AccountVaultAddress = z.object({
+  address: EthAddress,
+  // Keep dates as timestamps, as we need to serialise them as JSON again anyway
+  createdAt: z.number(),
+  // This response used to not provide modifiedAt. It now includes it and seems
+  // to default to createdAt. Not sure in what events (if any) cause it to
+  // change. Should try re-pairing and old address and see if it results in a
+  // new entry, or if the existing address has its modifiedAt date changed.
+  modifiedAt: z.number().nullable(),
+  isActive: z.boolean(),
+});
+export type AccountVaultAddress = z.infer<typeof AccountVaultAddress>;
+
+export async function getRedditAccountVaultAddresses(
+  options: APIOptions,
+): Promise<Array<AccountVaultAddress>> {
+  const { authToken } = APIOptions.parse(options);
+  const response = await fetch(
+    `https://meta-api.reddit.com/users/me?fields=addresses`,
+    {
+      method: "GET",
+      headers: {
+        authorization: `Bearer ${authToken}`,
+        "content-type": "application/json",
+      },
+    },
+  );
+  if (!response.ok) {
+    throw new HTTPResponseError(
+      `HTTP request to get reddit account vault addresses failed`,
+      { response },
+    );
+  }
+  const body = AccountVaultAddressesResponse.parse(await response.json());
+  const addresses: Array<AccountVaultAddress> = [];
+
+  for (const rawAddress of Object.values(body.addresses?.ethereum ?? [])) {
+    if (!rawAddress) continue;
+    addresses.push({
+      address: rawAddress.address,
+      createdAt: rawAddress.createdAt,
+      modifiedAt: rawAddress.modifiedAt ?? null,
+      isActive: rawAddress.isActive ?? false,
+    });
+  }
+  return addresses;
 }

@@ -3,11 +3,16 @@ import { jest } from "@jest/globals";
 import { assert } from "../../assert";
 import { HTTPResponseError } from "../../errors/http";
 import {
+  AccountVaultAddress,
   createAddressOwnershipChallenge,
+  getRedditAccountVaultAddresses,
   getRedditUserVaultAddress,
   registerAddressWithAccount,
 } from "../api-client";
-import { redditEIP712Challenge } from "./api-client.fixtures";
+import {
+  MetaApiMeAddressResponses,
+  redditEIP712Challenge,
+} from "./api-client.fixtures";
 
 const exampleChallenge = redditEIP712Challenge;
 
@@ -234,5 +239,72 @@ describe("getRedditUserVaultAddress()", () => {
     assert(result.status === "rejected");
     assert(result.reason instanceof HTTPResponseError);
     expect(result.reason.response.status).toEqual(500);
+  });
+});
+
+describe("getRedditAccountVaultAddresses()", () => {
+  test.each(MetaApiMeAddressResponses.empty())(
+    "handles successful request for account with no vault history",
+    async (response) => {
+      jest.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => response,
+      } as Response);
+
+      await expect(
+        getRedditAccountVaultAddresses({
+          authToken: "secret",
+        }),
+      ).resolves.toEqual([]);
+    },
+  );
+
+  test("handles successful request for account with one vault", async () => {
+    jest.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => MetaApiMeAddressResponses.single(),
+    } as Response);
+
+    await expect(
+      getRedditAccountVaultAddresses({
+        authToken: "secret",
+      }),
+    ).resolves.toEqual<Array<AccountVaultAddress>>([
+      {
+        address: "0x5318810BD26f9209c3d4ff22891F024a2b0A739a",
+        createdAt: 1704694321215,
+        isActive: true,
+        modifiedAt: 1704694321215,
+      },
+    ]);
+  });
+
+  test("handles successful request for account with multiple vaults", async () => {
+    jest.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => MetaApiMeAddressResponses.multi(),
+    } as Response);
+
+    await expect(
+      getRedditAccountVaultAddresses({
+        authToken: "secret",
+      }),
+    ).resolves.toEqual<Array<AccountVaultAddress>>([
+      {
+        address: "0x2bBA0433D7D798981d08EC4aC93d3bd301F3b4Bd",
+        createdAt: 1675509156828,
+        modifiedAt: null,
+        isActive: false,
+      },
+      {
+        address: "0x5d70d1DdA55C6EC028de8de42395Be1Cf43F0815",
+        createdAt: 1676029402882,
+        modifiedAt: null,
+        isActive: true,
+      },
+    ]);
   });
 });
