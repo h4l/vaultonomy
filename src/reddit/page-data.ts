@@ -15,6 +15,7 @@ const RawPageData = z.object({
         // has Reddit Premium (via award or subscription)
         isGold: z.boolean().default(false),
         accountIcon: z.string().url(),
+        snoovatarFullBodyAsset: z.string().url(),
         // username (not display name)
         displayText: z.string(),
       })
@@ -47,6 +48,7 @@ export interface RedditUser {
   username: string;
   hasPremium: boolean;
   accountIconURL: string;
+  accountIconFullBodyURL: string;
 }
 
 export async function fetchPageData(
@@ -79,6 +81,7 @@ export async function fetchPageData(
       userID: raw.data.user.account.id,
       username: raw.data.user.account.displayText,
       accountIconURL: raw.data.user.account.accountIcon,
+      accountIconFullBodyURL: raw.data.user.account.snoovatarFullBodyAsset,
       hasPremium: raw.data.user.account.isGold,
     },
     auth: {

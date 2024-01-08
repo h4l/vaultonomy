@@ -36,7 +36,8 @@ describe("fetchPageData()", () => {
       user: {
         userID: "t2_abc",
         hasPremium: true,
-        accountIconURL: "https://example.com/img",
+        accountIconFullBodyURL: "https://example.com/imgFull",
+        accountIconURL: "https://example.com/imgSquare",
         username: "exampleuser",
       },
       auth: {

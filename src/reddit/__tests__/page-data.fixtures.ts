@@ -8,7 +8,8 @@ export const pageDataLoggedIn = (): Record<string, unknown> => ({
       other: { stuff: true },
       id: "t2_abc",
       isGold: true,
-      accountIcon: "https://example.com/img",
+      snoovatarFullBodyAsset: "https://example.com/imgFull",
+      accountIcon: "https://example.com/imgSquare",
       displayText: "exampleuser",
     },
     session: {
@@ -51,7 +52,8 @@ export const loggedInUser = (): UserPageData => ({
   user: {
     userID: "t2_abc",
     username: "exampleuser",
-    accountIconURL: "https://example.com/img",
+    accountIconFullBodyURL: "https://example.com/imgFull",
+    accountIconURL: "https://example.com/imgSquare",
     hasPremium: true,
   },
   auth: { token: "secret", expires: new Date("2023-01-02T00:00:00Z") },

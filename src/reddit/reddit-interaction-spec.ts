@@ -27,6 +27,7 @@ export const RedditUserProfile = z.object({
   username: z.string(),
   hasPremium: z.boolean(),
   accountIconURL: z.string().url(),
+  accountIconFullBodyURL: z.string().url(),
 });
 export type RedditUserProfile = z.infer<typeof RedditUserProfile>;
 
