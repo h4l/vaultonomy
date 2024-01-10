@@ -33,7 +33,7 @@ test("foo", () => {
   }
   jest.spyOn(Foo.prototype, "frob").mockImplementationOnce(() => "mocked!");
   const f = new Foo("A", 42);
-  expect(f.frob()).toEqual("mocked!1");
+  expect(f.frob()).toEqual("mocked!");
   expect(f.frob()).toEqual("a=A, b=42");
 });
 
