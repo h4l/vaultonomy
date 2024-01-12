@@ -1,6 +1,12 @@
+import { z } from "zod";
+
+import { assertUnreachable } from "./assert";
 import {
+  Message,
   RedditTabBecameAvailableEvent,
   RedditTabBecameUnavailableEvent,
+  UINeedsRedditTabEvent,
+  UINeedsRedditTabResponse,
   availabilityPortName,
 } from "./messaging";
 import { browser } from "./webextension";
@@ -48,6 +54,35 @@ interface ConnectedRedditTab {
 
 let redditTab: ConnectedRedditTab | undefined;
 
+const ActiveRedditTab = z.object({ tabId: z.number() });
+type ActiveRedditTab = z.infer<typeof ActiveRedditTab>;
+
+const activeRedditTabStorageKey = "activeRedditTab";
+
+async function loadActiveRedditTab(): Promise<ActiveRedditTab | null> {
+  const raw = (await browser.storage.session.get(activeRedditTabStorageKey))[
+    activeRedditTabStorageKey
+  ];
+  const result = ActiveRedditTab.safeParse(raw);
+  if (!result.success) {
+    if (raw) {
+      console.warn(
+        `Invalid value persisted for ${activeRedditTabStorageKey}: ${result.error}`,
+      );
+    }
+    return null;
+  }
+  return result.data;
+}
+
+async function saveActiveRedditTab(
+  activeRedditTab: ActiveRedditTab | null,
+): Promise<void> {
+  await browser.storage.session.set({
+    [activeRedditTabStorageKey]: activeRedditTab,
+  });
+}
+
 function isRedditTab(tab: chrome.tabs.Tab): boolean {
   // TODO: maybe allow aliases like new.reddit.com?
   return tab.url?.startsWith("https://www.reddit.com/") || false;
@@ -71,6 +106,7 @@ export function handleAvailabilityConnections() {
     }
     console.log("received availability connection from tab:", tab);
     redditTab = { tab, port };
+    saveActiveRedditTab({ tabId: tab.id }).catch(console.error);
     sendMessageAndIgnoreResponses<RedditTabBecameAvailableEvent>({
       type: "redditTabBecameAvailable",
       tabId: tab.id,
@@ -79,6 +115,7 @@ export function handleAvailabilityConnections() {
     port.onDisconnect.addListener((port) => {
       console.log("availability port disconnected:", port);
       if (redditTab?.port === port) {
+        saveActiveRedditTab(null).catch(console.error);
         const tabId = tab.id;
         redditTab = undefined;
 
@@ -103,36 +140,17 @@ function sendMessageAndIgnoreResponses<M extends { type: string }>(
   message: M,
 ): void {
   browser.runtime.sendMessage<M, void>(message).catch((error) => {
-    console.error(`Receiver of '${message.type}' message failed:`, {
-      message,
-      error,
-    });
+    // sendMessage will reject if nobody is listening for the message.
+    if (
+      import.meta.env.MODE === "development" &&
+      !/Could not establish connection/.test(`${error}`)
+    ) {
+      console.error(`Receiver of '${message.type}' message failed:`, {
+        message,
+        error,
+      });
+    }
   });
-}
-
-// async function investigateActiveTabQueryResults() {
-//   const tabs = await chrome.tabs.query({});
-//   const redditTabs = tabs.filter((t) =>
-//     t.url?.startsWith("https://www.reddit.com/")
-//   );
-//   console.log(
-//     "all reddit tabs results:",
-//     redditTabs,
-//     "seen active reddit tabs:",
-//     [...activeTabs]
-//   );
-// }
-
-async function loadReddit() {
-  try {
-    (
-      (await import(
-        chrome.runtime.getURL("reddit.js")
-      )) as typeof import("./reddit")
-    ).main();
-  } catch (e) {
-    console.error("Failed to load Vaultonomy reddit.js", e);
-  }
 }
 
 export async function connectToActiveRedditTab(
@@ -154,6 +172,7 @@ export async function connectToActiveRedditTab(
     console.log("Running Vaultonomy's reddit client in active Reddit tab.");
     await browser.scripting.executeScript({
       target: { tabId: tab.id },
+      // TODO: can we re-introduce the function loading method?
       // func: loadReddit,
       files: ["reddit-contentscript.js"],
     });
@@ -166,40 +185,34 @@ export async function connectToActiveRedditTab(
   }
 }
 
-function discoverRedditTab() {
-  chrome.tabs.onActivated.addListener(async (activeInfo) => {
-    console.log("tabs.onActivated", { activeInfo: activeInfo });
-    const tab = await chrome.tabs.get(activeInfo.tabId);
-    console.log("fetched activated tab; url:", tab.url);
-    if (isRedditTab(tab)) {
-      console.log("attempting to connect to tab from onActivated listener");
-      connectToActiveRedditTab(tab);
-    }
-  });
-  // chrome.tabs.onUpdated.addListener(async (tabId, info, tab) => {
-  //   console.log("tabs.onUpdated", { url: tab.url, tabId, info, tab });
-  //   if (isRedditTab(tab)) {
-  //     console.log("attempting to connect to tab from onUpdated listener");
-  //     connectToActiveRedditTab(tab);
-  //   }
-  // });
+export function handleActionButtonClick(tab: chrome.tabs.Tab) {
+  console.log("handleActionButtonClick()", new Date().toLocaleTimeString());
+  ensureSidePanelIsOpenAndDisplayingVaultonomy(tab);
+  reConnectToActiveTabOrCurrentTab(tab).catch(console.error);
 }
 
-// let popupWindow: Promise<chrome.tabs.Tab> | undefined;
+async function reConnectToActiveTabOrCurrentTab(
+  currentTab: chrome.tabs.Tab,
+): Promise<void> {
+  // Clicking the action button can wake up this service worker after it was
+  // shut down. If we were connected to a Reddit tab before, we re-use that tab
+  // rather than connecting to the current tab.
+  const activeTabInfo = await loadActiveRedditTab();
+  if (activeTabInfo) {
+    const activeTab = await browser.tabs.get(activeTabInfo.tabId);
+    if (isRedditTab(activeTab)) {
+      console.log("handleActionButtonClick: restored saved active tab");
+      currentTab = activeTab;
+    }
+  }
 
-// TODO: store a list of opened tabs to restore, as browser.tabs.query does not
-// seem to return extension page tabs.
-
-export function handleActionButtonClick(tab: chrome.tabs.Tab) {
-  console.log("handleActionButtonClick()");
-  if (!tab.id) {
+  if (!currentTab.id) {
     console.warn("handleActionButtonClick: ignored click with no tab.id");
     return;
   }
-  ensureSidePanelIsOpenAndDisplayingVaultonomy(tab);
 
   // TODO: review & tidy this
-  connectToActiveRedditTab(tab);
+  connectToActiveRedditTab(currentTab);
 }
 
 function ensureSidePanelIsOpenAndDisplayingVaultonomy(tab: chrome.tabs.Tab) {
@@ -216,133 +229,53 @@ function ensureSidePanelIsOpenAndDisplayingVaultonomy(tab: chrome.tabs.Tab) {
   // would surely be confusing.
   chrome.sidePanel.setOptions({
     enabled: true,
-    path: "index.html",
+    path: "ui.html",
   });
   chrome.sidePanel.open({ windowId: tab.windowId });
 }
 
-export async function main() {
-  console.log("background main");
+function handleMessage(
+  _message: unknown,
+  _sender: chrome.runtime.MessageSender,
+  sendResponse: (response?: any) => void,
+): true | undefined {
+  const result = Message.safeParse(_message);
+  if (!result.success) {
+    console.warn(
+      `handleMessage: unknown message:`,
+      _message,
+      result.error.format(),
+    );
+    return;
+  }
+  const message = result.data;
+  switch (message.type) {
+    case "redditTabBecameAvailable":
+      return;
+    case "redditTabBecameUnavailable":
+      return;
+    case "uiNeedsRedditTab":
+      handleUiNeedsRedditTab(message)
+        .then((response) => sendResponse(response))
+        .catch((error) => console.error(error));
+      return true;
+  }
+  assertUnreachable(message);
+}
 
-  // console.log(
-  //   "metamask installed?",
-  //   await isExtensionInstalled("nkbihfbeogaeaoehlefnkodbefgpgknn"),
-  // );
+async function handleUiNeedsRedditTab(
+  _event: UINeedsRedditTabEvent,
+): Promise<UINeedsRedditTabResponse> {
+  if (redditTab?.tab.id !== undefined) {
+    return { success: true, tabId: redditTab.tab.id };
+  }
+  return { success: true, tabId: null };
+}
 
-  // discoverRedditTab();
+export function main() {
+  console.log("background main", new Date().toLocaleTimeString());
   handleAvailabilityConnections();
   browser.action.onClicked.addListener(handleActionButtonClick);
+  browser.runtime.onMessage.addListener(handleMessage);
   return;
-
-  browser.action.onClicked.addListener(async (tab) => {
-    console.log("action clicked");
-    if (!tab.id) return;
-
-    console.log("Opening side panel");
-    chrome.sidePanel.open({
-      windowId: tab.windowId,
-    });
-    chrome.sidePanel.setOptions({
-      enabled: true,
-      path: "index.html",
-      // tabId: tab.id,
-    });
-    chrome.sidePanel.open({ windowId: tab.windowId });
-
-    console.log("connecting #1");
-    connectToActiveRedditTab(tab);
-    // console.log("connecting #2");
-    // connectToActiveRedditTab(tab);
-
-    // TODO: window management:
-    // Chrome/brave do not actually focus or draw attention to a background
-    // window when chrome.windows.update() is called. So if we open our UI as a
-    // popup window, the only option to show it to the user would be to open a
-    // new window. We could close any existing window when doing this, but it
-    // feels a bit clumsy.
-    //
-    // What we can do is to focus a tab in the currently-active window. So if
-    // the user already has a tab with our UI open in their window, we can focus
-    // that. If not, we can create a tab with our UI.
-    //
-    // Users won't end up with multiple instances of the UI open unless they go
-    // to distinct windows and trigger the extension in each window. This should
-    // result in intuitive behaviour, as triggering the extension action will
-    // always result in a visible action — either an existing tab is focussed,
-    // or a tab is opened.
-
-    // const allWindowtabs = await browser.tabs.query({
-    //   currentWindow: true,
-    // });
-    // console.log("allWindowtabs", allWindowtabs);
-
-    // Seems to always be empty
-    // const existingTabs = await browser.tabs.query({
-    //   url: browser.runtime.getURL("/*"),
-    //   currentWindow: true,
-    // });
-    //.filter((t) => typeof t.id === "number");
-    // const existingTabs = popupTabs;
-    // console.log("existingTabs:", existingTabs, browser.runtime.getURL("/*"));
-
-    // if (existingTabs.length === 0) {
-    //   existingTabs.push(await browser.tabs.create({ url: "/popup.html" }));
-    // } else {
-    //   // Find the closest tab
-    //   const activeTab = await browser.tabs.query({
-    //     active: true,
-    //     currentWindow: true,
-    //   });
-    //   // const activeTabIndex = activeTab.at(0)?.index ?? 0;
-    //   // existingTabs.sort((a, b) => {
-    //   //   const distanceA = Math.abs(a.index - activeTabIndex);
-    //   //   const distanceB = Math.abs(b.index - activeTabIndex);
-    //   //   return distanceA - distanceB;
-    //   // });
-    //   const id = existingTabs[0].id;
-    //   assert(typeof id === "number");
-    //   console.log("Activating first tab from:", existingTabs[0]);
-    //   chrome.tabs.update(id, { active: true });
-    // }
-
-    // if (popupWindow === undefined) {
-    //   popupWindow = (async () => {
-    //     const win = await browser.windows.create({
-    //       type: "popup",
-    //       url: "/popup.html",
-    //     });
-    //     const tab = win.tabs?.at(0);
-    //     assert(tab);
-    //     return tab;
-    //   })();
-
-    //   // popupWindow = browser.tabs.create({
-    //   //   url: "/popup.html",
-    //   //   windowId: tab.windowId,
-    //   // });
-    // } else {
-    //   const popup = await popupWindow;
-    //   assert(typeof popup.id === "number");
-    //   console.log("activatign previously-opened popup...", popup);
-    //   chrome.tabs.update(popup.id, { active: true });
-    //   // console.log("drawing attention to window of previously-opened popup...");
-    //   // chrome.windows.update(tab.windowId, { drawAttention: true });
-    //   console.log("focussing window of previously-opened popup...");
-    //   chrome.windows.update(tab.windowId, { focused: true });
-    // }
-
-    // let openWindow = await window;
-    // console.log("openWindow:", openWindow);
-    // if (!(openWindow && typeof openWindow.id === "number")) {
-    //   window = browser.windows.create({
-    //     type: "popup",
-    //     url: "/popup.html",
-
-    //   });
-    // }
-  });
-
-  browser.runtime.onMessage.addListener(async (msg) => {
-    console.log("background: onMessage:", msg);
-  });
 }

@@ -9,7 +9,7 @@ import { UserRejectedRequestError } from "viem";
 import { Address } from "wagmi";
 import { connect, disconnect, fetchEnsName, getAccount } from "wagmi/actions";
 import { Browser, action } from "webextension-polyfill";
-import { z } from "zod";
+import { boolean, z } from "zod";
 
 import { assert, assertUnreachable } from "../../assert";
 import {
@@ -36,6 +36,7 @@ import {
 import { browser } from "../../webextension";
 import { getMetaMaskExtensionId } from "../../webextensions/extension-ids";
 import { getIncreasingId } from "./increasing-ids";
+import { useRedditProvider } from "./useRedditProvider";
 
 type DispatchFn = (action: VaultonomyAction) => void;
 
@@ -72,23 +73,18 @@ type PairingState =
 // Send one-shot message to get tab ID
 // Backend publishes availability of tab ID when connected
 
-type AsyncRequest = {
-  state: "started" | "succeeded" | "failed";
-  id: number;
-};
+type AsyncValue<T> =
+  | { state: "loading" | "failed"; id: number }
+  | { state: "loaded"; value: T; id: number };
 
 type RedditState = TabAvailableRedditState | TabNotAvailableRedditState;
 type TabNotAvailableRedditState = { state: "tabNotAvailable" };
 type TabAvailableRedditState = {
   state: "tabAvailable";
-  providerRequests: Partial<Record<RedditProviderRequestType, AsyncRequest>>;
-  tabId: number;
-  userProfile?: RedditUserProfile;
-  vaultAddresses?: ReadonlyArray<AccountVaultAddress>;
+  userProfile?: AsyncValue<RedditUserProfile>;
+  vaultAddresses?: AsyncValue<ReadonlyArray<AccountVaultAddress>>;
   // TODO: add other states for Reddit Data
 };
-// | { state: "tabConnecting"; tabId: number }
-// | { state: "tabConnected"; tabId: number };
 
 /**
  * ## Wallet States
@@ -160,67 +156,23 @@ interface UserExpressedInterestInPairingAction {
 
 interface RedditTabBecameAvailableAction {
   type: "redditTabBecameAvailable";
-  tabId: number;
 }
 interface RedditTabBecameUnavailableAction {
   type: "redditTabBecameUnavailable";
-  tabId: number;
 }
-// interface SystemFetchedUserProfileFromRedditAction {
-//   type: "systemFetchedUserProfileFromReddit";
-//   tabId: number;
-//   userProfile: RedditUserProfile;
-// }
-// interface SystemFailedToFetchUserProfileFromRedditAction {
-//   type: "systemFailedToFetchUserProfileFromReddit";
-//   tabId: number;
-// }
-// interface SystemFetchedAccountVaultAddressesFromRedditAction {
-//   type: "systemFetchedAccountVaultAddressesFromReddit";
-//   tabId: number;
-//   vaultAddresses: ReadonlyArray<AccountVaultAddress>;
-// }
-// interface SystemFailedToFetchAccountVaultAddressesFromRedditAction {
-//   type: "systemFailedToFetchAccountVaultAddressesFromReddit";
-//   tabId: number;
-// }
 
-type _RedditProviderMethods = Omit<RedditProvider, "emitter">;
-type RedditProviderRequestType = keyof _RedditProviderMethods;
-type RedditProviderResult<RT extends RedditProviderRequestType> = Awaited<
-  ReturnType<RedditProvider[RT]>
+type AsyncValueLoadActions<N extends string, T> = {
+  type: N;
+} & AsyncValue<T>;
+
+type RedditProfileAvailabilityChangedActions = AsyncValueLoadActions<
+  "redditProfileAvailabilityChanged",
+  RedditUserProfile
 >;
-
-type RedditProviderRequestStarted<RT extends RedditProviderRequestType> = {
-  progressType: "started";
-  id: number;
-  requestType: RT;
-};
-type RedditProviderRequestSucceeded<RT extends RedditProviderRequestType> = {
-  progressType: "succeeded";
-  id: number;
-  requestType: RT;
-  value: RedditProviderResult<RT>;
-};
-type RedditProviderRequestFailed<RT extends RedditProviderRequestType> = {
-  progressType: "failed";
-  requestType: RT;
-  id: number;
-  error: RedditProviderError;
-};
-
-/**
- * This event is used to report status of requests to Reddit via RedditProvider.
- */
-interface SystemProgressedRequestToRedditAction<
-  RT extends RedditProviderRequestType = RedditProviderRequestType,
-> {
-  type: "systemProgressedRequestToReddit";
-  progression:
-    | RedditProviderRequestStarted<RT>
-    | RedditProviderRequestSucceeded<RT>
-    | RedditProviderRequestFailed<RT>;
-}
+type RedditVaultsAvailabilityChangedActions = AsyncValueLoadActions<
+  "redditVaultsAvailabilityChanged",
+  Array<AccountVaultAddress>
+>;
 
 type VaultonomyAction =
   | SystemProbedForMetaMaskExtensionAction
@@ -237,13 +189,8 @@ type VaultonomyAction =
   | UserExpressedInterestInPairingAction
   | RedditTabBecameAvailableAction
   | RedditTabBecameUnavailableAction
-  // | SystemFetchedUserProfileFromRedditAction
-  // | SystemFailedToFetchUserProfileFromRedditAction
-  // | SystemFetchedAccountVaultAddressesFromRedditAction
-  // | SystemFailedToFetchAccountVaultAddressesFromRedditAction;
-  // | SystemBeganConnectingToRedditTabAction
-  // | SystemConnectedToRedditTabAction;
-  | SystemProgressedRequestToRedditAction;
+  | RedditProfileAvailabilityChangedActions
+  | RedditVaultsAvailabilityChangedActions;
 
 export function vaultonomyStateReducer(
   vaultonomy: VaultonomyState,
@@ -356,156 +303,37 @@ export function vaultonomyStateReducer(
       };
     }
     case "redditTabBecameUnavailable": {
-      if (
-        vaultonomy.redditState.state === "tabNotAvailable" ||
-        action.tabId !== vaultonomy.redditState.tabId
-      ) {
+      if (vaultonomy.redditState.state === "tabNotAvailable") {
         return vaultonomy;
       }
-      return {
-        ...vaultonomy,
-        redditState: { state: "tabNotAvailable" },
-      };
+      return { ...vaultonomy, redditState: { state: "tabNotAvailable" } };
     }
     case "redditTabBecameAvailable": {
-      if (
-        vaultonomy.redditState.state !== "tabNotAvailable" &&
-        vaultonomy.redditState.tabId === action.tabId
-      ) {
+      if (vaultonomy.redditState.state === "tabAvailable") {
         return vaultonomy;
       }
+      return { ...vaultonomy, redditState: { state: "tabAvailable" } };
+    }
+    case "redditProfileAvailabilityChanged": {
+      if (vaultonomy.redditState.state === "tabNotAvailable") return vaultonomy;
+      if ((vaultonomy.redditState.userProfile?.id ?? 0) > action.id)
+        return vaultonomy;
       return {
         ...vaultonomy,
-        redditState: {
-          state: "tabAvailable",
-          providerRequests: {},
-          tabId: action.tabId,
-        },
+        redditState: { ...vaultonomy.redditState, userProfile: action },
       };
     }
-    case "systemProgressedRequestToReddit": {
-      return systemProgressedRequestToRedditActionVaultonomyStateReducer(
-        vaultonomy,
-        action,
-      );
+    case "redditVaultsAvailabilityChanged": {
+      if (vaultonomy.redditState.state === "tabNotAvailable") return vaultonomy;
+      if ((vaultonomy.redditState.vaultAddresses?.id ?? 0) > action.id)
+        return vaultonomy;
+      return {
+        ...vaultonomy,
+        redditState: { ...vaultonomy.redditState, vaultAddresses: action },
+      };
     }
-    // case "systemFailedToFetchUserProfileFromReddit": {
-    //   if (
-    //     vaultonomy.redditState.state === "tabAvailable" &&
-    //     vaultonomy.redditState.tabId === action.tabId
-    //   ) {
-    //     return {
-    //       ...vaultonomy,
-    //       redditState: {
-    //         state: "tabAvailable",
-    //         tabId: action.tabId,
-    //         userProfile: undefined,
-    //       },
-    //     };
-    //   }
-    //   return vaultonomy;
-    // }
-    // case "systemFetchedUserProfileFromReddit": {
-    //   if (
-    //     vaultonomy.redditState.state === "tabAvailable" &&
-    //     vaultonomy.redditState.tabId === action.tabId
-    //   ) {
-    //     return {
-    //       ...vaultonomy,
-    //       redditState: {
-    //         ...vaultonomy.redditState,
-    //         userProfile: action.userProfile,
-    //       },
-    //     };
-    //   }
-    //   return vaultonomy;
-    // }
-    // case "systemFetchedAccountVaultAddressesFromReddit": {
-    //   if (
-    //     vaultonomy.redditState.state === "tabAvailable" &&
-    //     vaultonomy.redditState.tabId === action.tabId
-    //   ) {
-    //     return {
-    //       ...vaultonomy,
-    //       redditState: {
-    //         ...vaultonomy.redditState,
-    //         vaultAddresses: action.vaultAddresses,
-    //       },
-    //     };
-    //   }
-    //   return vaultonomy;
-    // }
   }
   assertUnreachable(action);
-}
-
-function systemProgressedRequestToRedditActionVaultonomyStateReducer(
-  vaultonomy: VaultonomyState,
-  action: SystemProgressedRequestToRedditAction,
-): VaultonomyState {
-  if (vaultonomy.redditState.state === "tabNotAvailable") {
-    return vaultonomy;
-  }
-  const { requestType, id } = action.progression;
-  const progression = action.progression;
-
-  const currentRequest =
-    vaultonomy.redditState.providerRequests[action.progression.requestType];
-  if (currentRequest && currentRequest.id > id) {
-    return vaultonomy;
-  }
-
-  const providerRequests: TabAvailableRedditState["providerRequests"] = {
-    ...vaultonomy.redditState.providerRequests,
-    [requestType]: { state: "started", id },
-  };
-
-  let redditState: TabAvailableRedditState;
-  if (progression.progressType === "succeeded") {
-    redditState = {
-      ...vaultonomy.redditState,
-      providerRequests,
-    };
-    switch (progression.requestType) {
-      case "getUserProfile":
-        redditState.userProfile = progression.value as RedditProviderResult<
-          typeof progression.requestType
-        >;
-        break;
-      case "getAccountVaultAddresses":
-        redditState.vaultAddresses = progression.value as RedditProviderResult<
-          typeof progression.requestType
-        >;
-        break;
-      default:
-        throw new Error(
-          `Storing value of Reddit request not implemented: ${progression.requestType}`,
-        );
-    }
-    return { ...vaultonomy, redditState };
-  } else if (
-    progression.progressType === "started" ||
-    progression.progressType === "failed"
-  ) {
-    redditState = {
-      ...vaultonomy.redditState,
-      providerRequests,
-    };
-    switch (progression.requestType) {
-      case "getUserProfile":
-        redditState.userProfile = undefined;
-        break;
-      case "getAccountVaultAddresses":
-        redditState.vaultAddresses = undefined;
-        break;
-      default:
-        throw new Error(
-          `Storing value of Reddit request not implemented: ${progression.requestType}`,
-        );
-    }
-    return { ...vaultonomy, redditState };
-  }
-  assertUnreachable(progression);
 }
 
 function defaultVaultonomyState(): VaultonomyState {
@@ -539,23 +367,9 @@ export function useRootVaultonomyState(): [VaultonomyState, DispatchFn] {
 }
 
 abstract class AsyncDriver<State = any, Action = any> {
-  #isCancelled: boolean = false;
   private runningReconciliation?: Promise<void>;
 
-  // Promise?
-  cancel(): void {
-    this.#isCancelled = true;
-    this.doCancel();
-  }
-
-  get isCancelled(): boolean {
-    return this.#isCancelled;
-  }
-
   async reconcile(state: State, dispatch: (action: Action) => void) {
-    if (this.isCancelled) {
-      throw new Error("reconcile called when cancelled");
-    }
     if (this.runningReconciliation !== undefined) {
       throw new Error(
         "reconcile called with an existing runningReconciliation",
@@ -601,25 +415,27 @@ function useDriveAsync<S, A, T extends AsyncDriver<S, A>>({
   state: S;
   dispatch: (action: A) => void;
 }) {
-  const [asyncDriver, _] = useState(initializer);
-  useEffect(() => {
-    return () => asyncDriver.cancel();
-  }, []);
-  useEffect(() => {
-    let cancelled = false;
+  const [asyncDriver, _] = useState<T>(initializer);
 
-    // Ensure only one reconcile runs at a time
-    (async () => {
-      await asyncDriver.idle();
-      if (!cancelled) {
-        asyncDriver.reconcile(state, dispatch);
-      }
-    })();
+  useEffect(
+    () => {
+      let cancelled = false;
 
-    return () => {
-      cancelled = true;
-    };
-  }, asyncDriver.getDependencies(state));
+      // Ensure only one reconcile runs at a time
+      (async () => {
+        if (cancelled) return;
+        await asyncDriver.idle();
+        if (!cancelled) {
+          asyncDriver.reconcile(state, dispatch);
+        }
+      })();
+
+      return () => {
+        cancelled = true;
+      };
+    },
+    asyncDriver?.getDependencies(state),
+  );
 }
 
 class MetaMaskExtensionDetector extends AsyncDriver<
@@ -780,170 +596,112 @@ class WalletDriver extends AsyncDriver<VaultonomyState, VaultonomyAction> {
   }
 }
 
-// function useRedditProvider(): RedditProvider | undefined {
-//   const [tabId, setTabId] = useState<number>();
-//   useEffect(() => {
+interface RedditProviderDriverState {
+  vaultonomy: VaultonomyState;
+  provider: RedditProvider | undefined;
+}
 
-//   });
+class RedditProviderDriver extends AsyncDriver<
+  RedditProviderDriverState,
+  VaultonomyAction
+> {
+  private provider?: RedditProvider;
+  private loadingProfile?: Promise<RedditUserProfile>;
+  private loadingVaultAddresses?: Promise<Array<AccountVaultAddress>>;
 
-// }
-
-const RedditDriverMessage = z.discriminatedUnion("type", [
-  RedditTabBecameAvailableEvent,
-  RedditTabBecameUnavailableEvent,
-]);
-type RedditDriverMessage = z.infer<typeof RedditDriverMessage>;
-
-class RedditDriver extends AsyncDriver<VaultonomyState, VaultonomyAction> {
-  #onMessageHandler?: (message: unknown) => void;
-  #connection:
-    | {
-        tabId: number;
-        redditProvider: RedditProvider;
-        profile?: RedditUserProfile;
-      }
-    | undefined;
-  // #redditTab: chrome.tabs.Tab | undefined;
-  // #port: chrome.runtime.Port | undefined;
-  getDependencies({ redditState }: VaultonomyState): unknown[] {
-    return [redditState];
+  getDependencies({
+    vaultonomy: { redditState },
+    provider,
+  }: RedditProviderDriverState): unknown[] {
+    return [redditState, provider];
   }
 
-  protected doCancel(): void {
-    if (this.#onMessageHandler)
-      browser.runtime.onMessage.removeListener(this.#onMessageHandler);
-  }
-
-  private listenForRedditTab(dispatch: DispatchFn): void {
-    assert(!this.#onMessageHandler);
-    this.#onMessageHandler = (message: unknown) => {
-      const result = RedditDriverMessage.safeParse(message);
-      if (!result.success) {
-        if (import.meta.env.MODE === "development") {
-          console.log("RedditDriver: ignored message", message);
-        }
-        return;
-      }
-      this.handleMessage(result.data, dispatch);
-    };
-    browser.runtime.onMessage.addListener(this.#onMessageHandler);
-  }
-
-  private handleMessage(
-    message: RedditDriverMessage,
-    dispatch: DispatchFn,
-  ): void {
-    switch (message.type) {
-      case "redditTabBecameAvailable":
-        dispatch({ type: "redditTabBecameAvailable", tabId: message.tabId });
-        return;
-      case "redditTabBecameUnavailable":
-        dispatch({ type: "redditTabBecameUnavailable", tabId: message.tabId });
-        return;
-    }
-    assertUnreachable(message);
-  }
+  protected doCancel(): void {}
 
   protected async doReconcile(
-    { redditState }: VaultonomyState,
+    {
+      vaultonomy: { redditState: _redditState },
+      provider,
+    }: RedditProviderDriverState,
     dispatch: DispatchFn,
   ): Promise<void> {
-    if (!this.#onMessageHandler) {
-      this.listenForRedditTab(dispatch);
-      assert(this.#onMessageHandler);
+    // Reset loading state when provider changes or becomes unavailable
+    if (this.provider !== provider) {
+      this.provider = provider;
+      this.loadingProfile = undefined;
+      this.loadingVaultAddresses = undefined;
     }
 
-    if (redditState.state === "tabNotAvailable") {
-      this.disconnectIfConnected();
+    if (provider === undefined) {
+      dispatch({ type: "redditTabBecameUnavailable" });
       return;
     }
-    if (this.#connection?.tabId === redditState.tabId) return;
 
-    if (redditState.state === "tabAvailable") {
-      const tabId = redditState.tabId;
-      const redditProvider = RedditProvider.from(
-        browser.tabs.connect(tabId, { name: REDDIT_INTERACTION }),
-      );
-      redditProvider.emitter.on("disconnected", () => {
-        if (
-          this.#connection?.tabId === tabId ||
-          this.#connection?.redditProvider === redditProvider
-        ) {
-          this.disconnectIfConnected();
-          dispatch({ type: "redditTabBecameUnavailable", tabId });
-        }
+    if (!this.loadingProfile) {
+      this.loadingProfile = dispatchAsyncValueLoadActions({
+        type: "redditProfileAvailabilityChanged",
+        asyncValue: retry({
+          action: async () => await provider.getUserProfile(),
+          canRetry: whenSessionExpiredOnce,
+        }),
+        dispatch,
       });
-      // TODO: do we need tabId now that we use getIncreasingId()?
-      this.#connection = { tabId, redditProvider, profile: undefined };
-      await Promise.all([
-        this.dispatchGetProfile(redditProvider, dispatch),
-        this.dispatchGetVaultAddresses(redditProvider, dispatch),
-      ]);
     }
-  }
 
-  private async dispatchGetProfile(
-    redditProvider: RedditProvider,
-    dispatch: DispatchFn,
-  ): Promise<void> {
-    await retryOrDispatchProviderCallError({
-      requestType: "getUserProfile",
-      dispatch,
-      id: getIncreasingId(),
-      providerCall: async () => await redditProvider.getUserProfile(),
-    });
-  }
-
-  private async dispatchGetVaultAddresses(
-    redditProvider: RedditProvider,
-    dispatch: DispatchFn,
-  ): Promise<void> {
-    await retryOrDispatchProviderCallError({
-      requestType: "getAccountVaultAddresses",
-      dispatch,
-      id: getIncreasingId(),
-      providerCall: async () => await redditProvider.getAccountVaultAddresses(),
-    });
-  }
-
-  private disconnectIfConnected() {
-    this.#connection?.redditProvider.emitter.emit("disconnectSelf");
-    this.#connection = undefined;
+    if (!this.loadingVaultAddresses) {
+      this.loadingVaultAddresses = dispatchAsyncValueLoadActions({
+        type: "redditVaultsAvailabilityChanged",
+        asyncValue: retry({
+          action: async () => await provider.getAccountVaultAddresses(),
+          canRetry: whenSessionExpiredOnce,
+        }),
+        dispatch,
+      });
+    }
   }
 }
 
-async function retryOrDispatchProviderCallError<
-  RT extends RedditProviderRequestType,
->({
-  requestType,
-  providerCall,
+async function dispatchAsyncValueLoadActions<N extends string, T>({
+  type,
+  asyncValue,
   dispatch,
-  id,
 }: {
-  requestType: RT;
-  providerCall: () => Promise<RedditProviderResult<RT>>;
-  dispatch: DispatchFn;
-  id: number;
-}): Promise<void> {
-  dispatch({
-    type: "systemProgressedRequestToReddit",
-    progression: { requestType, progressType: "started", id },
-  });
-  for (let attemptsRemaining = 2; attemptsRemaining > 0; --attemptsRemaining) {
+  type: N;
+  asyncValue: Promise<T>;
+  dispatch: (action: AsyncValueLoadActions<N, T>) => void;
+}): Promise<T> {
+  const id = getIncreasingId();
+  try {
+    dispatch({ type, id, state: "loading" });
+    const value = await asyncValue;
+    dispatch({ type, id, state: "loaded", value });
+    return value;
+  } catch (error) {
+    dispatch({ type, id, state: "failed" });
+    throw error;
+  }
+}
+
+const whenSessionExpiredOnce: RetryPredicate = (error, attempt) =>
+  attempt == 1 &&
+  error instanceof RedditProviderError &&
+  error.type === ErrorCode.SESSION_EXPIRED;
+
+type RetryPredicate = (error: unknown, attempt: number) => boolean;
+
+async function retry<T>({
+  action,
+  canRetry: retryWhile,
+}: {
+  action: () => Promise<T>;
+  canRetry: RetryPredicate;
+}): Promise<T> {
+  for (let attempt = 1; ; ++attempt) {
     try {
-      const value = await providerCall();
-      dispatch({
-        type: "systemProgressedRequestToReddit",
-        progression: { requestType, progressType: "succeeded", id, value },
-      });
-      return;
+      return await action();
     } catch (error) {
-      if (error instanceof RedditProviderError) {
-        if (error.type === ErrorCode.SESSION_EXPIRED) continue; // retry
-        dispatch({
-          type: "systemProgressedRequestToReddit",
-          progression: { requestType, progressType: "failed", id, error },
-        });
+      if (retryWhile(error, attempt)) {
+        continue;
       }
       throw error;
     }
@@ -969,11 +727,11 @@ export function VaultonomyRoot({
     dispatch,
   });
 
-  // const redditProvider = useRedditProvider();
+  const redditProvider = useRedditProvider();
 
   useDriveAsync({
-    initializer: () => new RedditDriver(),
-    state: vaultonomy,
+    initializer: () => new RedditProviderDriver(),
+    state: { vaultonomy, provider: redditProvider },
     dispatch,
   });
 

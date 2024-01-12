@@ -12,12 +12,7 @@
   "manifest_version": 3,
   "version": "0.0.1",
   "description": "Manage your Reddit account's Vault from the browser.",
-  "permissions": [
-    "scripting",
-    "sidePanel",
-    "storage",
-    "activeTab"
-  ],
+  "permissions": ["scripting", "sidePanel", "storage", "activeTab"],
   "host_permissions": [],
   "background": {
     "service_worker": "background.js",
@@ -25,18 +20,17 @@
   },
   "web_accessible_resources": [
     {
-      "resources": [
-        "*.ttf",
-        "*.js",
-        "*.js.map",
-        "*.html"
-      ],
-      "matches": [
-        "https://www.reddit.com/*"
-      ]
+      "resources": ["*.ttf", "*.js", "*.js.map", "*.html"],
+      "matches": ["https://www.reddit.com/*", "http://localhost:5173/*"]
     }
   ],
   "side_panel": {
-    "default_path": "index.html"
-  }
+    "default_path": "ui.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["http://localhost:5173/*"],
+      "js": ["devserver-contentscript.js"]
+    }
+  ]
 }

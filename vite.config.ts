@@ -5,11 +5,13 @@ import { defineConfig } from "vite";
 // https://vitejs.dev/config/
 export default defineConfig({
   build: {
+    minify: false,
     lib: {
       entry: {
         reddit: "src/reddit-entry.ts",
         background: "src/background-entry.ts",
         ui: "src/ui-entry.tsx",
+        devserver: "src/devserver/devserver-entry.ts",
       },
       formats: ["es"],
     },

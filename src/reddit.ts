@@ -1,3 +1,5 @@
+import { log } from "./logging";
+import { availabilityPortName } from "./messaging";
 import { createServerSession } from "./reddit/reddit-interaction-server";
 import { REDDIT_INTERACTION } from "./reddit/reddit-interaction-spec";
 import { ConnectionOverlay } from "./reddit/ui/connection-overlay";
@@ -35,9 +37,9 @@ function stop() {
 }
 
 export function createAvailabilityConnection(): chrome.runtime.Port {
-  const port = browser.runtime.connect({ name: "availability" });
+  const port = browser.runtime.connect({ name: availabilityPortName });
   port.onDisconnect.addListener(() => {
-    console.log("availability Port disconnected");
+    log.debug("availability Port disconnected");
     stop();
   });
   // TODO: add explicit message handler to stop?
@@ -46,14 +48,19 @@ export function createAvailabilityConnection(): chrome.runtime.Port {
 
 export function handleRedditInteractionConnections() {
   browser.runtime.onConnect.addListener((port) => {
-    if (port.name !== REDDIT_INTERACTION) return;
+    if (port.name !== REDDIT_INTERACTION) {
+      log.debug("Closing unexpected connection: ", port);
+      port.disconnect();
+      return;
+    }
 
+    log.debug("Starting JSONRPC server for port", port);
     const server = createServerSession();
     bindPortToJSONRPCServer({ port, server });
 
     // Shutdown all RPC connections when the availability connection drops.
     availabilityConnection?.onDisconnect.addListener(() => {
-      console.log(
+      log.debug(
         "disconnecting RPC Port due to availability Port disconnecting",
       );
       port.disconnect();

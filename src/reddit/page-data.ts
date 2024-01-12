@@ -3,9 +3,9 @@ import { z } from "zod";
 import { HTTPResponseError } from "../errors/http";
 
 // Every page seems to contain a script#data element containing the session data
-// we need. But some pages are bigger than others. /coins doesn't have much
+// we need. But some pages are bigger than others. /premium doesn't have much
 // going on, so it's smaller & faster (than say the homepage).
-export const DEFAULT_PAGE_DATA_URL = "https://www.reddit.com/coins";
+export const DEFAULT_PAGE_DATA_URL = "https://www.reddit.com/premium";
 
 const RawPageData = z.object({
   user: z.object({

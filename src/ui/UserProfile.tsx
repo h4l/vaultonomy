@@ -22,7 +22,10 @@ export function UserProfile({
         iconOffsetBottom="3.875rem"
         helpText="Your Reddit account's avatar."
       >
-        <UserAvatar className="w-40" avatarUrl={profile?.accountIconURL} />
+        <UserAvatar
+          className="w-40"
+          avatarUrl={profile?.accountIconFullBodyURL}
+        />
       </WithInlineHelp>
       {profile ? (
         <WithInlineHelp

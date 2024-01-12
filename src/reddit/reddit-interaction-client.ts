@@ -1,4 +1,4 @@
-import { JSONRPCClient } from "json-rpc-2.0";
+import { JSONRPCClient, JSONRPCErrorException } from "json-rpc-2.0";
 import { Emitter, createNanoEvents } from "nanoevents";
 import { Address } from "viem";
 
@@ -9,9 +9,10 @@ import {
 } from "../rpc/webextension-port-json-rpc";
 import { AccountVaultAddress, RedditEIP712Challenge } from "./api-client";
 import {
+  ErrorCode,
   RedditCreateAddressOwnershipChallenge,
   RedditCreateAddressOwnershipChallengeParams,
-  RedditGetAccountVaultAddresses, // RedditGetAccountVaultAddress,
+  RedditGetAccountVaultAddresses,
   RedditGetUserProfile,
   RedditGetUserVaultAddress,
   RedditGetUserVaultAddressParams,
@@ -20,12 +21,37 @@ import {
   RedditUserProfile,
 } from "./reddit-interaction-spec";
 
+export { AccountVaultAddress, RedditEIP712Challenge } from "./api-client";
+
 export type EmptyCallback = () => void;
 export interface RedditProviderEvents {
   /** Fired when the other end disconnects from us. */
   disconnected: EmptyCallback;
   /** Fired to disconnect ourself from the other end. */
   disconnectSelf: EmptyCallback;
+}
+
+export class RedditProviderError extends Error {
+  type: ErrorCode | null;
+  constructor(
+    options: ErrorOptions & { type: ErrorCode | null; message: string },
+  ) {
+    super(options.message, { cause: options.cause });
+    this.type = options.type;
+  }
+
+  static from(error: JSONRPCErrorException): RedditProviderError {
+    const type =
+      error.code === ErrorCode.USER_NOT_LOGGED_IN ||
+      error.code === ErrorCode.SESSION_EXPIRED
+        ? error.code
+        : null;
+    return new RedditProviderError({
+      type,
+      message: error.message,
+      cause: error,
+    });
+  }
 }
 
 /** An client interface to the reddit-interaction service.
@@ -69,24 +95,31 @@ export class RedditProvider {
     this.getUserProfile = createRCPMethodCaller({
       method: RedditGetUserProfile,
       client,
+      mapError: RedditProviderError.from,
     });
     this.createAddressOwnershipChallenge = createRCPMethodCaller({
       method: RedditCreateAddressOwnershipChallenge,
       client,
+      mapError: RedditProviderError.from,
     });
     this.registerAddressWithAccount = createRCPMethodCaller({
       method: RedditRegisterAddressWithAccount,
       client,
+      mapError: RedditProviderError.from,
     });
     this.getUserVaultAddress = createRCPMethodCaller({
       method: RedditGetUserVaultAddress,
       client,
+      mapError: RedditProviderError.from,
     });
     this.getAccountVaultAddresses = createRCPMethodCaller({
       method: RedditGetAccountVaultAddresses,
       client,
+      mapError: RedditProviderError.from,
     });
   }
+
+  // TODO: should we make these return functional error values rather than throw?
 
   getUserProfile: () => Promise<RedditUserProfile>;
   createAddressOwnershipChallenge: (
