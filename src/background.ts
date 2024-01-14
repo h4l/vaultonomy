@@ -1,6 +1,7 @@
 import { BackgroundService } from "./background/BackgroundService";
 import { DevModeBackgroundService } from "./devserver/DevModeBackgroundService";
 import { log } from "./logging";
+import { browser } from "./webextension";
 
 /*
 Tab connection strategy
@@ -45,4 +46,8 @@ export function main() {
   } else {
     new BackgroundService().init().catch(log.error);
   }
+  browser.runtime.onConnectExternal.addListener((port) => {
+    console.log("onConnectExternal", port);
+    setTimeout(() => port.disconnect(), 5000);
+  });
 }

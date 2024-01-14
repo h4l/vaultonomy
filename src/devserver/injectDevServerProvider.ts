@@ -67,6 +67,9 @@ function broadcastProvider(provider: RedditProvider): Disconnect {
   // worker: https://developer.chrome.com/docs/extensions/develop/concepts/messaging#external-webpage
   // Alternatively, can we can use the web postMessage API? This would require
   // an extra proxying step in the content script though.
+  //
+  // Seems that MetaMask uses postMessage communicate from the page to the extension:
+  // https://github.com/MetaMask/metamask-extension/blob/develop/app/scripts/inpage.js
   const announceEvent = new CustomEvent(announceProviderEventType, {
     detail: Object.freeze({ info, provider }),
   });
