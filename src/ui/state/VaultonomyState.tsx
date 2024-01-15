@@ -1,3 +1,4 @@
+import { Emitter, createNanoEvents } from "nanoevents";
 import {
   ReactNode,
   createContext,
@@ -23,7 +24,6 @@ import {
 } from "../../reddit/reddit-interaction-client";
 import {
   ErrorCode,
-  REDDIT_INTERACTION,
   RedditUserProfile,
 } from "../../reddit/reddit-interaction-spec";
 import {
@@ -33,10 +33,10 @@ import {
   isUserRejectedRequestError,
   walletConnectorTypes,
 } from "../../wagmi";
-import { browser } from "../../webextension";
 import { getMetaMaskExtensionId } from "../../webextensions/extension-ids";
+import { VaultonomyBackgroundProvider } from "../rpc/VaultonomyBackgroundProvider";
 import { getIncreasingId } from "./increasing-ids";
-import { useRedditProvider } from "./useRedditProvider";
+import { useVaultonomyBackgroundProvider } from "./useVaultonomyBackgroundProvider";
 
 type DispatchFn = (action: VaultonomyAction) => void;
 
@@ -366,7 +366,13 @@ export function useRootVaultonomyState(): [VaultonomyState, DispatchFn] {
   return useReducer(vaultonomyStateReducer, undefined, defaultVaultonomyState);
 }
 
+type AsyncDriverEvents = {
+  stopped: () => void;
+};
+
 abstract class AsyncDriver<State = any, Action = any> {
+  #stopped: boolean = false;
+  emitter: Emitter<AsyncDriverEvents> = createNanoEvents();
   private runningReconciliation?: Promise<void>;
 
   async reconcile(state: State, dispatch: (action: Action) => void) {
@@ -394,48 +400,57 @@ abstract class AsyncDriver<State = any, Action = any> {
     }
   }
 
-  getDependencies(_state: State): Array<unknown> {
-    return [];
-  }
-
   protected abstract doReconcile(
     state: State,
     dispatch: (action: Action) => void,
   ): Promise<void>;
 
-  protected doCancel(): void {}
+  get stopped(): boolean {
+    return this.#stopped;
+  }
+
+  stop(): void {
+    this.#stopped = true;
+    this.emitter.emit("stopped");
+  }
 }
 
 function useDriveAsync<S, A, T extends AsyncDriver<S, A>>({
   initializer,
   state,
   dispatch,
+  getDependencies,
 }: {
   initializer: () => T;
   state: S;
   dispatch: (action: A) => void;
+  getDependencies?: (state: S) => unknown[];
 }) {
-  const [asyncDriver, _] = useState<T>(initializer);
+  const [asyncDriver, setAsyncDriver] = useState<T>();
 
-  useEffect(
-    () => {
-      let cancelled = false;
+  useEffect(() => {
+    const createdAsyncDriver = initializer();
+    setAsyncDriver(createdAsyncDriver);
+    return () => createdAsyncDriver.stop();
+  }, []);
 
-      // Ensure only one reconcile runs at a time
-      (async () => {
-        if (cancelled) return;
-        await asyncDriver.idle();
-        if (!cancelled) {
-          asyncDriver.reconcile(state, dispatch);
-        }
-      })();
+  useEffect(() => {
+    if (!asyncDriver) return;
+    let cancelled = false;
 
-      return () => {
-        cancelled = true;
-      };
-    },
-    asyncDriver?.getDependencies(state),
-  );
+    // Ensure only one reconcile runs at a time
+    (async () => {
+      if (cancelled) return;
+      await asyncDriver.idle();
+      if (!cancelled) {
+        asyncDriver.reconcile(state, dispatch);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [asyncDriver, ...(getDependencies ? getDependencies(state) : [])]);
 }
 
 class MetaMaskExtensionDetector extends AsyncDriver<
@@ -469,7 +484,7 @@ class WalletDriver extends AsyncDriver<VaultonomyState, VaultonomyAction> {
     super();
   }
 
-  getDependencies(state: VaultonomyState): unknown[] {
+  static getDependencies(state: VaultonomyState): unknown[] {
     return [state.intendedWalletState, state.metaMaskExtensionId];
   }
 
@@ -596,23 +611,27 @@ class WalletDriver extends AsyncDriver<VaultonomyState, VaultonomyAction> {
   }
 }
 
-interface RedditProviderDriverState {
+interface VaultonomyBackgroundProviderDriverState {
   vaultonomy: VaultonomyState;
-  provider: RedditProvider | undefined;
+  provider: VaultonomyBackgroundProvider | undefined;
 }
 
-class RedditProviderDriver extends AsyncDriver<
-  RedditProviderDriverState,
+type Unbind = () => void;
+
+class VaultonomyBackgroundProviderDriver extends AsyncDriver<
+  VaultonomyBackgroundProviderDriverState,
   VaultonomyAction
 > {
-  private provider?: RedditProvider;
+  private provider?: VaultonomyBackgroundProvider;
+  private unbindProvider?: Unbind;
+  private redditProvider?: RedditProvider;
   private loadingProfile?: Promise<RedditUserProfile>;
   private loadingVaultAddresses?: Promise<Array<AccountVaultAddress>>;
 
-  getDependencies({
+  static getDependencies({
     vaultonomy: { redditState },
     provider,
-  }: RedditProviderDriverState): unknown[] {
+  }: VaultonomyBackgroundProviderDriverState): unknown[] {
     return [redditState, provider];
   }
 
@@ -622,18 +641,37 @@ class RedditProviderDriver extends AsyncDriver<
     {
       vaultonomy: { redditState: _redditState },
       provider,
-    }: RedditProviderDriverState,
+    }: VaultonomyBackgroundProviderDriverState,
     dispatch: DispatchFn,
   ): Promise<void> {
     // Reset loading state when provider changes or becomes unavailable
     if (this.provider !== provider) {
+      if (this.unbindProvider) this.unbindProvider();
       this.provider = provider;
+      this.unbindProvider = provider?.emitter.on(
+        "availabilityStatus",
+        (event) => {
+          switch (event.type) {
+            case "redditTabBecameAvailable":
+              this.redditProvider = event.redditProvider;
+              dispatch({ type: "redditTabBecameAvailable" });
+              break;
+            case "redditTabBecameUnavailable":
+              this.redditProvider = undefined;
+              dispatch({ type: "redditTabBecameUnavailable" });
+              break;
+            default:
+              assertUnreachable(event);
+          }
+        },
+      );
       this.loadingProfile = undefined;
       this.loadingVaultAddresses = undefined;
+      await provider?.requestAvailabilityStatus();
     }
+    const redditProvider = this.redditProvider;
 
-    if (provider === undefined) {
-      dispatch({ type: "redditTabBecameUnavailable" });
+    if (provider === undefined || redditProvider === undefined) {
       return;
     }
 
@@ -641,7 +679,7 @@ class RedditProviderDriver extends AsyncDriver<
       this.loadingProfile = dispatchAsyncValueLoadActions({
         type: "redditProfileAvailabilityChanged",
         asyncValue: retry({
-          action: async () => await provider.getUserProfile(),
+          action: async () => await redditProvider.getUserProfile(),
           canRetry: whenSessionExpiredOnce,
         }),
         dispatch,
@@ -652,7 +690,7 @@ class RedditProviderDriver extends AsyncDriver<
       this.loadingVaultAddresses = dispatchAsyncValueLoadActions({
         type: "redditVaultsAvailabilityChanged",
         asyncValue: retry({
-          action: async () => await provider.getAccountVaultAddresses(),
+          action: async () => await redditProvider.getAccountVaultAddresses(),
           canRetry: whenSessionExpiredOnce,
         }),
         dispatch,
@@ -725,14 +763,16 @@ export function VaultonomyRoot({
     initializer: () => new WalletDriver(new WagmiConfigManager()),
     state: vaultonomy,
     dispatch,
+    getDependencies: WalletDriver.getDependencies,
   });
 
-  const redditProvider = useRedditProvider();
+  const vaultonomyBackgroundProvider = useVaultonomyBackgroundProvider();
 
   useDriveAsync({
-    initializer: () => new RedditProviderDriver(),
-    state: { vaultonomy, provider: redditProvider },
+    initializer: () => new VaultonomyBackgroundProviderDriver(),
+    state: { vaultonomy, provider: vaultonomyBackgroundProvider },
     dispatch,
+    getDependencies: VaultonomyBackgroundProviderDriver.getDependencies,
   });
 
   return (

@@ -57,6 +57,9 @@ export function handleRedditInteractionConnections() {
     log.debug("Starting JSONRPC server for port", port);
     const server = createServerSession();
     bindPortToJSONRPCServer({ port, server });
+    port.onDisconnect.addListener(() => {
+      log.debug("Stopping JSONRPC server for port", port);
+    });
 
     // Shutdown all RPC connections when the availability connection drops.
     availabilityConnection?.onDisconnect.addListener(() => {

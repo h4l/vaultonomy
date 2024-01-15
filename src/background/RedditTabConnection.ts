@@ -6,6 +6,7 @@ import { log } from "../logging";
 import {
   RedditTabBecameAvailableEvent,
   RedditTabBecameUnavailableEvent,
+  RedditTabConnectionEvents,
   availabilityPortName,
 } from "../messaging";
 import { browser } from "../webextension";
@@ -19,12 +20,6 @@ const activeRedditTabStorageKey = "activeRedditTab";
 interface ConnectedRedditTab {
   tab: chrome.tabs.Tab;
   port?: chrome.runtime.Port;
-}
-
-export interface RedditTabConnectionEvents {
-  availabilityStatus: (
-    event: RedditTabBecameAvailableEvent | RedditTabBecameUnavailableEvent,
-  ) => void;
 }
 
 export class RedditTabConnection {
@@ -93,7 +88,7 @@ export class RedditTabConnection {
     this.redditTab = { tab, port };
     saveActiveRedditTab({ tabId: tab.id }).catch(log.error);
 
-    this.publishAvailabilityEvent();
+    this.requestAvailabilityEvent();
 
     port.onDisconnect.addListener((port) => {
       log.debug("availability port disconnected: ", {
@@ -113,18 +108,22 @@ export class RedditTabConnection {
           );
           return;
         }
-        this.publishAvailabilityEvent();
+        this.requestAvailabilityEvent();
       }
     });
   }
 
-  publishAvailabilityEvent(): void {
+  requestAvailabilityEvent():
+    | RedditTabBecameAvailableEvent
+    | RedditTabBecameUnavailableEvent
+    | undefined {
     const event = this.getCurrentAvailabilityEvent();
     if (!event) return;
     this.emitter.emit("availabilityStatus", event);
+    return event;
   }
 
-  getCurrentAvailabilityEvent():
+  protected getCurrentAvailabilityEvent():
     | RedditTabBecameAvailableEvent
     | RedditTabBecameUnavailableEvent
     | undefined {

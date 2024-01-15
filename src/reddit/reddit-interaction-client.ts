@@ -43,7 +43,8 @@ export class RedditProviderError extends Error {
   static from(error: JSONRPCErrorException): RedditProviderError {
     const type =
       error.code === ErrorCode.USER_NOT_LOGGED_IN ||
-      error.code === ErrorCode.SESSION_EXPIRED
+      error.code === ErrorCode.SESSION_EXPIRED ||
+      error.code === ErrorCode.REDDIT_TAB_DISCONNECTED
         ? error.code
         : null;
     return new RedditProviderError({

@@ -30,12 +30,6 @@
   "side_panel": {
     "default_path": "ui.html"
   },
-  "content_scripts": [
-    {
-      "matches": ["http://vaultonomy.localhost:5173/*"],
-      "js": ["devserver-contentscript.js"]
-    }
-  ],
   "externally_connectable": {
     "matches": ["http://vaultonomy.localhost:5173/*"]
   }

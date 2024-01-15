@@ -23,6 +23,9 @@ import { z } from "zod";
 //   type: "redditTabBecameAvailable";
 //   tabId: number;
 // }
+
+// FIXME: These are background-specific, move them to to ./background/ (we don't
+//  include tabId in the UI).
 export const RedditTabBecameAvailableEvent = z.object({
   type: z.literal("redditTabBecameAvailable"),
   tabId: z.number(),
@@ -30,6 +33,12 @@ export const RedditTabBecameAvailableEvent = z.object({
 export type RedditTabBecameAvailableEvent = z.infer<
   typeof RedditTabBecameAvailableEvent
 >;
+
+export interface RedditTabConnectionEvents {
+  availabilityStatus: (
+    event: RedditTabBecameAvailableEvent | RedditTabBecameUnavailableEvent,
+  ) => void;
+}
 
 /**
  * Sent as a broadcast message from background worker when the Reddit tab
@@ -51,6 +60,7 @@ export type RedditTabBecameUnavailableEvent = z.infer<
 //   type: "uiNeedsRedditTab";
 // }
 
+// TODO: remove this, I don't think we use it anymore
 export const UINeedsRedditTabEvent = z.object({
   type: z.literal("uiNeedsRedditTab"),
 });
@@ -72,5 +82,3 @@ const UINeedsRedditTabResponse = z.discriminatedUnion("success", [
 export type UINeedsRedditTabResponse = z.infer<typeof UINeedsRedditTabResponse>;
 
 export const availabilityPortName = "availability";
-export const devModeRedditInteractionProxyPort =
-  "devModeRedditInteractionProxyPort";

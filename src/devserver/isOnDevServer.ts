@@ -2,6 +2,6 @@ import { useContext } from "react";
 
 import { DevServerContext } from "./DevServerContext";
 
-export function isOnDevServer(): boolean {
+export function useIsOnDevServer(): boolean {
   return useContext(DevServerContext);
 }

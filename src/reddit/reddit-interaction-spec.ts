@@ -20,6 +20,7 @@ export const REDDIT_INTERACTION = "reddit-interaction";
 export enum ErrorCode {
   USER_NOT_LOGGED_IN = 0,
   SESSION_EXPIRED = 1,
+  REDDIT_TAB_DISCONNECTED = 2,
 }
 
 export const RedditUserProfile = z.object({

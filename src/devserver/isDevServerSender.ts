@@ -8,5 +8,5 @@ export function isDevServerSender(
   sender: chrome.runtime.MessageSender,
 ): sender is SenderWithTabId {
   if (!sender.url || sender?.tab?.id === undefined) return false;
-  return new URL(sender.url).origin === "http://localhost:5173";
+  return new URL(sender.url).origin === "http://vaultonomy.localhost:5173";
 }

@@ -1,20 +1,13 @@
-import { z } from "zod";
-
 import { assert, assertUnreachable } from "../assert";
 import { log } from "../logging";
-import {
-  RedditTabBecameAvailableEvent,
-  RedditTabBecameUnavailableEvent,
-  UINeedsRedditTabEvent,
-  availabilityPortName,
-} from "../messaging";
+import { availabilityPortName } from "../messaging";
+import { RedditProvider } from "../reddit/reddit-interaction-client";
+import { REDDIT_INTERACTION } from "../reddit/reddit-interaction-spec";
+import { VAULTONOMY_RPC_PORT } from "../vaultonomy-rpc-spec";
 import { browser } from "../webextension";
-import { MessageBroadcaster } from "./MessageBroadcaster";
 import { RedditTabConnection } from "./RedditTabConnection";
-import { handleAsync } from "./handleAsync";
+import { VaultonomyBackgroundServiceSession } from "./VaultonomyBackgroundServiceSession";
 import { isRedditTab } from "./isReditTab";
-
-const Message = z.discriminatedUnion("type", [UINeedsRedditTabEvent]);
 
 type ErrorTabConnectionResult = {
   type: "error";
@@ -31,8 +24,9 @@ type TabConnectionResult =
   | { type: "not-reddit"; tab: chrome.tabs.Tab }
   | ErrorTabConnectionResult;
 
+type Disconnect = () => void;
+
 export class BackgroundService {
-  protected messageBroadcaster = new MessageBroadcaster();
   #asyncState: Promise<RedditTabConnection> | undefined;
 
   protected get redditTabConnection(): Promise<RedditTabConnection> {
@@ -43,7 +37,6 @@ export class BackgroundService {
   }
 
   constructor() {
-    this.handleExtensionMessage = this.handleExtensionMessage.bind(this);
     this.handleExtensionConnection = this.handleExtensionConnection.bind(this);
     this.handleActionButtonClick = this.handleActionButtonClick.bind(this);
   }
@@ -57,13 +50,14 @@ export class BackgroundService {
     // We need to do sync and async work, but always return a Promise for
     // consistency.
     try {
-      return this.#initSync();
+      this.initSync();
     } catch (error) {
       return Promise.reject(error);
     }
+    return this.initAsync();
   }
 
-  #initSync() {
+  protected initSync() {
     if (this.#asyncState) throw new Error("init already called");
     this.#asyncState = RedditTabConnection.fromStoredState();
 
@@ -71,51 +65,95 @@ export class BackgroundService {
     // won't be called for an initial action click that starts our main
     // function.
     browser.action.onClicked.addListener(this.handleActionButtonClick);
-    browser.runtime.onMessage.addListener(this.handleExtensionMessage);
-    browser.runtime.onConnect.addListener(
-      handleAsync(this.handleExtensionConnection),
+    browser.runtime.onConnect.addListener((port) =>
+      this.handleExtensionConnection(port).catch(log.error),
     );
-
-    return this.#initAsync();
   }
 
-  async #initAsync(): Promise<void> {
-    const redditTabConnection = await this.redditTabConnection;
-    redditTabConnection.emitter.on("availabilityStatus", (event) => {
-      this.messageBroadcaster.sendMessageAndIgnoreResponses<
-        RedditTabBecameAvailableEvent | RedditTabBecameUnavailableEvent
-      >(event);
-    });
+  protected async initAsync(): Promise<void> {
+    await this.#asyncState;
   }
 
   async handleExtensionConnection(port: chrome.runtime.Port) {
-    if (port.name !== availabilityPortName) return;
-    (await this.redditTabConnection).handleAvailabilityConnection(port);
+    switch (port.name) {
+      case VAULTONOMY_RPC_PORT:
+        this.setUpBackgroundServiceSession(
+          port,
+          await this.redditTabConnection,
+        );
+        break;
+      case availabilityPortName:
+        (await this.redditTabConnection).handleAvailabilityConnection(port);
+        break;
+      default:
+        log.debug("Ignored connection for unexpected Port name", port);
+        break;
+    }
   }
 
-  handleExtensionMessage(
-    _message: unknown,
-    sender: chrome.runtime.MessageSender,
-    _sendResponse: (response?: any) => void,
-  ): true | undefined {
-    const result = Message.safeParse(_message);
-    if (!result.success) {
-      log.warn(`ignoring unknown message:`, _message, result.error.format());
-      return;
-    }
-    const message = result.data;
-    switch (message.type) {
-      case "uiNeedsRedditTab":
-        this.handleUiNeedsRedditTab(message).catch(log.error);
-        return;
-    }
-    assertUnreachable(message.type);
-  }
+  protected setUpBackgroundServiceSession(
+    port: chrome.runtime.Port,
+    redditTabConnection: RedditTabConnection,
+  ): Disconnect {
+    log.debug(
+      "Starting Vaultonomy Background JSONRPC server/client for port",
+      port,
+    );
+    const session = new VaultonomyBackgroundServiceSession(port);
 
-  private async handleUiNeedsRedditTab(
-    _event: UINeedsRedditTabEvent,
-  ): Promise<void> {
-    (await this.redditTabConnection).publishAvailabilityEvent();
+    let currentRedditProvider:
+      | { tabId: number; redditProvider: RedditProvider }
+      | undefined;
+
+    const unbindAvailabilityStatus = redditTabConnection.emitter.on(
+      "availabilityStatus",
+      (event) => {
+        switch (event.type) {
+          case "redditTabBecameAvailable":
+            // Don't re-create connections for the same tabId
+            if (currentRedditProvider?.tabId === event.tabId) return;
+            currentRedditProvider?.redditProvider.emitter.emit(
+              "disconnectSelf",
+            );
+            currentRedditProvider = {
+              tabId: event.tabId,
+              redditProvider: RedditProvider.from(
+                chrome.tabs.connect(event.tabId, { name: REDDIT_INTERACTION }),
+              ),
+            };
+            currentRedditProvider.redditProvider.emitter.on(
+              "disconnected",
+              () => {
+                currentRedditProvider = undefined;
+              },
+            );
+
+            session.setRedditProvider(currentRedditProvider.redditProvider);
+            break;
+          case "redditTabBecameUnavailable":
+            currentRedditProvider = undefined;
+            session.setRedditProvider(undefined);
+            break;
+          default:
+            assertUnreachable(event);
+        }
+      },
+    );
+    redditTabConnection.requestAvailabilityEvent();
+
+    const disconnect = () => {
+      unbindAvailabilityStatus();
+      session.disconnect();
+    };
+
+    port.onDisconnect.addListener(() => {
+      log.debug(
+        "Stopping Vaultonomy Background JSONRPC server/client for port",
+        port,
+      );
+      disconnect();
+    });
+    return disconnect;
   }
 
   handleActionButtonClick(tab: chrome.tabs.Tab) {
