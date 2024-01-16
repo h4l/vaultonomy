@@ -2,6 +2,7 @@ import { BackgroundService } from "../background/BackgroundService";
 import { log } from "../logging";
 import { VAULTONOMY_RPC_PORT } from "../vaultonomy-rpc-spec";
 import { browser } from "../webextension";
+import { retroactivePortDisconnection } from "../webextensions/retroactivePortDisconnection";
 import { isDevServerSender } from "./isDevServerSender";
 
 export class DevModeBackgroundService extends BackgroundService {
@@ -9,6 +10,7 @@ export class DevModeBackgroundService extends BackgroundService {
     super.initSync();
 
     browser.runtime.onConnectExternal.addListener((port) => {
+      retroactivePortDisconnection.register(port);
       this.handleExtensionConnection(port).catch(log.error);
     });
   }
@@ -17,7 +19,7 @@ export class DevModeBackgroundService extends BackgroundService {
     if (
       port.sender &&
       isDevServerSender(port.sender) &&
-      port.name === VAULTONOMY_RPC_PORT
+      VAULTONOMY_RPC_PORT.matches(port.name)
     ) {
       log.debug(`Received ${VAULTONOMY_RPC_PORT} connection from dev-server`);
       await this.handleExtensionConnection(port);

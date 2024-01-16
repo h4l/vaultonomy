@@ -4,12 +4,13 @@ import { z } from "zod";
 import { assert } from "../assert";
 import { log } from "../logging";
 import {
+  AVAILABILITY_PORT_NAME,
   RedditTabBecameAvailableEvent,
   RedditTabBecameUnavailableEvent,
   RedditTabConnectionEvents,
-  availabilityPortName,
 } from "../messaging";
 import { browser } from "../webextension";
+import { retroactivePortDisconnection } from "../webextensions/retroactivePortDisconnection";
 import { isRedditTab } from "./isReditTab";
 
 const ActiveRedditTab = z.object({ tabId: z.number() });
@@ -68,8 +69,8 @@ export class RedditTabConnection {
   handleAvailabilityConnection(port: chrome.runtime.Port): void {
     // Caller must only give us availability ports, as we disconnect ports if
     // we already have one.
-    if (port.name !== availabilityPortName)
-      throw new Error(`port is not named ${availabilityPortName}`);
+    if (!AVAILABILITY_PORT_NAME.matches(port.name))
+      throw new Error(`port is not named ${AVAILABILITY_PORT_NAME}/*`);
 
     const tab = port.sender?.tab;
     assert(
@@ -90,24 +91,19 @@ export class RedditTabConnection {
 
     this.requestAvailabilityEvent();
 
-    port.onDisconnect.addListener((port) => {
+    retroactivePortDisconnection.addRetroactiveDisconnectListener(port, () => {
       log.debug("availability port disconnected: ", {
+        portName: port.name,
         portTabUrl: port.sender?.tab?.url,
       });
       if (this.redditTab?.port === port) {
         // Assuming the page disconnected intentionally, we shouldn't
         // automatically re-connect when reloading state, so delete the
         // persisted reference to this tabId.
+        // FIXME: is erasing this still the right approach?
         saveActiveRedditTab(null).catch(log.error);
-        const tabId = tab.id;
-        this.redditTab = undefined;
+        this.redditTab.port = undefined;
 
-        if (!tabId) {
-          log.warn(
-            "Tab associated with disconnected availability port has no tabId — not broadcasting disconnection",
-          );
-          return;
-        }
         this.requestAvailabilityEvent();
       }
     });

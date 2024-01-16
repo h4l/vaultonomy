@@ -46,8 +46,4 @@ export function main() {
   } else {
     new BackgroundService().init().catch(log.error);
   }
-  browser.runtime.onConnectExternal.addListener((port) => {
-    console.log("onConnectExternal", port);
-    setTimeout(() => port.disconnect(), 5000);
-  });
 }

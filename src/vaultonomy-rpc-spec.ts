@@ -1,8 +1,9 @@
 import { z } from "zod";
 
+import { PortName } from "./PortName";
 import { defineMethod } from "./rpc/typing";
 
-export const VAULTONOMY_RPC_PORT = "vaultonomy-rpc";
+export const VAULTONOMY_RPC_PORT = new PortName("vaultonomy-rpc");
 
 /*
  * Vaultonomy uses bi-directional RPC to communicate between the UI and the

@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { PortName } from "../PortName";
 import { defineMethod } from "../rpc/typing";
 import { EthAddress, EthHexSignature } from "../types";
 import { AccountVaultAddress, RedditEIP712Challenge } from "./api-client";
@@ -15,7 +16,7 @@ import { AccountVaultAddress, RedditEIP712Challenge } from "./api-client";
 // Because of JSON serialisation, we generally need to use null rather than
 // undefined in these types.
 
-export const REDDIT_INTERACTION = "reddit-interaction";
+export const REDDIT_INTERACTION_PORT_NAME = new PortName("reddit-interaction");
 
 export enum ErrorCode {
   USER_NOT_LOGGED_IN = 0,

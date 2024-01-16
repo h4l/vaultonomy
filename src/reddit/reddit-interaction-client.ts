@@ -7,6 +7,7 @@ import {
   bindPortToJSONRPCClient,
   createPortSendRequestFn,
 } from "../rpc/webextension-port-json-rpc";
+import { retroactivePortDisconnection } from "../webextensions/retroactivePortDisconnection";
 import { AccountVaultAddress, RedditEIP712Challenge } from "./api-client";
 import {
   ErrorCode,
@@ -83,7 +84,7 @@ export class RedditProvider {
         port.disconnect();
       }
     });
-    port.onDisconnect.addListener(() => {
+    retroactivePortDisconnection.addRetroactiveDisconnectListener(port, () => {
       rp.emitter.emit("disconnected");
     });
     return rp;

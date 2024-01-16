@@ -19,7 +19,7 @@ describe("RedditProvider()", () => {
       'disconnects from Port when "disconnectSelf" fires with propagateDisconnect: $propagateDisconnect',
       async ({ propagateDisconnect }: { propagateDisconnect: boolean }) => {
         const rpDisconnected = jest.fn();
-        const port = new MockPort();
+        const port = MockPort.createAndRegisterRetroactiveDisconnection();
         const reddit = RedditProvider.from(port, { propagateDisconnect });
         reddit.emitter.on("disconnected", rpDisconnected);
 
@@ -37,7 +37,7 @@ describe("RedditProvider()", () => {
 
     test("provider fires disconnected when its Port's other end disconnects", async () => {
       const rpDisconnected = jest.fn();
-      const port = new MockPort();
+      const port = MockPort.createAndRegisterRetroactiveDisconnection();
       const reddit = RedditProvider.from(port);
       reddit.emitter.on("disconnected", rpDisconnected);
 
@@ -53,7 +53,7 @@ describe("RedditProvider()", () => {
     let port: MockPort;
     let reddit: RedditProvider;
     beforeEach(() => {
-      port = new MockPort();
+      port = MockPort.createAndRegisterRetroactiveDisconnection();
       reddit = RedditProvider.from(port);
     });
 

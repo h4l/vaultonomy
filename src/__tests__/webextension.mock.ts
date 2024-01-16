@@ -2,6 +2,8 @@ import { jest } from "@jest/globals";
 import { nextTick } from "process";
 import util from "util";
 
+import { retroactivePortDisconnection } from "../webextensions/retroactivePortDisconnection";
+
 type Callback<EventArgs extends unknown[]> = (...args: EventArgs) => void;
 
 export class EventEmitter<EventArgs extends unknown[]>
@@ -79,6 +81,15 @@ export class MockPort implements chrome.runtime.Port {
     this.#sendDisconnect = options?.sendDisconnect ?? (() => undefined);
     jest.spyOn(this as MockPort, "postMessage");
     jest.spyOn(this as MockPort, "disconnect");
+  }
+
+  /**
+   * Create a new MockPort that's registered for retroactive disconnection detection.
+   */
+  static createAndRegisterRetroactiveDisconnection(): MockPort {
+    const mockPort = new MockPort();
+    retroactivePortDisconnection.register(mockPort);
+    return mockPort;
   }
 
   receiveMessage(message: unknown): void {

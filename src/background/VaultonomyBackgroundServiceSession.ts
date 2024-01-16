@@ -25,6 +25,7 @@ import {
   VaultonomyGetRedditTabAvailability,
   VaultonomyUiNotify,
 } from "../vaultonomy-rpc-spec";
+import { retroactivePortDisconnection } from "../webextensions/retroactivePortDisconnection";
 
 type Unbind = () => void;
 
@@ -74,7 +75,10 @@ export class VaultonomyBackgroundServiceSession {
   private readonly unbindFromPort: Unbind;
 
   constructor(private readonly port: chrome.runtime.Port) {
-    port.onDisconnect.addListener(() => this.disconnect());
+    this.#disconnected = retroactivePortDisconnection.hasDisconnected(port);
+    retroactivePortDisconnection.addRetroactiveDisconnectListener(port, () => {
+      this.disconnect();
+    });
     this.jsonrpc = this.createServerAndClient(port);
     this.unbindFromPort = bindPortToJSONRPCServerAndClient({
       port,

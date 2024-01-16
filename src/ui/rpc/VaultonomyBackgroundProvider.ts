@@ -17,6 +17,7 @@ import {
   VaultonomyGetRedditTabAvailability,
   VaultonomyUiNotify,
 } from "../../vaultonomy-rpc-spec";
+import { retroactivePortDisconnection } from "../../webextensions/retroactivePortDisconnection";
 
 type Unbind = () => void;
 
@@ -39,7 +40,6 @@ export class VaultonomyBackgroundProvider {
   private readonly jsonrpc: JSONRPCServerAndClient;
   private readonly unbindFromPort: Unbind;
   private readonly redditProvider: RedditProvider;
-  private lastRedditTabAvailability?: RedditTabAvailability;
 
   constructor(private readonly port: chrome.runtime.Port) {
     this.jsonrpc = this.createServerAndClient(port);
@@ -60,7 +60,7 @@ export class VaultonomyBackgroundProvider {
     // Our RedditProvider doesn't register any event listeners, so we don't
     // really need to disconnect it. But seems like we should for completeness,
     // seeing as it has an emitter with a disconnected event.
-    this.port.onDisconnect.addListener(() => {
+    retroactivePortDisconnection.addRetroactiveDisconnectListener(port, () => {
       this.redditProvider.emitter.emit("disconnected");
     });
   }

@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { PortName } from "./PortName";
+
 // TODO create a way for the dev-server to register itself to receive messages
 // from the background service worker.
 
@@ -81,4 +83,4 @@ const UINeedsRedditTabResponse = z.discriminatedUnion("success", [
 ]);
 export type UINeedsRedditTabResponse = z.infer<typeof UINeedsRedditTabResponse>;
 
-export const availabilityPortName = "availability";
+export const AVAILABILITY_PORT_NAME = new PortName("availability");

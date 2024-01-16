@@ -1,10 +1,12 @@
+import { PortName } from "../PortName";
 import { assert, assertUnreachable } from "../assert";
 import { log } from "../logging";
-import { availabilityPortName } from "../messaging";
+import { AVAILABILITY_PORT_NAME } from "../messaging";
 import { RedditProvider } from "../reddit/reddit-interaction-client";
-import { REDDIT_INTERACTION } from "../reddit/reddit-interaction-spec";
-import { VAULTONOMY_RPC_PORT } from "../vaultonomy-rpc-spec";
+import { REDDIT_INTERACTION_PORT_NAME } from "../reddit/reddit-interaction-spec";
+import { VAULTONOMY_RPC_PORT as VAULTONOMY_RPC_PORT_NAME } from "../vaultonomy-rpc-spec";
 import { browser } from "../webextension";
+import { retroactivePortDisconnection } from "../webextensions/retroactivePortDisconnection";
 import { RedditTabConnection } from "./RedditTabConnection";
 import { VaultonomyBackgroundServiceSession } from "./VaultonomyBackgroundServiceSession";
 import { isRedditTab } from "./isReditTab";
@@ -65,9 +67,10 @@ export class BackgroundService {
     // won't be called for an initial action click that starts our main
     // function.
     browser.action.onClicked.addListener(this.handleActionButtonClick);
-    browser.runtime.onConnect.addListener((port) =>
-      this.handleExtensionConnection(port).catch(log.error),
-    );
+    browser.runtime.onConnect.addListener((port) => {
+      retroactivePortDisconnection.register(port);
+      this.handleExtensionConnection(port).catch(log.error);
+    });
   }
 
   protected async initAsync(): Promise<void> {
@@ -75,14 +78,14 @@ export class BackgroundService {
   }
 
   async handleExtensionConnection(port: chrome.runtime.Port) {
-    switch (port.name) {
-      case VAULTONOMY_RPC_PORT:
+    switch (PortName.parse(port.name).base) {
+      case VAULTONOMY_RPC_PORT_NAME.base:
         this.setUpBackgroundServiceSession(
           port,
           await this.redditTabConnection,
         );
         break;
-      case availabilityPortName:
+      case AVAILABILITY_PORT_NAME.base:
         (await this.redditTabConnection).handleAvailabilityConnection(port);
         break;
       default:
@@ -118,7 +121,11 @@ export class BackgroundService {
             currentRedditProvider = {
               tabId: event.tabId,
               redditProvider: RedditProvider.from(
-                chrome.tabs.connect(event.tabId, { name: REDDIT_INTERACTION }),
+                retroactivePortDisconnection.register(
+                  browser.tabs.connect(event.tabId, {
+                    name: REDDIT_INTERACTION_PORT_NAME.withRandomTag().toString(),
+                  }),
+                ),
               ),
             };
             currentRedditProvider.redditProvider.emitter.on(
@@ -139,20 +146,21 @@ export class BackgroundService {
         }
       },
     );
-    redditTabConnection.requestAvailabilityEvent();
 
     const disconnect = () => {
-      unbindAvailabilityStatus();
-      session.disconnect();
-    };
-
-    port.onDisconnect.addListener(() => {
       log.debug(
         "Stopping Vaultonomy Background JSONRPC server/client for port",
         port,
       );
-      disconnect();
-    });
+      unbindAvailabilityStatus();
+      session.disconnect();
+    };
+    retroactivePortDisconnection.addRetroactiveDisconnectListener(
+      port,
+      disconnect,
+    );
+    setTimeout(() => redditTabConnection.requestAvailabilityEvent());
+
     return disconnect;
   }
 

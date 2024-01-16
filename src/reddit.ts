@@ -1,10 +1,12 @@
+import { assert } from "./assert";
 import { log } from "./logging";
-import { availabilityPortName } from "./messaging";
+import { AVAILABILITY_PORT_NAME } from "./messaging";
 import { createServerSession } from "./reddit/reddit-interaction-server";
-import { REDDIT_INTERACTION } from "./reddit/reddit-interaction-spec";
+import { REDDIT_INTERACTION_PORT_NAME } from "./reddit/reddit-interaction-spec";
 import { ConnectionOverlay } from "./reddit/ui/connection-overlay";
 import { bindPortToJSONRPCServer } from "./rpc/webextension-port-json-rpc";
 import { browser } from "./webextension";
+import { retroactivePortDisconnection } from "./webextensions/retroactivePortDisconnection";
 
 let availabilityConnection: chrome.runtime.Port | undefined;
 let connectionOverlay: ConnectionOverlay | undefined;
@@ -37,8 +39,11 @@ function stop() {
 }
 
 export function createAvailabilityConnection(): chrome.runtime.Port {
-  const port = browser.runtime.connect({ name: availabilityPortName });
-  port.onDisconnect.addListener(() => {
+  const port = browser.runtime.connect({
+    name: AVAILABILITY_PORT_NAME.withRandomTag().toString(),
+  });
+  retroactivePortDisconnection.register(port);
+  retroactivePortDisconnection.addRetroactiveDisconnectListener(port, () => {
     log.debug("availability Port disconnected");
     stop();
   });
@@ -48,7 +53,8 @@ export function createAvailabilityConnection(): chrome.runtime.Port {
 
 export function handleRedditInteractionConnections() {
   browser.runtime.onConnect.addListener((port) => {
-    if (port.name !== REDDIT_INTERACTION) {
+    retroactivePortDisconnection.register(port);
+    if (!REDDIT_INTERACTION_PORT_NAME.matches(port.name)) {
       log.debug("Closing unexpected connection: ", port);
       port.disconnect();
       return;
@@ -57,17 +63,21 @@ export function handleRedditInteractionConnections() {
     log.debug("Starting JSONRPC server for port", port);
     const server = createServerSession();
     bindPortToJSONRPCServer({ port, server });
-    port.onDisconnect.addListener(() => {
+    retroactivePortDisconnection.addRetroactiveDisconnectListener(port, () => {
       log.debug("Stopping JSONRPC server for port", port);
     });
 
     // Shutdown all RPC connections when the availability connection drops.
-    availabilityConnection?.onDisconnect.addListener(() => {
-      log.debug(
-        "disconnecting RPC Port due to availability Port disconnecting",
-      );
-      port.disconnect();
-    });
+    assert(availabilityConnection);
+    retroactivePortDisconnection.addRetroactiveDisconnectListener(
+      availabilityConnection,
+      () => {
+        log.debug(
+          "disconnecting RPC Port due to availability Port disconnecting",
+        );
+        port.disconnect();
+      },
+    );
   });
 }
 

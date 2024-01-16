@@ -1,4 +1,5 @@
 import { browser } from "../webextension";
+import { retroactivePortDisconnection } from "../webextensions/retroactivePortDisconnection";
 import { VAULTONOMY_DEV_EXTENSION_ID } from "./constants";
 
 /**
@@ -36,7 +37,9 @@ the manifest of extension ID ${JSON.stringify(VAULTONOMY_DEV_EXTENSION_ID)}?`,
   // Although we're in a regular web page, the browser injects the extension API
   // to create Port connections when the page's URL matches the extension's
   // externally_connectable rules, so we can use browser.runtime.connect.
-  return browser.runtime.connect(VAULTONOMY_DEV_EXTENSION_ID, {
+  const port = browser.runtime.connect(VAULTONOMY_DEV_EXTENSION_ID, {
     name: name,
   });
+  retroactivePortDisconnection.register(port);
+  return port;
 }

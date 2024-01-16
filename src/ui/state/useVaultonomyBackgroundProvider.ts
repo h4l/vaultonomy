@@ -4,6 +4,7 @@ import { createVaultonomyPortFromOutsideExtension } from "../../devserver/create
 import { useIsOnDevServer } from "../../devserver/isOnDevServer";
 import { VAULTONOMY_RPC_PORT } from "../../vaultonomy-rpc-spec";
 import { browser } from "../../webextension";
+import { retroactivePortDisconnection } from "../../webextensions/retroactivePortDisconnection";
 import { VaultonomyBackgroundProvider } from "../rpc/VaultonomyBackgroundProvider";
 
 /**
@@ -29,8 +30,12 @@ export function useVaultonomyBackgroundProvider():
 function createRpcPort(isOnDevServer: boolean) {
   if (import.meta.env.MODE === "development" && isOnDevServer) {
     return createVaultonomyPortFromOutsideExtension({
-      name: VAULTONOMY_RPC_PORT,
+      name: VAULTONOMY_RPC_PORT.withRandomTag().toString(),
     });
   }
-  return browser.runtime.connect({ name: VAULTONOMY_RPC_PORT });
+  return retroactivePortDisconnection.register(
+    browser.runtime.connect({
+      name: VAULTONOMY_RPC_PORT.withRandomTag().toString(),
+    }),
+  );
 }
