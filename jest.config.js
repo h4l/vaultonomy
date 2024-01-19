@@ -11,6 +11,13 @@ export default {
             react: {
               runtime: "automatic",
             },
+            optimizer: {
+              globals: {
+                vars: {
+                  "import.meta.env": "__import_meta_env",
+                },
+              },
+            },
           },
         },
       },

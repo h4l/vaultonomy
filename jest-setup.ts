@@ -3,6 +3,10 @@ import { JSONRPCErrorException } from "json-rpc-2.0";
 
 globalThis.fetch = jest.fn<typeof globalThis.fetch>();
 
+(global as any).__import_meta_env = {
+  MODE: "development",
+};
+
 expect.addEqualityTesters([
   // consider error code and data when comparing JSON RCP errors
   function jsonRPCErrorExceptionsAreEqual(e1, e2) {
