@@ -12,6 +12,7 @@ import {
 import { Pairing } from "./Pairing";
 import { Profile } from "./Profile";
 import { UserProfile } from "./UserProfile";
+import { Vault } from "./Vault";
 import { VaultonomyLogo } from "./VaultonomyLogo";
 import { Wallet } from "./Wallet";
 import {
@@ -41,6 +42,11 @@ export function App() {
 
 function AppUI() {
   const [vaultonomy, dispatch] = useContext(VaultonomyStateContext);
+  const userProfile =
+    vaultonomy.redditState.state === "tabAvailable" &&
+    vaultonomy.redditState.userProfile?.state === "loaded"
+      ? vaultonomy.redditState.userProfile.value
+      : undefined;
   return (
     <>
       <header className="mt-32 mb-16 w-72 max-w-full mx-auto">
@@ -48,12 +54,7 @@ function AppUI() {
       </header>
       <main>
         <UserProfile
-          profile={
-            vaultonomy.redditState.state === "tabAvailable" &&
-            vaultonomy.redditState.userProfile?.state === "loaded"
-              ? vaultonomy.redditState.userProfile.value
-              : undefined
-          }
+          profile={userProfile}
           // <UserProfile
           //   profile={{
           //     hasPremium: true,
@@ -65,18 +66,7 @@ function AppUI() {
         />
 
         <div className="m-10 flex flex-row flex-wrap justify-center gap-x-40 gap-y-20">
-          <EthAccount
-            title="Reddit Vault"
-            ethAddress="0xd2A2B709af3B6d0bba1cCbd1edD65f353aA42C66"
-            ensName="h-a-l.eth"
-            footer={
-              <WithInlineHelp helpText="The date when this Ethereum account was paired with your Reddit account to create this Vault.">
-                <span aria-label="status" className="italic text-sm">
-                  Paired 5 minutes ago
-                </span>
-              </WithInlineHelp>
-            }
-          />
+          <Vault />
           <Wallet />
         </div>
 
