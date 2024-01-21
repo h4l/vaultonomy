@@ -10,6 +10,12 @@ export default defineConfig({
       util: path.resolve(__dirname, "src/polyfills/util.ts"),
     },
   },
+  optimizeDeps: {
+    // public/ui.html references ui.js which makes Vite think it should resolve
+    // and compile it. But it shouldn't because ui.js is already a reference to
+    // the compiled ui entry.
+    exclude: ["ui.js"],
+  },
   build: {
     minify: false,
     lib: {
