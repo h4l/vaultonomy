@@ -680,7 +680,7 @@ class VaultonomyBackgroundProviderDriver extends AsyncDriver<
         type: "redditProfileAvailabilityChanged",
         asyncValue: retry({
           action: async () => await redditProvider.getUserProfile(),
-          canRetry: whenSessionExpiredOnce,
+          canRetry: oneRedditProviderError,
         }),
         dispatch,
       });
@@ -691,7 +691,7 @@ class VaultonomyBackgroundProviderDriver extends AsyncDriver<
         type: "redditVaultsAvailabilityChanged",
         asyncValue: retry({
           action: async () => await redditProvider.getAccountVaultAddresses(),
-          canRetry: whenSessionExpiredOnce,
+          canRetry: oneRedditProviderError,
         }),
         dispatch,
       });
@@ -720,10 +720,8 @@ async function dispatchAsyncValueLoadActions<N extends string, T>({
   }
 }
 
-const whenSessionExpiredOnce: RetryPredicate = (error, attempt) =>
-  attempt == 1 &&
-  error instanceof RedditProviderError &&
-  error.type === ErrorCode.SESSION_EXPIRED;
+const oneRedditProviderError: RetryPredicate = (error, attempt) =>
+  attempt == 1 && error instanceof RedditProviderError;
 
 type RetryPredicate = (error: unknown, attempt: number) => boolean;
 
