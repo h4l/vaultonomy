@@ -20,8 +20,7 @@ export const REDDIT_INTERACTION_PORT_NAME = new PortName("reddit-interaction");
 
 export enum ErrorCode {
   USER_NOT_LOGGED_IN = 0,
-  SESSION_EXPIRED = 1,
-  REDDIT_TAB_DISCONNECTED = 2,
+  REDDIT_TAB_DISCONNECTED = 1,
 }
 
 export const RedditUserProfile = z.object({

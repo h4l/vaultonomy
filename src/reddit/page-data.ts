@@ -29,26 +29,31 @@ const RawPageData = z.object({
   }),
 });
 
+export const RedditUserAPICredentials = z.object({
+  token: z.string(),
+  expires: z.coerce.date(),
+});
+export type RedditUserAPICredentials = z.infer<typeof RedditUserAPICredentials>;
+
+const RedditUser = z.object({
+  userID: z.string(),
+  username: z.string(),
+  hasPremium: z.boolean(),
+  accountIconURL: z.string().url(),
+  accountIconFullBodyURL: z.string().url(),
+});
+type RedditUser = z.infer<typeof RedditUser>;
+
+export const UserPageData = z.object({
+  loggedIn: z.literal(true),
+  user: RedditUser,
+  auth: RedditUserAPICredentials,
+});
+export type UserPageData = z.infer<typeof UserPageData>;
+
 export type PageData = AnonPageData | UserPageData;
 export interface AnonPageData {
   loggedIn: false;
-}
-export interface UserPageData {
-  loggedIn: true;
-  user: RedditUser;
-  auth: RedditUserAPICredentials;
-}
-export interface RedditUserAPICredentials {
-  token: string;
-  expires: Date;
-}
-
-export interface RedditUser {
-  userID: string;
-  username: string;
-  hasPremium: boolean;
-  accountIconURL: string;
-  accountIconFullBodyURL: string;
 }
 
 export async function fetchPageData(

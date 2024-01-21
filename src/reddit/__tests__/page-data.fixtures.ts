@@ -47,7 +47,11 @@ export const pageDataLoggedOut = (): Record<string, unknown>[] => [
 ];
 
 export const anonUser = (): AnonPageData => ({ loggedIn: false });
-export const loggedInUser = (): UserPageData => ({
+export const loggedInUser = ({
+  authExpires,
+}: {
+  authExpires?: Date;
+} = {}): UserPageData => ({
   loggedIn: true,
   user: {
     userID: "t2_abc",
@@ -56,5 +60,8 @@ export const loggedInUser = (): UserPageData => ({
     accountIconURL: "https://example.com/imgSquare",
     hasPremium: true,
   },
-  auth: { token: "secret", expires: new Date("2023-01-02T00:00:00Z") },
+  auth: {
+    token: "secret",
+    expires: authExpires ?? new Date("2023-01-02T00:00:00Z"),
+  },
 });

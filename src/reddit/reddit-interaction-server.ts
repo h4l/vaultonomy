@@ -4,13 +4,14 @@
  */
 import { JSONRPCErrorException, JSONRPCServer } from "json-rpc-2.0";
 
+import { SessionManager, createCachedSessionManager } from "./SessionManager";
 import {
   createAddressOwnershipChallenge,
   getRedditAccountVaultAddresses,
   getRedditUserVaultAddress,
   registerAddressWithAccount,
 } from "./api-client";
-import { PageData, UserPageData, fetchPageData } from "./page-data";
+import { UserPageData } from "./page-data";
 import {
   ErrorCode,
   RedditCreateAddressOwnershipChallenge,
@@ -20,7 +21,20 @@ import {
   RedditRegisterAddressWithAccount,
 } from "./reddit-interaction-spec";
 
-export const SESSION_EXPIRY_SLOP = 1000 * 60 * 5;
+async function getUserSession(
+  sessionManager: SessionManager,
+): Promise<UserPageData> {
+  const pageData = await sessionManager.getPageData();
+  if (!pageData.loggedIn) {
+    throw new JSONRPCErrorException(
+      "User is not logged in to the Reddit website",
+      ErrorCode.USER_NOT_LOGGED_IN,
+    );
+  }
+  // Session can't be expired, getPageData() only returns unexpired sessions,
+  // it re-fetches when they're expiring.
+  return pageData;
+}
 
 export function createServerSession<
   ServerParams = void,
@@ -34,35 +48,12 @@ export function createServerSession<
     errorListener: () => undefined,
   });
 
-  // TODO: we could cache this and re-use it — fetchPageData() shouldn't change
-  //   as long as the same user is logged in, and it's probably the slowest
-  //   request we make.
-  let _sessionData: Promise<PageData> | undefined;
-  const getSession = async (): Promise<UserPageData> => {
-    if (_sessionData === undefined) {
-      _sessionData = fetchPageData();
-    }
-    const sessionData = await _sessionData;
-    if (!sessionData.loggedIn)
-      throw new JSONRPCErrorException(
-        "User is not logged in to the Reddit website",
-        ErrorCode.USER_NOT_LOGGED_IN,
-      );
-
-    // Expire a little before the actual expiry date so that we don't actually
-    // make requests with a token that is expiring.
-    if (Date.now() >= sessionData.auth.expires.getTime() - SESSION_EXPIRY_SLOP)
-      throw new JSONRPCErrorException(
-        "User auth credentials have expired",
-        ErrorCode.SESSION_EXPIRED,
-      );
-    return sessionData;
-  };
+  const sessionManager = createCachedSessionManager();
 
   service.addMethod(
     RedditGetUserProfile.name,
     RedditGetUserProfile.signature.implement(async () => {
-      const session = await getSession();
+      const session = await getUserSession(sessionManager);
       return session.user;
     }),
   );
@@ -70,7 +61,7 @@ export function createServerSession<
     RedditCreateAddressOwnershipChallenge.name,
     RedditCreateAddressOwnershipChallenge.signature.implement(
       async (params) => {
-        const session = await getSession();
+        const session = await getUserSession(sessionManager);
         return await createAddressOwnershipChallenge({
           authToken: session.auth.token,
           address: params.address,
@@ -81,7 +72,7 @@ export function createServerSession<
   service.addMethod(
     RedditRegisterAddressWithAccount.name,
     RedditRegisterAddressWithAccount.signature.implement(async (params) => {
-      const session = await getSession();
+      const session = await getUserSession(sessionManager);
       await registerAddressWithAccount({
         authToken: session.auth.token,
         address: params.address,
@@ -93,7 +84,7 @@ export function createServerSession<
   service.addMethod(
     RedditGetUserVaultAddress.name,
     RedditGetUserVaultAddress.signature.implement(async (params) => {
-      const session = await getSession();
+      const session = await getUserSession(sessionManager);
       return (
         (await getRedditUserVaultAddress({
           authToken: session.auth.token,
@@ -105,7 +96,7 @@ export function createServerSession<
   service.addMethod(
     RedditGetAccountVaultAddresses.name,
     RedditGetAccountVaultAddresses.signature.implement(async () => {
-      const session = await getSession();
+      const session = await getUserSession(sessionManager);
       return await getRedditAccountVaultAddresses({
         authToken: session.auth.token,
       });

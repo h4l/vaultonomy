@@ -23,6 +23,7 @@ import { fromHex, toHex } from "viem";
 
 import { VaultonomyError } from "../../VaultonomyError";
 import { log } from "../../logging";
+import { withTimeout } from "../../timeout";
 import { StorageAreaGetSetRemove, browser } from "../../webextension";
 import { AesGcmEncryptedStorage } from "./EncryptedStorage";
 import * as extensionKeys from "./extensionKeys";
@@ -175,6 +176,11 @@ export type OnCreatedOptions = {
 };
 export type OnCreatedHandler = (options: OnCreatedOptions) => Promise<void>;
 
+export type GetPrivateCacheOptions = {
+  id: string;
+  onCreated?: OnCreatedHandler;
+};
+
 /**
  * Get a storage chrome.browser.storage.local wrapper that encrypts values.
  *
@@ -185,14 +191,38 @@ export type OnCreatedHandler = (options: OnCreatedOptions) => Promise<void>;
  * So as long as the content script does not export the key or content, it can
  * remain private to the web page's content script.
  */
-export async function getPrivateCache(options: {
-  id: string;
-  onCreated?: OnCreatedHandler;
-}): Promise<StorageAreaGetSetRemove> {
+export async function getPrivateCache(
+  options: GetPrivateCacheOptions,
+): Promise<StorageAreaGetSetRemove> {
   const { id, onCreated } = options;
   const storage = browser.storage.local;
   const { key, created } = await getOrCreateDataKey({ reCreateOnError: true });
   const cache = new AesGcmEncryptedStorage({ id, key, storage });
   if (created && onCreated) await onCreated({ cache, storage });
   return cache;
+}
+
+const CACHE_LOAD_TIMEOUT = 500;
+
+export async function safeGetPrivateCache(
+  options: GetPrivateCacheOptions,
+): Promise<StorageAreaGetSetRemove | undefined> {
+  try {
+    const load = await withTimeout(
+      CACHE_LOAD_TIMEOUT,
+      "getPrivateCache()",
+      getPrivateCache(options),
+    );
+    if (load.timeout) {
+      log.warn("Failed to load private cache due to timeout", load);
+      return undefined;
+    }
+    return load.value;
+  } catch (error) {
+    log.error(
+      `Failed to load private cache, ${options.id} will not be cached`,
+      error,
+    );
+    return undefined;
+  }
 }

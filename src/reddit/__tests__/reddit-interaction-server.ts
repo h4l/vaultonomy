@@ -1,4 +1,5 @@
 import { describe, expect, jest, test } from "@jest/globals";
+import { mock } from "jest-mock-extended";
 import {
   JSONRPCClient,
   JSONRPCErrorException,
@@ -6,15 +7,23 @@ import {
 } from "json-rpc-2.0";
 
 import { HTTPResponseError } from "../../errors/http";
+import type { SessionManager } from "../SessionManager";
 import { AccountVaultAddress, RedditEIP712Challenge } from "../api-client";
 import { ErrorCode, RedditUserProfile } from "../reddit-interaction-spec";
 import { redditEIP712Challenge } from "./api-client.fixtures";
 import { anonUser, loggedInUser } from "./page-data.fixtures";
 
 jest.useFakeTimers();
-jest.unstable_mockModule("./src/reddit/page-data.ts", () => ({
-  fetchPageData: jest.fn(),
-}));
+
+type SessionManagerModule = typeof import("../SessionManager");
+jest.unstable_mockModule(
+  "./src/reddit/SessionManager",
+  (): SessionManagerModule => ({
+    createCachedSessionManager: jest.fn() as any,
+    SessionManager: jest.fn() as any,
+  }),
+);
+
 const originalApiclient = await import("../api-client");
 type APIClientMod = typeof originalApiclient;
 jest.unstable_mockModule<typeof originalApiclient>(
@@ -34,8 +43,8 @@ jest.unstable_mockModule<typeof originalApiclient>(
   },
 );
 
+const { createCachedSessionManager } = await import("../SessionManager");
 const { createServerSession } = await import("../reddit-interaction-server");
-const { fetchPageData } = await import("../page-data");
 const {
   createAddressOwnershipChallenge,
   registerAddressWithAccount,
@@ -46,17 +55,12 @@ const {
 describe("createServerSession()", () => {
   let server: JSONRPCServer;
   let client: JSONRPCClient;
+  const sessionManager = mock<SessionManager>();
 
   beforeEach(() => {
-    jest.setSystemTime(new Date("2023-01-01T00:00:00Z"));
-    server = createServerSession();
-    client = new JSONRPCClient(async (payload) => {
-      const resp = await server.receive(payload);
-      if (resp !== null) client.receive(resp);
-    });
-
     // default API mock implementations
-    jest.mocked(fetchPageData).mockResolvedValueOnce(loggedInUser());
+    jest.mocked(createCachedSessionManager).mockReturnValue(sessionManager);
+    jest.mocked(sessionManager.getPageData).mockResolvedValue(loggedInUser());
     jest
       .mocked(createAddressOwnershipChallenge)
       .mockResolvedValueOnce(redditEIP712Challenge());
@@ -65,6 +69,13 @@ describe("createServerSession()", () => {
       .mocked(getRedditUserVaultAddress)
       .mockResolvedValueOnce("0x" + "0".repeat(40));
     jest.mocked(getRedditAccountVaultAddresses).mockResolvedValue([]);
+
+    jest.setSystemTime(new Date("2023-01-01T00:00:00Z"));
+    server = createServerSession();
+    client = new JSONRPCClient(async (payload) => {
+      const resp = await server.receive(payload);
+      if (resp !== null) client.receive(resp);
+    });
   });
 
   describe("reddit_getUserProfile", () => {
@@ -73,35 +84,18 @@ describe("createServerSession()", () => {
 
       expect(RedditUserProfile.safeParse(response).success).toBeTruthy();
       expect(response).toEqual(loggedInUser().user);
-      expect(fetchPageData).toBeCalledTimes(1);
+
+      expect(sessionManager.getPageData).toBeCalledTimes(1);
     });
 
     test("responds with error if user is not logged in to reddit", async () => {
-      jest.mocked(fetchPageData).mockReset().mockResolvedValueOnce(anonUser());
+      jest.mocked(sessionManager.getPageData).mockResolvedValueOnce(anonUser());
 
       const resp = client.request("reddit_getUserProfile", null);
       await expect(resp).rejects.toEqual(
         new JSONRPCErrorException(
           "User is not logged in to the Reddit website",
           ErrorCode.USER_NOT_LOGGED_IN,
-        ),
-      );
-    });
-
-    test.each`
-      timeOfRequest             | desc
-      ${"2023-01-01T23:55:00Z"} | ${"within expiry slop period"}
-      ${"2023-01-02T12:00:00Z"} | ${"after the token expiry date"}
-    `("request fails when the time is $desc", async ({ timeOfRequest }) => {
-      // 5 minutes from actual expiry
-      jest.setSystemTime(new Date(timeOfRequest));
-      jest.mocked(fetchPageData).mockResolvedValueOnce(loggedInUser());
-
-      const resp = client.request("reddit_getUserProfile", null);
-      await expect(resp).rejects.toEqual(
-        new JSONRPCErrorException(
-          "User auth credentials have expired",
-          ErrorCode.SESSION_EXPIRED,
         ),
       );
     });

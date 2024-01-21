@@ -2,6 +2,7 @@ import { JSONRPCClient, JSONRPCErrorException } from "json-rpc-2.0";
 import { Emitter, createNanoEvents } from "nanoevents";
 import { Address } from "viem";
 
+import { VaultonomyError } from "../VaultonomyError";
 import { createRCPMethodCaller } from "../rpc/typing";
 import {
   bindPortToJSONRPCClient,
@@ -32,7 +33,7 @@ export interface RedditProviderEvents {
   disconnectSelf: EmptyCallback;
 }
 
-export class RedditProviderError extends Error {
+export class RedditProviderError extends VaultonomyError {
   type: ErrorCode | null;
   constructor(
     options: ErrorOptions & { type: ErrorCode | null; message: string },
@@ -44,7 +45,6 @@ export class RedditProviderError extends Error {
   static from(error: JSONRPCErrorException): RedditProviderError {
     const type =
       error.code === ErrorCode.USER_NOT_LOGGED_IN ||
-      error.code === ErrorCode.SESSION_EXPIRED ||
       error.code === ErrorCode.REDDIT_TAB_DISCONNECTED
         ? error.code
         : null;
