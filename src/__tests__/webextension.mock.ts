@@ -2,6 +2,7 @@ import { jest } from "@jest/globals";
 import { nextTick } from "process";
 import util from "util";
 
+import { StorageAreaClear, StorageAreaGetSetRemove } from "../webextension";
 import { retroactivePortDisconnection } from "../webextensions/retroactivePortDisconnection";
 
 type Callback<EventArgs extends unknown[]> = (...args: EventArgs) => void;
@@ -127,5 +128,61 @@ export class MockPort implements chrome.runtime.Port {
       name: this.name,
       sender: this.sender,
     })})`;
+  }
+}
+
+const nextTickPromise = () => new Promise((resolve) => nextTick(resolve));
+
+export class MockStorage
+  implements StorageAreaGetSetRemove, StorageAreaClear, StorageAreaGetSetRemove
+{
+  private readonly storage = new Map<string, string>();
+
+  mockClear(): void {
+    this.storage.clear();
+  }
+
+  async set(items: { [key: string]: any }): Promise<void> {
+    await nextTickPromise();
+    for (const key in items) {
+      const value = items[key];
+      if (value !== undefined) {
+        this.storage.set(key, JSON.stringify(value));
+      }
+    }
+  }
+  async get(
+    keys?: string | string[] | { [key: string]: any } | null | undefined,
+  ): Promise<{ [key: string]: any }> {
+    await nextTickPromise();
+    if (keys === null || keys === undefined) return {};
+    const values =
+      typeof keys === "string"
+        ? { [keys]: undefined }
+        : Array.isArray(keys)
+          ? Object.fromEntries(keys.map((key) => [key, undefined]))
+          : { ...keys };
+    for (const key in values) {
+      const value = this.storage.get(key);
+      if (value !== undefined) values[key] = JSON.parse(value);
+      if (value === undefined) delete values[key];
+    }
+    return values;
+  }
+
+  async remove(keys: string | string[]): Promise<void> {
+    await nextTickPromise();
+    if (typeof keys === "string") {
+      this.storage.delete(keys);
+    } else {
+      for (const key of keys) {
+        this.storage.delete(key);
+      }
+    }
+  }
+
+  async clear(): Promise<void> {
+    await nextTickPromise();
+    this.storage.clear();
   }
 }

@@ -32,6 +32,9 @@ export const EthAddress = z.string().transform((arg, context): Address => {
   return checksumAddress;
 });
 
+export const HexString = z.string().regex(/^0x[0-9a-fA-F]*$/);
+export type HexString = `0x${string}`;
+
 export const EthHexSignature = z
   .string()
   .regex(/^0x[0-9a-f]{130}$/, "Invalid hex signature string")
