@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { assert } from "../assert";
+import { log } from "../logging";
 import { RedditProvider } from "../reddit/reddit-interaction-client";
 import {
   VaultonomyProviderDetail,
@@ -21,7 +22,7 @@ export function useInjectedRedditProvider(): RedditProvider | undefined {
     const onProviderAvailable = (event: unknown) => {
       assert(isVaultonomyAnnounceProviderEvent(event));
       if (providerDetail?.info.uuid === event.detail.info.uuid) {
-        console.info(
+        log.debug(
           `useRedditProvider: ignored repeated ${onProviderAvailable}`,
           event,
         );
@@ -31,10 +32,16 @@ export function useInjectedRedditProvider(): RedditProvider | undefined {
     };
     // The extension broadcasts its RedditProvider with this event when it
     // starts, and when we send a request event.
-    window.addEventListener(announceProviderEventType, onProviderAvailable);
+    window.addEventListener(announceProviderEventType, (e) => {
+      log.debug("useInjectedRedditProvider: received", e.type, e);
+      onProviderAvailable(e);
+    });
+
     // Request the extension re-broadcast in case it broadcast before we started
     // listening.
-    window.dispatchEvent(new Event(requestProviderEventType));
+    const req = new Event(requestProviderEventType);
+    log.debug("useInjectedRedditProvider: sending", req.type, req);
+    window.dispatchEvent(req);
 
     // Clean up
     return () => {

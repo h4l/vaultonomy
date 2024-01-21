@@ -1,4 +1,19 @@
-import { number, z } from "zod";
+import { z } from "zod";
+
+// TODO create a way for the dev-server to register itself to receive messages
+// from the background service worker.
+
+/**
+ * Sent by the UI running in our dev-server to subscribe to messages from the
+ * background service.
+ */
+// TODO: DevServerUINeedsMessagesEvent is not needed now, we auto-register devserver tabs to receive broadcast messages
+// export const DevServerUINeedsMessagesEvent = z.object({
+//   type: z.literal("devServerUINeedsMessages"),
+// });
+// export type DevServerUINeedsMessagesEvent = z.infer<
+//   typeof DevServerUINeedsMessagesEvent
+// >;
 
 /**
  * Sent as a broadcast message from background worker when the Reddit tab
@@ -56,11 +71,6 @@ const UINeedsRedditTabResponse = z.discriminatedUnion("success", [
 ]);
 export type UINeedsRedditTabResponse = z.infer<typeof UINeedsRedditTabResponse>;
 
-// TODO: just use UINeedsRedditTabEvent for background
-export const Message = z.discriminatedUnion("type", [
-  RedditTabBecameAvailableEvent,
-  RedditTabBecameUnavailableEvent,
-  UINeedsRedditTabEvent,
-]);
-
 export const availabilityPortName = "availability";
+export const devModeRedditInteractionProxyPort =
+  "devModeRedditInteractionProxyPort";

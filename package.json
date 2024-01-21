@@ -5,11 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
-    "_build": "npm run check && vite build",
-    "__build": "npm run check && rollup -c --configPlugin @rollup/plugin-typescript --environment BUILD:production",
-    "__dev": "rollup -c --configPlugin @rollup/plugin-typescript --environment BUILD:development",
-    "__dev:watch": "rollup -c --configPlugin @rollup/plugin-typescript --environment BUILD:development --watch",
+    "build": "NODE_ENV=production vite build  --mode production",
+    "build-dev": "NODE_ENV=development vite build --mode development",
     "check": "npm run typecheck && npm run lint",
     "lint": "eslint src *.ts",
     "prettier": "prettier --check src *.ts",

@@ -1,3 +1,4 @@
+import { devModeRedditInteractionProxyPort } from "../../messaging";
 import { RedditProvider } from "../../reddit/reddit-interaction-client";
 import { REDDIT_INTERACTION } from "../../reddit/reddit-interaction-spec";
 import { browser } from "../../webextension";
@@ -19,9 +20,14 @@ export function subscribeToRedditProvider(
   tabId: number,
   onRedditProviderChanged: RedditProviderChangedHandler,
 ): Unsubscribe {
-  const createdRedditProvider = RedditProvider.from(
-    browser.tabs.connect(tabId, { name: REDDIT_INTERACTION }),
-  );
+  // In dev mode (running from the HTTP dev-server tab) we can't use
+  // browser.tabs APIs, so we proxy through the background service.
+  const redditInteractionPort =
+    import.meta.env.MODE === "development" && !browser.tabs
+      ? browser.runtime.connect({ name: devModeRedditInteractionProxyPort })
+      : browser.tabs.connect(tabId, { name: REDDIT_INTERACTION });
+
+  const createdRedditProvider = RedditProvider.from(redditInteractionPort);
   const unbind = createdRedditProvider.emitter.on("disconnected", () => {
     onRedditProviderChanged(undefined);
   });

@@ -1,0 +1,257 @@
+import { z } from "zod";
+
+import { assert, assertUnreachable } from "../assert";
+import { log } from "../logging";
+import {
+  RedditTabBecameAvailableEvent,
+  RedditTabBecameUnavailableEvent,
+  UINeedsRedditTabEvent,
+  availabilityPortName,
+} from "../messaging";
+import { browser } from "../webextension";
+import { MessageBroadcaster } from "./MessageBroadcaster";
+import { RedditTabConnection } from "./RedditTabConnection";
+import { handleAsync } from "./handleAsync";
+import { isRedditTab } from "./isReditTab";
+
+const Message = z.discriminatedUnion("type", [UINeedsRedditTabEvent]);
+
+type ErrorTabConnectionResult = {
+  type: "error";
+  reason: string;
+  tab: chrome.tabs.Tab;
+};
+type TabConnectionResult =
+  | { type: "already-connected"; tab: chrome.tabs.Tab }
+  | {
+      type: "now-connecting";
+      which: "foreground" | "previously-active";
+      tab: chrome.tabs.Tab;
+    }
+  | { type: "not-reddit"; tab: chrome.tabs.Tab }
+  | ErrorTabConnectionResult;
+
+export class BackgroundService {
+  protected messageBroadcaster = new MessageBroadcaster();
+  #asyncState: Promise<RedditTabConnection> | undefined;
+
+  protected get redditTabConnection(): Promise<RedditTabConnection> {
+    if (this.#asyncState === undefined) {
+      throw new Error("init not called");
+    }
+    return this.#asyncState;
+  }
+
+  constructor() {
+    this.handleExtensionMessage = this.handleExtensionMessage.bind(this);
+    this.handleExtensionConnection = this.handleExtensionConnection.bind(this);
+    this.handleActionButtonClick = this.handleActionButtonClick.bind(this);
+  }
+
+  /**
+   * Register event handlers and start loading async state.
+   *
+   * Must be called before other methods are called.
+   */
+  init(): Promise<void> {
+    // We need to do sync and async work, but always return a Promise for
+    // consistency.
+    try {
+      return this.#initSync();
+    } catch (error) {
+      return Promise.reject(error);
+    }
+  }
+
+  #initSync() {
+    if (this.#asyncState) throw new Error("init already called");
+    this.#asyncState = RedditTabConnection.fromStoredState();
+
+    // We must register action.onClicked synchronously, otherwise our handler
+    // won't be called for an initial action click that starts our main
+    // function.
+    browser.action.onClicked.addListener(this.handleActionButtonClick);
+    browser.runtime.onMessage.addListener(this.handleExtensionMessage);
+    browser.runtime.onConnect.addListener(
+      handleAsync(this.handleExtensionConnection),
+    );
+
+    return this.#initAsync();
+  }
+
+  async #initAsync(): Promise<void> {
+    const redditTabConnection = await this.redditTabConnection;
+    redditTabConnection.emitter.on("availabilityStatus", (event) => {
+      this.messageBroadcaster.sendMessageAndIgnoreResponses<
+        RedditTabBecameAvailableEvent | RedditTabBecameUnavailableEvent
+      >(event);
+    });
+  }
+
+  async handleExtensionConnection(port: chrome.runtime.Port) {
+    if (port.name !== availabilityPortName) return;
+    (await this.redditTabConnection).handleAvailabilityConnection(port);
+  }
+
+  handleExtensionMessage(
+    _message: unknown,
+    sender: chrome.runtime.MessageSender,
+    _sendResponse: (response?: any) => void,
+  ): true | undefined {
+    const result = Message.safeParse(_message);
+    if (!result.success) {
+      log.warn(`ignoring unknown message:`, _message, result.error.format());
+      return;
+    }
+    const message = result.data;
+    switch (message.type) {
+      case "uiNeedsRedditTab":
+        this.handleUiNeedsRedditTab(message).catch(log.error);
+        return;
+    }
+    assertUnreachable(message.type);
+  }
+
+  private async handleUiNeedsRedditTab(
+    _event: UINeedsRedditTabEvent,
+  ): Promise<void> {
+    (await this.redditTabConnection).publishAvailabilityEvent();
+  }
+
+  handleActionButtonClick(tab: chrome.tabs.Tab) {
+    log.trace("handleActionButtonClick()", new Date().toLocaleTimeString());
+    // Opening the side panel be strictly synchronous, as we can only modify the
+    // sidePanel from a user interaction event callback.
+    this.ensureSidePanelIsOpenAndDisplayingVaultonomy(tab);
+
+    (async () => {
+      const result = await this.reConnectToActiveTabOrCurrentTab(tab);
+
+      const context = "Vaultonomy action button clicked:";
+      switch (result.type) {
+        case "already-connected":
+          log.debug(context, "Already connected to a Reddit tab.", result.tab);
+          break;
+        case "now-connecting":
+          log.debug(
+            context,
+            `Started connecting to ${result.which} Reddit tab.`,
+            result.tab,
+          );
+          break;
+        case "not-reddit":
+          log.debug(
+            context,
+            "Foreground tab is not Reddit, cannot connect.",
+            result.tab,
+          );
+          break;
+        case "error":
+          log.error(
+            context,
+            "Could not connect to tab:",
+            result.reason,
+            result.tab,
+          );
+          break;
+        default:
+          assertUnreachable(result);
+      }
+    })().catch(console.error);
+  }
+
+  ensureSidePanelIsOpenAndDisplayingVaultonomy(tab: chrome.tabs.Tab) {
+    log.debug("Opening side panel");
+    // Enable our page in the side panel for the whole current window, not just
+    // the current tab. So our page remains open when changing tabs. Users can
+    // close the side panel, or open a different side-panel page and re-open our
+    // page later by triggering this again by clicking our Action button.
+    //
+    // We could open just on the current tab, but it seems useful to be able to
+    // view our sidepanel while viewing a different website, e.g. to follow
+    // instructions. And opening on a single tab would result in multiple
+    // instances being open on different tabs, each with their own state. That
+    // would surely be confusing.
+    chrome.sidePanel.setOptions({
+      enabled: true,
+      path: "ui.html",
+    });
+    chrome.sidePanel.open({ windowId: tab.windowId });
+  }
+
+  // TODO: when restoring, we should connect to the foreground tab if it's a
+  // reddit tab, otherwise use the old one. Although, this would disconnect ongoing
+  // actions. Should we focus the current reddit tab instead?
+  private async reConnectToActiveTabOrCurrentTab(
+    foregroundTab: chrome.tabs.Tab,
+  ): Promise<TabConnectionResult> {
+    // Clicking the action button can wake up this service worker after it was
+    // shut down. If we were connected to a Reddit tab before, we re-use that tab
+    // rather than connecting to the current tab.
+    // const activeTabInfo = await loadActiveRedditTab();
+    const existingRedditTabConnection = await this.redditTabConnection;
+
+    // Don't disconnect and reconnect, as doing so would break ongoing requests
+    const connectedRedditTab = existingRedditTabConnection.connectedRedditTab;
+    if (connectedRedditTab) {
+      return { type: "already-connected", tab: connectedRedditTab };
+    }
+
+    // Prefer to connect to the visible tab if it's Reddit
+    if (isRedditTab(foregroundTab)) {
+      const error = await this.tryToConnectToTab(foregroundTab);
+      return (
+        error || {
+          type: "now-connecting",
+          which: "foreground",
+          tab: foregroundTab,
+        }
+      );
+    }
+
+    // Otherwise if the previously-active-but-disconnected tab is still Reddit,
+    // connect to that.
+    const existingRedditTab = existingRedditTabConnection.connectableRedditTab;
+    if (existingRedditTab) {
+      const error = await this.tryToConnectToTab(existingRedditTab);
+      return (
+        error || {
+          type: "now-connecting",
+          which: "previously-active",
+          tab: existingRedditTab,
+        }
+      );
+    }
+
+    return { type: "not-reddit", tab: foregroundTab };
+  }
+
+  private async tryToConnectToTab(
+    activeTab: chrome.tabs.Tab,
+  ): Promise<ErrorTabConnectionResult | undefined> {
+    assert(isRedditTab(activeTab));
+
+    if (!activeTab.id) {
+      return {
+        type: "error",
+        reason: "Active tab has no id — ignoring.",
+        tab: activeTab,
+      };
+    }
+    try {
+      console.log("Running Vaultonomy's reddit client in active Reddit tab.");
+      await browser.scripting.executeScript({
+        target: { tabId: activeTab.id },
+        // TODO: can we re-introduce the function loading method?
+        // func: loadReddit,
+        files: ["reddit-contentscript.js"],
+      });
+    } catch (e) {
+      return {
+        type: "error",
+        reason: `Failed to execute content script in reddit tab: ${e}`,
+        tab: activeTab,
+      };
+    }
+  }
+}

@@ -1,3 +1,5 @@
+import { log } from "../logging";
+import { devModeRedditInteractionProxyPort } from "../messaging";
 import { RedditProvider } from "../reddit/reddit-interaction-client";
 import {
   Unsubscribe,
@@ -59,14 +61,29 @@ function broadcastProvider(provider: RedditProvider): Disconnect {
     rdns: "eth.vaultonomy",
     uuid: crypto.randomUUID(),
   };
+  // FIXME: detail is null on receiving side — can't transfer a Port across the
+  // content script -> page boundary. We need to use the externally_connectable
+  // permission to give the page permission to connect directly to the background
+  // worker: https://developer.chrome.com/docs/extensions/develop/concepts/messaging#external-webpage
+  // Alternatively, can we can use the web postMessage API? This would require
+  // an extra proxying step in the content script though.
   const announceEvent = new CustomEvent(announceProviderEventType, {
     detail: Object.freeze({ info, provider }),
   });
 
   const doAnnounce = () => {
+    log.debug(
+      "injectDevServerProvider: sending",
+      announceEvent.type,
+      announceEvent,
+    );
     window.dispatchEvent(announceEvent);
   };
-  window.addEventListener(requestProviderEventType, doAnnounce);
+  window.addEventListener(requestProviderEventType, (e) => {
+    log.debug("injectDevServerProvider: received", e.type, e);
+    doAnnounce();
+  });
+  doAnnounce();
 
   // Cleanup
   return () => {
