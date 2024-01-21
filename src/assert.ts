@@ -1,6 +1,6 @@
-import { inspect } from "util";
+import { VaultonomyError } from "./VaultonomyError";
 
-export class AssertionError extends Error {}
+export class AssertionError extends VaultonomyError {}
 
 export function assert(
   assertion: unknown,
@@ -10,5 +10,5 @@ export function assert(
 }
 
 export function assertUnreachable(x: never): never {
-  assert(false, `assertUnreachable was called with ${inspect(x)}`);
+  assert(false, `assertUnreachable was called with ${JSON.stringify(x)}`);
 }
