@@ -1,5 +1,5 @@
 import { ReactElement, ReactNode, useContext } from "react";
-import { Address } from "wagmi";
+import { Address } from "viem";
 
 import { assert } from "../assert";
 import { Button } from "./Button";

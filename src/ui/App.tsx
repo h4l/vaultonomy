@@ -1,16 +1,11 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useContext } from "react";
+import { WagmiProvider } from "wagmi";
 
 import { DevServerContext } from "../devserver/DevServerContext";
-import { Button, LinkButton } from "./Button";
-import { EthAccount } from "./EthAccount";
-import {
-  HelpContext,
-  HelpModal,
-  WithInlineHelp,
-  useRootHelpState,
-} from "./Help";
+import { wagmiConfig } from "../wagmi";
+import { HelpContext, HelpModal, useRootHelpState } from "./Help";
 import { Pairing } from "./Pairing";
-import { Profile } from "./Profile";
 import { UserProfile } from "./UserProfile";
 import { Vault } from "./Vault";
 import { VaultonomyLogo } from "./VaultonomyLogo";
@@ -19,6 +14,8 @@ import {
   VaultonomyRoot,
   VaultonomyStateContext,
 } from "./state/VaultonomyState";
+
+const queryClient = new QueryClient();
 
 export function DevServerRoot(): JSX.Element {
   return (
@@ -32,21 +29,27 @@ export function App() {
   const help = useRootHelpState();
 
   return (
-    <VaultonomyRoot>
-      <HelpContext.Provider value={help}>
-        <AppUI />
-      </HelpContext.Provider>
-    </VaultonomyRoot>
+    <WagmiProvider config={wagmiConfig}>
+      <QueryClientProvider client={queryClient}>
+        <VaultonomyRoot>
+          <HelpContext.Provider value={help}>
+            <AppUI />
+          </HelpContext.Provider>
+        </VaultonomyRoot>
+      </QueryClientProvider>
+    </WagmiProvider>
   );
 }
 
 function AppUI() {
   const [vaultonomy, dispatch] = useContext(VaultonomyStateContext);
   const userProfile =
-    vaultonomy.redditState.state === "tabAvailable" &&
-    vaultonomy.redditState.userProfile?.state === "loaded"
-      ? vaultonomy.redditState.userProfile.value
-      : undefined;
+    (
+      vaultonomy.redditState.state === "tabAvailable" &&
+      vaultonomy.redditState.userProfile?.state === "loaded"
+    ) ?
+      vaultonomy.redditState.userProfile.value
+    : undefined;
   return (
     <>
       <header className="mt-32 mb-16 w-72 max-w-full mx-auto">

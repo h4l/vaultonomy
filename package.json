@@ -16,6 +16,8 @@
   "dependencies": {
     "@metamask/providers": "^14.0.2",
     "@tailwindcss/typography": "^0.5.10",
+    "@tanstack/query-core": "^5.17.19",
+    "@tanstack/react-query": "^5.17.19",
     "buffer": "^6.0.3",
     "json-rpc-2.0": "^1.4.2",
     "loglevel": "^1.8.1",
@@ -24,7 +26,8 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "util": "^0.12.4",
-    "wagmi": "^1.4.12",
+    "viem": "^2.4.0",
+    "wagmi": "^2.3.1",
     "webextension-polyfill": "^0.10.0",
     "zod": "^3.20.6"
   },

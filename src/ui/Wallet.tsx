@@ -1,27 +1,29 @@
-import { useContext } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useAccount, useConnect, useDisconnect, useEnsName } from "wagmi";
 
+import { assert } from "../assert";
+import { log } from "../logging";
 import { WalletConnectorType } from "../wagmi";
 import { Button, LinkButton } from "./Button";
 import { EthAccount } from "./EthAccount";
 import { WithInlineHelp } from "./Help";
 import { IndeterminateProgressBar } from "./IndeterminateProgressBar";
-import { VaultonomyStateContext } from "./state/VaultonomyState";
+import { useLazyConnectors } from "./hooks/wallet";
 
 export function Wallet(): JSX.Element {
-  const [vaultonomy, dispatch] = useContext(VaultonomyStateContext);
+  const account = useAccount();
+  const ensName = useEnsName({ address: account.address });
+  const { disconnect } = useDisconnect();
 
-  if (vaultonomy.walletState.state === "connected") {
+  if (account.isConnected) {
     return (
       <>
         <EthAccount
           title="Wallet"
-          ethAddress={vaultonomy.walletState.address}
-          ensName={vaultonomy.walletState.ensName}
+          ethAddress={account.address}
+          ensName={ensName.data ?? undefined}
           footer={
-            <LinkButton
-              onClick={() => dispatch({ type: "userDisconnectedWallet" })}
-              className="italic text-sm"
-            >
+            <LinkButton onClick={() => disconnect()} className="italic text-sm">
               Disconnect wallet
             </LinkButton>
           }
@@ -40,7 +42,44 @@ export function Wallet(): JSX.Element {
 }
 
 function ConnectWallet({ className }: { className?: string }): JSX.Element {
-  const [vaultonomy, dispatch] = useContext(VaultonomyStateContext);
+  const connectors = useLazyConnectors();
+
+  const [selectedType, setSelectedType] = useState<WalletConnectorType>();
+  const { status, connect, error } = useConnect();
+  const isErrorUserCancel = error?.name === "UserRejectedRequestError";
+
+  useCoinbaseWalletModalCloseOnBgClick(
+    status === "pending" && selectedType === WalletConnectorType.Coinbase,
+  );
+
+  const getButtonOptions = (
+    type: WalletConnectorType,
+  ): {
+    walletType: WalletConnectorType;
+    state: ConnectButtonState;
+    connect?: () => void;
+  } => {
+    const connectorType = connectors[type];
+    if (!connectorType.isAvailable) {
+      return { walletType: type, state: "unavailable" };
+    }
+    const connectType = () => {
+      setSelectedType(type);
+      connect({ connector: connectorType.getConnector() });
+    };
+    if (selectedType === type) {
+      const selectedState: ConnectButtonState =
+        status === "pending" ? "connecting"
+        : status === "success" ? "connected"
+        : "idle";
+      return { walletType: type, state: selectedState, connect: connectType };
+    }
+    return {
+      walletType: type,
+      state: status === "success" ? "inactive" : "idle",
+      connect: connectType,
+    };
+  };
 
   return (
     <section aria-label="Connect to Wallet" className={className}>
@@ -51,90 +90,86 @@ function ConnectWallet({ className }: { className?: string }): JSX.Element {
         helpText="Connect your crypto Wallet to Vaultonomy. You can pair your Wallet with your Reddit account after connecting."
       >
         <div className="flex flex-col gap-2 bg-default">
-          <ConnectButton walletType={WalletConnectorType.MetaMask} />
-          <ConnectButton walletType={WalletConnectorType.Coinbase} />
+          <ConnectButton {...getButtonOptions(WalletConnectorType.MetaMask)} />
+          <ConnectButton {...getButtonOptions(WalletConnectorType.Coinbase)} />
           <WithInlineHelp helpText="Wallets other than MetaMask and Coinbase can connect using WalletConnect.">
-            <ConnectButton walletType={WalletConnectorType.WalletConnect} />
+            <ConnectButton
+              {...getButtonOptions(WalletConnectorType.WalletConnect)}
+            />
           </WithInlineHelp>
 
-          {/* TODO: Do something better with connection errors — need to distinguish user cancelation from actual error  */}
-          {vaultonomy.walletState.state === "disconnected" &&
-          vaultonomy.walletState.failedAttempt ? (
+          {/* TODO: check actual errors have reasonable message values */}
+          {status === "error" && error && !isErrorUserCancel ?
             <div className="text-red-500">
-              {vaultonomy.walletState.failedAttempt.connectionError}
+              The Wallet failed to connect.
+              {error.message && ` (${error.message})`}
             </div>
-          ) : undefined}
+          : undefined}
         </div>
       </WithInlineHelp>
     </section>
   );
 }
 
+type ConnectButtonState =
+  | "idle"
+  | "connecting"
+  | "connected"
+  | "disconnecting"
+  | "inactive"
+  | "unavailable";
+
 function ConnectButton({
   walletType,
+  state,
+  connect,
 }: {
   walletType: WalletConnectorType;
+  state: ConnectButtonState;
+  connect?: () => void;
 }): JSX.Element {
-  const [vaultonomy, dispatch] = useContext(VaultonomyStateContext);
-  const isSelected =
-    vaultonomy.intendedWalletState.state === "connected" &&
-    vaultonomy.intendedWalletState.walletType === walletType;
-
-  const isUsable = vaultonomy.usableWalletConnectors[walletType];
-  const state = isSelected
-    ? vaultonomy.walletState.state
-    : vaultonomy.walletState.state === "disconnected"
-      ? "idle"
-      : "inactive";
-  const isDisabled = !isUsable || state === "inactive";
+  const isUsable = state !== "unavailable";
 
   const { LogoEl, promptAbove, promptBelow, walletName, unusableText } =
     connectButtonAttrs[walletType];
+
   const textAbove =
-    state === "connecting"
-      ? "Connecting…"
-      : state === "disconnecting"
-        ? "Disconnecting…"
-        : state === "connected"
-          ? "Connected" // not visible in practice
-          : isUsable
-            ? promptAbove
-            : undefined;
+    state === "connecting" ? "Connecting…"
+    : state === "disconnecting" ? "Disconnecting…"
+      // not visible in practice
+    : state === "connected" ? "Connected"
+    : isUsable ? promptAbove
+    : undefined;
   const textBelow = isUsable ? promptBelow : unusableText;
 
   return (
     <Button
-      disabled={isDisabled}
-      onClick={() =>
-        dispatch({
-          type: "userInitiatedWalletConnection",
-          chosenWalletType: walletType,
-        })
-      }
+      disabled={!isUsable}
+      onClick={connect}
       className={`relative w-full ${
-        isDisabled ? "opacity-50 grayscale-[60%]" : ""
+        isUsable ? "" : "opacity-50 grayscale-[60%]"
       }`}
       paddingClassName=""
     >
       <div className="px-6 py-5 grid grid-cols-[4rem_1fr] gap-x-4 grid-rows-[auto_auto_auto] text-left">
         <LogoEl className="row-start-1 col-start-1 row-span-3 justify-self-center self-center" />
-        {textAbove ? (
+        {textAbove ?
           <div className="text-sm col-start-2 row-start-1 self-end -mb-[0.35rem] -ml-1">
             {textAbove}
           </div>
-        ) : undefined}
+        : undefined}
         <div className="text-2xl col-start-2 row-start-2">{walletName}</div>
-        {textBelow ? (
+        {textBelow ?
           <div className="text-sm col-start-2 row-start-3 self-end -mt-2 ml-1">
             {textBelow}
           </div>
-        ) : undefined}
+        : undefined}
       </div>
-      {state === "connecting" ? (
+      {state === "connecting" ?
         <div className="absolute bottom-0 left-0 w-full">
           <IndeterminateProgressBar />
         </div>
-      ) : undefined}
+      : undefined}
     </Button>
   );
 }
@@ -347,3 +382,83 @@ const connectButtonAttrs: Record<
     unusableText: undefined,
   },
 };
+
+/**
+ * The Coinbase Wallet modal has some a11y & UX issues in that it's not
+ * responsive, doesn't close when you press esc or click outside the modal,
+ * doesn't capture focus, doesn't have aria attrs. 🙁
+ *
+ * Its close (x) button doesn't work until it's loaded, so if you open it on a
+ * slow network you get stuck with it trying to load. To mitigiate some of this,
+ * this adds extra event handlers to close the modal when esc is pressed or the
+ * page outside the modal is clicked.
+ *
+ * @param enabled Should be true while the CB modal is expected to be visible.
+ */
+function useCoinbaseWalletModalCloseOnBgClick(enabled: boolean): void {
+  const modalEl = useRef<HTMLElement>();
+
+  useEffect(() => {
+    if (!enabled) return;
+    assert(!modalEl.current);
+    const onStop: Array<() => void> = [];
+
+    const removeClosedModalEls = () => {
+      // CB SDK does not remove the HTML it adds to the page to show the modal
+      // when it closes. So these zombie modals accumulate and screw up event
+      // listener registration below. Luckilly they add their HTML directly
+      // under the root html element, so it's easy to identify! 🙃
+      const els = [...document.querySelectorAll("html > *:not(head,body)")];
+      // Delay removal to allow the close animation to run
+      setTimeout(() => {
+        els.forEach((el) => el.remove());
+      }, 200);
+    };
+    onStop.push(removeClosedModalEls);
+
+    const clickCloseButton = () => {
+      log.debug("db-dialog: clickCloseButton", modalEl.current);
+      modalEl.current
+        ?.querySelector<HTMLButtonElement>("button.-cbwsdk-cancel-button")
+        ?.click();
+    };
+
+    const onModalBgClick = function (this: HTMLElement, ev: MouseEvent): void {
+      // click was on a descendant of the modal el, so not the background
+      if (this !== ev.target) return;
+      clickCloseButton();
+    };
+
+    const onEscKeyDown = function (ev: KeyboardEvent) {
+      if (ev.key === "Escape") {
+        clickCloseButton();
+      }
+    };
+
+    const setup = () => {
+      // Select the last modal as CB SDK doesn't remove previously-closed
+      // modals (see removeClosedModalEls).
+      const el = [
+        ...document.querySelectorAll<HTMLElement>(".-cbwsdk-connect-dialog"),
+      ].at(-1);
+      if (!el) return;
+      clearInterval(setupId);
+      assert(!modalEl.current);
+      modalEl.current = el;
+
+      el.addEventListener("click", onModalBgClick);
+      onStop.push(() => el.removeEventListener("click", onModalBgClick));
+
+      document.addEventListener("keydown", onEscKeyDown);
+      onStop.push(() => document.removeEventListener("keydown", onEscKeyDown));
+    };
+
+    const setupId = setInterval(setup, 100);
+    onStop.push(() => clearInterval(setupId));
+
+    return () => {
+      modalEl.current = undefined;
+      for (const stop of onStop) stop();
+    };
+  }, [enabled]);
+}
