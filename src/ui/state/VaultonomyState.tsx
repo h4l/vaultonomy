@@ -14,9 +14,9 @@ import {
   RedditProviderError,
 } from "../../reddit/reddit-interaction-client";
 import { RedditUserProfile } from "../../reddit/reddit-interaction-spec";
+import { useVaultonomyBackgroundProvider } from "../hooks/useVaultonomyBackgroundProvider";
 import { VaultonomyBackgroundProvider } from "../rpc/VaultonomyBackgroundProvider";
 import { getIncreasingId } from "./increasing-ids";
-import { useVaultonomyBackgroundProvider } from "./useVaultonomyBackgroundProvider";
 
 type DispatchFn = (action: VaultonomyAction) => void;
 
