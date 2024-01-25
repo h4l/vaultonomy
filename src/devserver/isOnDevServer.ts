@@ -1,7 +1,5 @@
-import { useContext } from "react";
-
-import { DevServerContext } from "./DevServerContext";
+import { useVaultonomyStore } from "../ui/state/useVaultonomyStore";
 
 export function useIsOnDevServer(): boolean {
-  return useContext(DevServerContext);
+  return useVaultonomyStore((s) => s.isOnDevServer);
 }

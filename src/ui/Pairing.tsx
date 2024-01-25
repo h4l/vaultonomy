@@ -1,26 +1,29 @@
-import { ReactElement, ReactNode, useContext } from "react";
+import { ReactNode } from "react";
 import { Address } from "viem";
 
 import { assert } from "../assert";
 import { Button } from "./Button";
 import { Heading } from "./Heading";
-import { VaultonomyStateContext } from "./state/VaultonomyState";
+import { useVaultonomyStore } from "./state/useVaultonomyStore";
 
 export function Pairing(): JSX.Element {
-  const [vaultonomy, dispatch] = useContext(VaultonomyStateContext);
+  const expressInterestInPairing = useVaultonomyStore(
+    (s) => s.expressInterestInPairing,
+  );
+  const intendedPairingState = useVaultonomyStore(
+    (s) => s.intendedPairingState,
+  );
 
-  if (vaultonomy.intendedPairingState.userState === "disinterested") {
+  if (intendedPairingState.userState === "disinterested") {
     return (
       <div className="mx-10 my-20 flex flex-col justify-center items-center">
-        <Button
-          onClick={() => dispatch({ type: "userExpressedInterestInPairing" })}
-        >
+        <Button onClick={expressInterestInPairing}>
           Pair Wallet with Vault…
         </Button>
       </div>
     );
   }
-  assert(vaultonomy.intendedPairingState.userState === "interested");
+  assert(intendedPairingState.userState === "interested");
   return (
     <>
       <div className="mx-10 my-20 flex flex-col justify-center items-center">
@@ -139,7 +142,7 @@ function PairingMessage({
   return (
     <section className="m-10">
       <div className="max-w-prose mx-auto">
-        <Heading className="text-center">Reddit's Message</Heading>
+        <Heading className="text-center">Reddit’s Message</Heading>
         <div className="prose">
           {/* TODO: maybe more info here. Allow viewing/copying the typed data?  */}
           <p></p>

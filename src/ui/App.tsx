@@ -1,8 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useContext } from "react";
+import { useRef } from "react";
 import { WagmiProvider } from "wagmi";
 
-import { DevServerContext } from "../devserver/DevServerContext";
 import { wagmiConfig } from "../wagmi";
 import { HelpContext, HelpModal, useRootHelpState } from "./Help";
 import { Pairing } from "./Pairing";
@@ -10,46 +9,38 @@ import { UserProfile } from "./UserProfile";
 import { Vault } from "./Vault";
 import { VaultonomyLogo } from "./VaultonomyLogo";
 import { Wallet } from "./Wallet";
-import {
-  VaultonomyRoot,
-  VaultonomyStateContext,
-} from "./state/VaultonomyState";
+import { useRedditUserProfile } from "./hooks/useRedditAccountProfile";
+import { VaultonomyContext } from "./state/VaultonomyContext";
+import { createVaultonomyStore } from "./state/createVaultonomyStore";
 
 const queryClient = new QueryClient();
 
 export function DevServerRoot(): JSX.Element {
-  return (
-    <DevServerContext.Provider value={true}>
-      <App />
-    </DevServerContext.Provider>
-  );
+  return <App isOnDevServer={true} />;
 }
 
-export function App() {
+export function App({ isOnDevServer }: { isOnDevServer?: boolean } = {}) {
   const help = useRootHelpState();
+  const store = useRef(createVaultonomyStore({ isOnDevServer })).current;
 
   return (
     <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>
-        <VaultonomyRoot>
+        <VaultonomyContext.Provider value={store}>
+          {/* <VaultonomyRoot> */}
           <HelpContext.Provider value={help}>
             <AppUI />
           </HelpContext.Provider>
-        </VaultonomyRoot>
+          {/* </VaultonomyRoot> */}
+        </VaultonomyContext.Provider>
       </QueryClientProvider>
     </WagmiProvider>
   );
 }
 
 function AppUI() {
-  const [vaultonomy, dispatch] = useContext(VaultonomyStateContext);
-  const userProfile =
-    (
-      vaultonomy.redditState.state === "tabAvailable" &&
-      vaultonomy.redditState.userProfile?.state === "loaded"
-    ) ?
-      vaultonomy.redditState.userProfile.value
-    : undefined;
+  const userProfile = useRedditUserProfile();
+
   return (
     <>
       <header className="mt-32 mb-16 w-72 max-w-full mx-auto">
@@ -57,7 +48,7 @@ function AppUI() {
       </header>
       <main>
         <UserProfile
-          profile={userProfile}
+          profile={userProfile.isRedditAvailable ? userProfile.data : undefined}
           // <UserProfile
           //   profile={{
           //     hasPremium: true,

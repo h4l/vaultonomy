@@ -1,29 +1,22 @@
-import { useContext } from "react";
 import { useEnsName } from "wagmi";
 
-import { AccountVaultAddress } from "../reddit/api-client";
 import { EthAccount } from "./EthAccount";
 import { WithInlineHelp } from "./Help";
-import { VaultonomyStateContext } from "./state/VaultonomyState";
-
-function activeVaultAddress(
-  vaultAddresses?: ReadonlyArray<AccountVaultAddress>,
-): AccountVaultAddress | undefined {
-  return vaultAddresses?.find((va) => va.isActive);
-}
+import { useIsRedditAvailable } from "./hooks/useIsRedditAvailable";
+import { useRedditAccountActiveVault } from "./hooks/useRedditAccountActiveVault";
 
 export function Vault(): JSX.Element {
-  const [vaultonomy, dispatch] = useContext(VaultonomyStateContext);
+  const isRedditAvailable = useIsRedditAvailable();
+  const activeVault = useRedditAccountActiveVault();
 
-  const vaultAddresses =
-    vaultonomy.redditState.state === "tabAvailable" &&
-    vaultonomy.redditState.vaultAddresses?.state === "loaded"
-      ? vaultonomy.redditState.vaultAddresses.value
+  const vaultAddress =
+    isRedditAvailable && activeVault.data
+      ? activeVault.data.address
       : undefined;
 
-  const activeVault = activeVaultAddress(vaultAddresses);
+  // const activeVault = activeVaultAddress(vaultAddresses);
   const ensName = useEnsName({
-    address: activeVault?.address,
+    address: vaultAddress,
     query: {
       staleTime: 1000 * 60,
     },
@@ -32,7 +25,7 @@ export function Vault(): JSX.Element {
   return (
     <EthAccount
       title="Reddit Vault"
-      ethAddress={activeVault && activeVault.address}
+      ethAddress={vaultAddress}
       ensName={ensName.data ?? undefined}
       footer={
         <WithInlineHelp helpText="The date when this Ethereum account was paired with your Reddit account to create this Vault.">

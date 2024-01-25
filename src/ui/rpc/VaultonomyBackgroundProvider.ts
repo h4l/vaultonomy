@@ -39,7 +39,8 @@ export class VaultonomyBackgroundProvider {
 
   private readonly jsonrpc: JSONRPCServerAndClient;
   private readonly unbindFromPort: Unbind;
-  private readonly redditProvider: RedditProvider;
+  public readonly redditProvider: RedditProvider;
+  private redditWasAvailableOnLastUpdate: boolean | undefined = undefined;
 
   constructor(private readonly port: chrome.runtime.Port) {
     this.jsonrpc = this.createServerAndClient(port);
@@ -65,6 +66,10 @@ export class VaultonomyBackgroundProvider {
     });
   }
 
+  get isRedditAvailable(): boolean {
+    return !!this.redditWasAvailableOnLastUpdate;
+  }
+
   private createServerAndClient(
     port: chrome.runtime.Port,
   ): JSONRPCServerAndClient {
@@ -82,12 +87,14 @@ export class VaultonomyBackgroundProvider {
       VaultonomyUiNotify.signature.implement(async (event) => {
         switch (event.type) {
           case "redditTabBecameAvailable":
+            this.redditWasAvailableOnLastUpdate = true;
             this.emitter.emit("availabilityStatus", {
               type: "redditTabBecameAvailable",
               redditProvider: this.redditProvider,
             });
             break;
           case "redditTabBecameUnavailable":
+            this.redditWasAvailableOnLastUpdate = false;
             this.emitter.emit("availabilityStatus", {
               type: "redditTabBecameUnavailable",
             });
