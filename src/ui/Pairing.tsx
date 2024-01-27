@@ -1,9 +1,18 @@
-import { ReactNode } from "react";
+import React, {
+  ReactElement,
+  ReactNode,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import { ClickEvent, TransitionEvent } from "react";
 import { Address } from "viem";
 
 import { assert } from "../assert";
+import { log } from "../logging";
 import { Button } from "./Button";
 import { Heading } from "./Heading";
+import { useExpandCollapseElement } from "./hooks/useExpandCollapseElement";
 import { useVaultonomyStore } from "./state/useVaultonomyStore";
 
 export function Pairing(): JSX.Element {
@@ -16,49 +25,146 @@ export function Pairing(): JSX.Element {
 
   if (intendedPairingState.userState === "disinterested") {
     return (
-      <div className="mx-10 my-20 flex flex-col justify-center items-center">
-        <Button onClick={expressInterestInPairing}>
-          Pair Wallet with Vault…
-        </Button>
-      </div>
+      <>
+        <Details
+          heading={
+            <Heading className="text-center">
+              I want to change my Vault…
+            </Heading>
+          }
+        >
+          <div className="mx-10 my-20 flex flex-col justify-center items-center">
+            {/* <Heading className="text-center">Pair Wallet with Reddit</Heading> */}
+            <PairingNarrative />
+            <Button>Sign Message & Pair Vault</Button>
+            <PairingMessage
+              message={{
+                domain: {
+                  name: "reddit",
+                  chainId: "1",
+                  version: "1",
+                  salt: "reddit-sIvILoedIcisHANTEmpE",
+                },
+                message: {
+                  address: "0x5318810BD26f9209c3d4ff22891F024a2b0A739a",
+                  redditUser: "superbadger",
+                  expiresAt: new Date("2023-02-18T06:20:47"),
+                  nonce:
+                    "3afeac718855f79a1052384582f3e7bff7c8606d5e225c00db9db977897d5d04",
+                },
+              }}
+            />
+          </div>
+        </Details>
+        {/* <div className="mx-10 my-20 flex flex-col justify-center items-center">
+          <Button onClick={expressInterestInPairing}>
+            I want to change my Vault…
+          </Button>
+        </div> */}
+      </>
     );
   }
   assert(intendedPairingState.userState === "interested");
+  return <></>;
+}
+
+/**
+ * An expandable region.
+ */
+function Details({
+  heading,
+  children,
+  expanded: initiallyExpanded,
+}: {
+  heading: ReactElement;
+  children?: ReactElement;
+  expanded?: boolean;
+}): JSX.Element {
+  const bodyEl = useRef<HTMLDivElement>(null);
+
+  const { toggleExpansion, transitionEnd, isExpanded } =
+    useExpandCollapseElement({
+      el: bodyEl.current,
+      initiallyExpanded,
+    });
+
   return (
-    <>
-      <div className="mx-10 my-20 flex flex-col justify-center items-center">
-        <Heading className="text-center">Pair Wallet with Vault</Heading>
-        <PairingNarrative />
-        <Button>Sign Message & Pair Vault</Button>
-        <PairingMessage
-          message={{
-            domain: {
-              name: "reddit",
-              chainId: "1",
-              version: "1",
-              salt: "reddit-sIvILoedIcisHANTEmpE",
-            },
-            message: {
-              address: "0x5318810BD26f9209c3d4ff22891F024a2b0A739a",
-              redditUser: "superbadger",
-              expiresAt: new Date("2023-02-18T06:20:47"),
-              nonce:
-                "3afeac718855f79a1052384582f3e7bff7c8606d5e225c00db9db977897d5d04",
-            },
-          }}
-        />
+    <section className="border-t border-b border-neutral-200">
+      <div className="mx-2">
+        <button className="w-full flex flex-row" onClick={toggleExpansion}>
+          <div className="flex-grow ml-28">{heading}</div>
+          <ExpandMoreIcon40
+            className={[
+              "flex-shrink m-6 w-16 transition-transform duration-700",
+              isExpanded ? "rotate-0" : "-rotate-90",
+            ].join(" ")}
+          />
+        </button>
       </div>
-    </>
+      <div
+        ref={bodyEl}
+        onTransitionEnd={transitionEnd}
+        className="transition-[height] duration-700 overflow-hidden"
+      >
+        {children}
+      </div>
+    </section>
   );
 }
+
+function ExpandMoreIcon40({
+  className,
+  size,
+}: {
+  size?: number | string;
+  className?: string;
+}): JSX.Element {
+  return (
+    // https://fonts.google.com/icons?selected=Material%20Symbols%20Outlined%3Aexpand_more%3AFILL%400%3Bwght%40400%3BGRAD%400%3Bopsz%4040
+    <svg
+      aria-hidden="true"
+      className={className}
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 -960 960 960"
+      width={size ?? 40}
+    >
+      <title>Expand More</title>
+      <path d="M480-345 240-585l47.333-47.333L480-438.999l192.667-192.667L720-584.333 480-345Z" />
+    </svg>
+  );
+}
+function ExpandLessIcon40({
+  className,
+  size,
+}: {
+  size?: number | string;
+  className?: string;
+}): JSX.Element {
+  return (
+    // https://fonts.google.com/icons?selected=Material%20Symbols%20Outlined%3Aexpand_more%3AFILL%400%3Bwght%40400%3BGRAD%400%3Bopsz%4040
+    <svg
+      aria-hidden="true"
+      className={className}
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 -960 960 960"
+      width={size ?? 40}
+    >
+      <title>Expand Less</title>
+      <path d="M287.333-345 240-392.333l240-240L720-393l-47.333 47.333L480-538.334 287.333-345Z" />
+    </svg>
+  );
+}
+
+// ExpandLessIcon
+// https://fonts.google.com/icons?selected=Material%20Symbols%20Outlined%3Aexpand_less%3AFILL%400%3Bwght%40400%3BGRAD%400%3Bopsz%4040
 
 function PairingNarrative(): JSX.Element {
   return (
     <aside className="my-8 grid grid-cols-[auto_1fr] max-w-prose gap-x-4 gap-y-2">
-      <div className="col-span-2">
+      {/* <div className="col-span-2">
         <h3 className="text-center text-xl">Act 1</h3>
         <h4 className="text-center text-l">Scene 1</h4>
-      </div>
+      </div> */}
       <Setting>Somewhere on the Internet, present day.</Setting>
       <Stage>
         SUPERBADGER, a Reddit user, is talking to REDDIT with the help of
