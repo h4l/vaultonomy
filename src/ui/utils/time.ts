@@ -1,14 +1,14 @@
 import { DateTime } from "luxon";
 import { Emitter, createNanoEvents } from "nanoevents";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
 
 import { assert } from "../../assert";
-import { log } from "../../logging";
 
 export class TimeDependantTimeFormat {
   public readonly relFmt: Intl.RelativeTimeFormat;
   public readonly timeFmt: Intl.DateTimeFormat;
-  public readonly dateTimeFmt: Intl.DateTimeFormat;
+  public readonly dateTimeFmtAbs: Intl.DateTimeFormat;
+  public readonly dateFmt: Intl.DateTimeFormat;
   public readonly listFmt: Intl.ListFormat;
   public readonly timeZone?: string;
 
@@ -21,9 +21,13 @@ export class TimeDependantTimeFormat {
       timeStyle: "medium",
       timeZone,
     });
-    this.dateTimeFmt = new Intl.DateTimeFormat(locale, {
+    this.dateTimeFmtAbs = new Intl.DateTimeFormat(locale, {
+      dateStyle: "long",
+      timeStyle: "long",
+      timeZone,
+    });
+    this.dateFmt = new Intl.DateTimeFormat(locale, {
       dateStyle: "medium",
-      timeStyle: "medium",
       timeZone,
     });
     this.listFmt = new Intl.ListFormat(locale, {
@@ -47,7 +51,7 @@ export class TimeDependantTimeFormat {
     return this.timeFmt.format(date);
   }
 
-  formatDateTimeAt(options: { when: number; now?: number }) {
+  formatDateTimeAt(options: { when: number; now?: number }): string {
     // timezone doesn't matter for our relative time calculations, but does for
     // determining calendar date.
     const date = DateTime.fromMillis(options.when).setZone(this.timeZone);
@@ -69,8 +73,12 @@ export class TimeDependantTimeFormat {
       const time = this.timeFmt.format(date.toMillis());
       return this.listFmt.format([day, time]);
     }
-    // Use a full date like 25 Sept 2025, 08:12:56
-    return this.dateTimeFmt.format(date.toMillis());
+    // Use a full date like 25 Sept 2025
+    return this.dateFmt.format(date.toMillis());
+  }
+
+  formatAbsoluteDateTime(options: { when: number }): string {
+    return this.dateTimeFmtAbs.format(options.when);
   }
 }
 
@@ -88,9 +96,12 @@ function floorDate(dt: DateTime): DateTime {
  * All values use Intl.* locale-aware formatting, so they should make sense in
  * the user/browser's current locale.
  */
-export const formatDateTimeAt = (() => {
+export const { formatDateTimeAt, formatAbsoluteDateTime } = (() => {
   const rtf = new TimeDependantTimeFormat();
-  return rtf.formatDateTimeAt.bind(rtf);
+  return {
+    formatDateTimeAt: rtf.formatDateTimeAt.bind(rtf),
+    formatAbsoluteDateTime: rtf.formatAbsoluteDateTime.bind(rtf),
+  };
 })();
 
 const SECOND = 1000;
