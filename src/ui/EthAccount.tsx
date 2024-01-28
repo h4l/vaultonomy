@@ -23,13 +23,13 @@ export function EthAccount({
   const isDisabled = _ethAddress === undefined;
   return (
     <section
-      aria-label={`${title} details${isDisabled ? " [disconnected]" : ""}`}
+      aria-label={`${title} details`}
       className="w-80 grid gap-x-4 gap-y-[0.125rem] auto-rows-min grid-cols-[auto_auto_auto_auto_auto_1fr] items-end"
     >
       <Heading
         className={`row-start-1 col-start-1 col-span-6 flex flex-row justify-center`}
       >
-        {subtitle ? (
+        {subtitle ?
           <span className="relative">
             {title}
             <span
@@ -39,11 +39,9 @@ export function EthAccount({
               {subtitle}
             </span>
           </span>
-        ) : (
-          title
-        )}
+        : title}
       </Heading>
-      {ensName ? (
+      {ensName ?
         <WithInlineHelp
           className="row-start-2 col-start-2 col-span-5"
           helpText={`The primary ENS (Ethereum Name Service) name linked to this ${title}.`}
@@ -53,7 +51,7 @@ export function EthAccount({
             {ensName}
           </p>
         </WithInlineHelp>
-      ) : undefined}
+      : undefined}
       <div
         aria-label={`Ethereum address`}
         className="row-start-3 text-4xl min-w-[4rem]"
@@ -63,9 +61,9 @@ export function EthAccount({
           helpText={`The 0x… address that uniquely identifies this ${title}'s Ethereum account.`}
         >
           <span className="sr-only">
-            {isDisabled
-              ? `${title} is not connected yet. Information will be here after connecting.`
-              : ethAddress}
+            {isDisabled ?
+              `${title} is not connected yet. Information will be here after connecting.`
+            : ethAddress}
           </span>
           <span
             aria-hidden="true"
@@ -76,15 +74,15 @@ export function EthAccount({
         </WithInlineHelp>
       </div>
       <EthAddressHexPairs ethAddress={_ethAddress} />
-      {isDisabled ? undefined : (
-        <EthAddressActions title={title} ethAddress={ethAddress} />
-      )}
-      {footer ? (
+      {isDisabled ?
+        undefined
+      : <EthAddressActions title={title} ethAddress={ethAddress} />}
+      {footer ?
         <div className="row-start-7 col-start-2 col-span-5">{footer}</div>
-      ) : undefined}
-      {children ? (
+      : undefined}
+      {children ?
         <div className="row-start-8 col-start-1 col-span-6">{children}</div>
-      ) : undefined}
+      : undefined}
     </section>
   );
   const _test = <div className="row-start-8" />;

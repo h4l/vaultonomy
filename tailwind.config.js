@@ -86,6 +86,9 @@ export default {
           },
         },
       },
+      transitionProperty: {
+        backgroundColor: "background-color, border-color",
+      },
     },
   },
   plugins: [],

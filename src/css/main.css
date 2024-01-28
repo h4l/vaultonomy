@@ -25,6 +25,12 @@
   *:focus-visible {
     @apply outline-none outline-dashed outline-offset-4 outline-logo-background rounded-md;
   }
+
+  dialog {
+    /* dialog has a white background by default, but we use it in a non-modal
+       way, so don't want a background. */
+    background: none;
+  }
 }
 
 @tailwind components;

@@ -1,11 +1,4 @@
-import React, {
-  ReactElement,
-  ReactNode,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
-import { ClickEvent, TransitionEvent } from "react";
+import { ReactElement, ReactNode, useId, useRef } from "react";
 import { Address } from "viem";
 
 import { assert } from "../assert";
@@ -26,14 +19,17 @@ export function Pairing(): JSX.Element {
   if (intendedPairingState.userState === "disinterested") {
     return (
       <>
-        <Details
+        <ExpandingNonModalDialog
+          sectionLabel="Pair Wallet with Reddit"
+          dialogLabel="Pair Wallet with Reddit"
           heading={
             <Heading className="text-center">
-              I want to change my Vault…
+              “I want to change my Vault…”
             </Heading>
           }
+          expanded={false}
         >
-          <div className="mx-10 my-20 flex flex-col justify-center items-center">
+          <div className="mx-10 my-8 gap-16 flex flex-col justify-center items-center">
             {/* <Heading className="text-center">Pair Wallet with Reddit</Heading> */}
             <PairingNarrative />
             <Button>Sign Message & Pair Vault</Button>
@@ -55,7 +51,7 @@ export function Pairing(): JSX.Element {
               }}
             />
           </div>
-        </Details>
+        </ExpandingNonModalDialog>
         {/* <div className="mx-10 my-20 flex flex-col justify-center items-center">
           <Button onClick={expressInterestInPairing}>
             I want to change my Vault…
@@ -69,29 +65,64 @@ export function Pairing(): JSX.Element {
 }
 
 /**
- * An expandable region.
+ * An expand/collapse area containing an non-modal dialog when expanded.
  */
-function Details({
+function ExpandingNonModalDialog({
+  sectionLabel,
+  dialogLabel,
   heading,
   children,
   expanded: initiallyExpanded,
 }: {
+  sectionLabel: string;
+  dialogLabel: string;
   heading: ReactElement;
   children?: ReactElement;
   expanded?: boolean;
 }): JSX.Element {
-  const bodyEl = useRef<HTMLDivElement>(null);
+  const bodyEl = useRef<HTMLDialogElement>(null);
 
-  const { toggleExpansion, transitionEnd, isExpanded } =
+  const { toggleExpansion, transitionEnd, isExpanded, isTransitioning } =
     useExpandCollapseElement({
       el: bodyEl.current,
       initiallyExpanded,
     });
 
+  const idleBgClasses =
+    isExpanded ?
+      "bg-neutral-100 dark:bg-neutral-850"
+    : "bg-neutral-50 dark:bg-neutral-900";
+
   return (
-    <section className="border-t border-b border-neutral-200">
-      <div className="mx-2">
-        <button className="w-full flex flex-row" onClick={toggleExpansion}>
+    <section
+      aria-label={sectionLabel}
+      className={[
+        "border-t border-b transition-backgroundColor duration-700",
+        "border-neutral-200  border-b-neutral-300",
+        "dark:border-neutral-800  dark:border-b-neutral-750",
+        idleBgClasses,
+        ,
+      ].join(" ")}
+    >
+      <div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={isExpanded}
+          // aria-label={`${isExpanded ? "Close" : "Open"} ${toggleButtonLabel}`}
+          className={[
+            "w-full flex flex-row items-center transition-colors",
+            idleBgClasses,
+            "hover:bg-neutral-25 dark:hover:bg-neutral-875",
+            "active:bg-white dark:active:bg-neutral-850",
+            "border-b border-transparent",
+            "border-collapse hover:border-neutral-300 hover:border-l-neutral-400 hover:border-b-neutral-400 dark:hover:border-neutral-750 dark:hover:border-l-neutral-700 dark:hover:border-b-neutral-700",
+          ].join(" ")}
+          onClick={() => {
+            toggleExpansion();
+            // if (!isExpanded) bodyEl.current?.focus();
+          }}
+        >
           <div className="flex-grow ml-28">{heading}</div>
           <ExpandMoreIcon40
             className={[
@@ -102,6 +133,10 @@ function Details({
         </button>
       </div>
       <div
+        role="dialog"
+        // open={isExpanded || isTransitioning || undefined}
+        aria-label={dialogLabel}
+        aria-hidden={!isExpanded}
         ref={bodyEl}
         onTransitionEnd={transitionEnd}
         className="transition-[height] duration-700 overflow-hidden"
@@ -112,55 +147,16 @@ function Details({
   );
 }
 
-function ExpandMoreIcon40({
-  className,
-  size,
-}: {
-  size?: number | string;
-  className?: string;
-}): JSX.Element {
-  return (
-    // https://fonts.google.com/icons?selected=Material%20Symbols%20Outlined%3Aexpand_more%3AFILL%400%3Bwght%40400%3BGRAD%400%3Bopsz%4040
-    <svg
-      aria-hidden="true"
-      className={className}
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 -960 960 960"
-      width={size ?? 40}
-    >
-      <title>Expand More</title>
-      <path d="M480-345 240-585l47.333-47.333L480-438.999l192.667-192.667L720-584.333 480-345Z" />
-    </svg>
-  );
-}
-function ExpandLessIcon40({
-  className,
-  size,
-}: {
-  size?: number | string;
-  className?: string;
-}): JSX.Element {
-  return (
-    // https://fonts.google.com/icons?selected=Material%20Symbols%20Outlined%3Aexpand_more%3AFILL%400%3Bwght%40400%3BGRAD%400%3Bopsz%4040
-    <svg
-      aria-hidden="true"
-      className={className}
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 -960 960 960"
-      width={size ?? 40}
-    >
-      <title>Expand Less</title>
-      <path d="M287.333-345 240-392.333l240-240L720-393l-47.333 47.333L480-538.334 287.333-345Z" />
-    </svg>
-  );
-}
-
-// ExpandLessIcon
-// https://fonts.google.com/icons?selected=Material%20Symbols%20Outlined%3Aexpand_less%3AFILL%400%3Bwght%40400%3BGRAD%400%3Bopsz%4040
-
 function PairingNarrative(): JSX.Element {
+  const headingId = useId();
   return (
-    <aside className="my-8 grid grid-cols-[auto_1fr] max-w-prose gap-x-4 gap-y-2">
+    <aside
+      aria-labelledby={headingId}
+      className="grid grid-cols-[auto_1fr] max-w-prose gap-x-4 gap-y-2"
+    >
+      <Heading id={headingId} level={3} className="text-center col-span-2">
+        The pairing process
+      </Heading>
       {/* <div className="col-span-2">
         <h3 className="text-center text-xl">Act 1</h3>
         <h4 className="text-center text-l">Scene 1</h4>
@@ -180,7 +176,7 @@ function PairingNarrative(): JSX.Element {
         I’ll make it your Vault.”
       </Dialogue>
       <Dialogue name="VAULTONOMY">
-        “Here’s the message Reddit needs you to sign. When you’re ready, hit{" "}
+        “The message Reddit needs you to sign is below. When you’re ready, hit{" "}
         <em>Pair Wallet</em> and sign the message with your Wallet. Then I’ll
         pass it on to Reddit, and your Wallet’s address will become your Vault
         Address too.”
@@ -245,10 +241,13 @@ function PairingMessage({
 }: {
   message: RedditVaultPairingMessageFields;
 }): JSX.Element {
+  const headingId = useId();
   return (
-    <section className="m-10">
+    <aside aria-labelledby={headingId} className="">
       <div className="max-w-prose mx-auto">
-        <Heading className="text-center">Reddit’s Message</Heading>
+        <Heading id={headingId} level={3} className="text-center mt-0">
+          Reddit’s Message
+        </Heading>
         <div className="prose">
           {/* TODO: maybe more info here. Allow viewing/copying the typed data?  */}
           <p></p>
@@ -307,7 +306,7 @@ function PairingMessage({
           />
         </PairingMessageSection>
       </div>
-    </section>
+    </aside>
   );
 }
 
@@ -320,11 +319,18 @@ function PairingMessageSection({
   explanation: string;
   children: ReactNode;
 }): JSX.Element {
+  const headingId = useId();
   return (
-    <dl className="grid grid-cols-[auto_1fr] gap-4 max-w-prose">
+    <dl
+      aria-labelledby={headingId}
+      className="grid grid-cols-[auto_1fr] gap-4 max-w-prose"
+    >
       <div className="col-start-2">
         <dt>
-          <h3 className="text-3xl font-semibold">{name}</h3>
+          <Heading id={headingId} level={4} className="my-2">
+            {name}
+          </Heading>
+          {/* <h3 className="text-3xl font-semibold">{name}</h3> */}
         </dt>
         <dd className="font-light text-sm">{explanation}</dd>
       </div>
@@ -401,3 +407,49 @@ function PairingMessageField({
     </>
   );
 }
+
+function ExpandMoreIcon40({
+  className,
+  size,
+}: {
+  size?: number | string;
+  className?: string;
+}): JSX.Element {
+  return (
+    // https://fonts.google.com/icons?selected=Material%20Symbols%20Outlined%3Aexpand_more%3AFILL%400%3Bwght%40400%3BGRAD%400%3Bopsz%4040
+    <svg
+      aria-hidden="true"
+      className={className}
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 -960 960 960"
+      width={size ?? 40}
+    >
+      <title>Expand More</title>
+      <path
+        fill="currentColor"
+        d="M480-345 240-585l47.333-47.333L480-438.999l192.667-192.667L720-584.333 480-345Z"
+      />
+    </svg>
+  );
+}
+// function ExpandLessIcon40({
+//   className,
+//   size,
+// }: {
+//   size?: number | string;
+//   className?: string;
+// }): JSX.Element {
+//   return (
+//     // https://fonts.google.com/icons?selected=Material%20Symbols%20Outlined%3Aexpand_less%3AFILL%400%3Bwght%40400%3BGRAD%400%3Bopsz%4040
+//     <svg
+//       aria-hidden="true"
+//       className={className}
+//       xmlns="http://www.w3.org/2000/svg"
+//       viewBox="0 -960 960 960"
+//       width={size ?? 40}
+//     >
+//       <title>Expand Less</title>
+//       <path d="M287.333-345 240-392.333l240-240L720-393l-47.333 47.333L480-538.334 287.333-345Z" />
+//     </svg>
+//   );
+// }

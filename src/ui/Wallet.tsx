@@ -83,7 +83,14 @@ function ConnectWallet({ className }: { className?: string }): JSX.Element {
 
   return (
     <section aria-label="Connect to Wallet" className={className}>
-      <div className="h-24 bg-gradient-to-t from-neutral-50 via-neutral-50/80 via-50%" />
+      <div
+        className={[
+          "h-24 bg-gradient-to-t",
+          "from-neutral-50 via-neutral-50/80",
+          "dark:from-neutral-900 dark:via-neutral-900/80",
+          "via-50%",
+        ].join(" ")}
+      />
       <WithInlineHelp
         iconOffsetTop="0rem"
         iconOffsetLeft="-0.5rem"

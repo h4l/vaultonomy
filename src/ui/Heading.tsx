@@ -1,28 +1,31 @@
 import { ReactNode } from "react";
+import { twMerge } from "tailwind-merge";
+
+type Level = 2 | 3 | 4;
+
+const DEFAULT_CLASSES: Record<Level, string> = {
+  2: "my-8 text-5xl font-semibold",
+  3: "my-6 text-4xl font-semibold",
+  4: "my-6 text-3xl font-semibold",
+};
 
 export function Heading({
+  id,
   className,
   children,
   level: _level,
 }: {
+  id?: string;
   className?: string;
   children: ReactNode;
-  level?: 1 | 2 | 3 | 4 | 5 | 6;
+  level?: Level;
 }) {
   const level = _level ?? 2;
-  // Note: could do dynamic elements like this, but we need to explicitly style
-  // each variant anyway.
-  // const H = `h${level ?? 2}` as keyof JSX.IntrinsicElements;
-  // return <H ...>...</H>
+  const H = `h${level}` as keyof JSX.IntrinsicElements;
 
-  switch (level) {
-    case 2:
-      return (
-        <h2 className={`my-8 text-5xl font-semibold ${className || ""}`}>
-          {children}
-        </h2>
-      );
-    default:
-      throw new Error("Level not implemented: " + level);
-  }
+  return (
+    <H id={id} className={twMerge(DEFAULT_CLASSES[level], className)}>
+      {children}
+    </H>
+  );
 }
