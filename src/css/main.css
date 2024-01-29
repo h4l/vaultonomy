@@ -59,4 +59,7 @@
   .animate-delay-800 {
     animation-delay: 800ms;
   }
+  .clip-pairing-step-number {
+    clip-path: xywh(0 0px 100% 86%);
+  }
 }

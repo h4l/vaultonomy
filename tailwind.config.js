@@ -52,6 +52,10 @@ export default {
           "indeterminate-progress-1 1.5s linear infinite",
         "indeterminate-progress-2":
           "indeterminate-progress-2 1.5s linear infinite",
+        beat: [
+          "beat-expand 0.5s ease-in infinite",
+          "beat-expand 0.5s reverse ease-out infinite",
+        ].join(", "),
       },
       keyframes: {
         "indeterminate-progress-1": {
@@ -85,11 +89,31 @@ export default {
             transform: "translateX(100%) scaleX(0.8)",
           },
         },
+        "beat-expand": {
+          "75%": { transform: "scale(1)" },
+          "100%": { transform: "scale(1.075)" },
+        },
+        // "beat-expand": {
+        //   "75%": { transform: "scale(1)" },
+        //   "100%": { transform: "scale(1.2)" },
+        // },
       },
       transitionProperty: {
         backgroundColor: "background-color, border-color",
       },
     },
   },
-  plugins: [],
+  plugins: [require("@tailwindcss/forms")],
 };
+
+/*
+@keyframes ping {
+    75%, 100% {
+        transform: scale(2);
+        opacity: 0;
+    }
+}
+.animate-ping {
+    animation: ping 1s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+*/
