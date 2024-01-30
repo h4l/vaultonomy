@@ -1,9 +1,7 @@
-import React, { ReactElement, ReactNode, useId, useRef } from "react";
+import { ReactElement, ReactNode, useId, useRef } from "react";
 import { twMerge } from "tailwind-merge";
 import { Address } from "viem";
 
-import { assert } from "../assert";
-import { log } from "../logging";
 import { Button } from "./Button";
 import { EthInput, VaultonomyCard } from "./Card";
 import { Heading } from "./Heading";
@@ -11,59 +9,51 @@ import { useExpandCollapseElement } from "./hooks/useExpandCollapseElement";
 import { useVaultonomyStore } from "./state/useVaultonomyStore";
 
 export function Pairing(): JSX.Element {
-  const expressInterestInPairing = useVaultonomyStore(
-    (s) => s.expressInterestInPairing,
-  );
-  const intendedPairingState = useVaultonomyStore(
-    (s) => s.intendedPairingState,
-  );
+  const [
+    intendedPairingState,
+    expressInterestInPairing,
+    expressDisinterestInPairing,
+  ] = useVaultonomyStore((s) => [
+    s.intendedPairingState,
+    s.expressInterestInPairing,
+    s.expressDisinterestInPairing,
+  ]);
 
-  if (intendedPairingState.userState === "disinterested") {
-    return (
-      <>
-        <ExpandingNonModalDialog
-          sectionLabel="Pair Wallet with Reddit"
-          dialogLabel="Pair Wallet with Reddit"
-          heading={
-            <Heading className="text-center">
-              “I want to change my Vault…”
-            </Heading>
-          }
-          expanded={false}
-        >
-          <div className="mx-10 my-8 gap-16 flex flex-col justify-center items-center">
-            {/* <Heading className="text-center">Pair Wallet with Reddit</Heading> */}
-            <PairingNarrative />
-            <PairingSteps />
-            <PairingMessage
-              message={{
-                domain: {
-                  name: "reddit",
-                  chainId: "1",
-                  version: "1",
-                  salt: "reddit-sIvILoedIcisHANTEmpE",
-                },
-                message: {
-                  address: "0x5318810BD26f9209c3d4ff22891F024a2b0A739a",
-                  redditUser: "superbadger",
-                  expiresAt: new Date("2023-02-18T06:20:47"),
-                  nonce:
-                    "3afeac718855f79a1052384582f3e7bff7c8606d5e225c00db9db977897d5d04",
-                },
-              }}
-            />
-          </div>
-        </ExpandingNonModalDialog>
-        {/* <div className="mx-10 my-20 flex flex-col justify-center items-center">
-          <Button onClick={expressInterestInPairing}>
-            I want to change my Vault…
-          </Button>
-        </div> */}
-      </>
-    );
-  }
-  assert(intendedPairingState.userState === "interested");
-  return <></>;
+  return (
+    <ExpandingNonModalDialog
+      sectionLabel="Pair Wallet with Reddit"
+      dialogLabel="Pair Wallet with Reddit"
+      heading={
+        <Heading className="text-center">“I want to change my Vault…”</Heading>
+      }
+      expanded={intendedPairingState.userState === "interested"}
+      onExpand={expressInterestInPairing}
+      onCollapse={expressDisinterestInPairing}
+    >
+      <div className="mx-10 my-8 gap-16 flex flex-col justify-center items-center">
+        {/* <Heading className="text-center">Pair Wallet with Reddit</Heading> */}
+        <PairingNarrative />
+        <PairingSteps />
+        <PairingMessage
+          message={{
+            domain: {
+              name: "reddit",
+              chainId: "1",
+              version: "1",
+              salt: "reddit-sIvILoedIcisHANTEmpE",
+            },
+            message: {
+              address: "0x5318810BD26f9209c3d4ff22891F024a2b0A739a",
+              redditUser: "superbadger",
+              expiresAt: new Date("2023-02-18T06:20:47"),
+              nonce:
+                "3afeac718855f79a1052384582f3e7bff7c8606d5e225c00db9db977897d5d04",
+            },
+          }}
+        />
+      </div>
+    </ExpandingNonModalDialog>
+  );
 }
 
 /**
@@ -75,14 +65,18 @@ function ExpandingNonModalDialog({
   heading,
   children,
   expanded: initiallyExpanded,
+  onExpand,
+  onCollapse,
 }: {
   sectionLabel: string;
   dialogLabel: string;
   heading: ReactElement;
   children?: ReactElement;
   expanded?: boolean;
+  onExpand?: () => void;
+  onCollapse?: () => void;
 }): JSX.Element {
-  const bodyEl = useRef<HTMLDialogElement>(null);
+  const bodyEl = useRef<HTMLDivElement>(null);
 
   const { toggleExpansion, transitionEnd, isExpanded, isTransitioning } =
     useExpandCollapseElement({
@@ -111,7 +105,6 @@ function ExpandingNonModalDialog({
           type="button"
           role="switch"
           aria-checked={isExpanded}
-          // aria-label={`${isExpanded ? "Close" : "Open"} ${toggleButtonLabel}`}
           className={[
             "w-full flex flex-row items-center transition-colors",
             idleBgClasses,
@@ -122,7 +115,8 @@ function ExpandingNonModalDialog({
           ].join(" ")}
           onClick={() => {
             toggleExpansion();
-            // if (!isExpanded) bodyEl.current?.focus();
+            if (isExpanded) onCollapse && onCollapse();
+            else onExpand && onExpand();
           }}
         >
           <div className="flex-grow ml-28">{heading}</div>
@@ -136,7 +130,6 @@ function ExpandingNonModalDialog({
       </div>
       <div
         role="dialog"
-        // open={isExpanded || isTransitioning || undefined}
         aria-label={dialogLabel}
         aria-hidden={!isExpanded}
         ref={bodyEl}
@@ -298,7 +291,8 @@ function PairingSteps(): JSX.Element {
                     </li>
                     <li className="my-2">
                       Pay what you like — your card's number is its rank by
-                      price. Proceeds go to Vaultonomy development.
+                      price, updated in real time. Proceeds go to Vaultonomy
+                      development.
                     </li>
                     {/* <li>A bespoke on-chain NFT</li>
                     <li>

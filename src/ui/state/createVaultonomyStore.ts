@@ -9,6 +9,7 @@ type PairingState =
 
 export type VaultonomyStateActions = {
   expressInterestInPairing: () => void;
+  expressDisinterestInPairing: () => void;
 };
 
 export type VaultonomyStateData = {
@@ -39,5 +40,7 @@ export const createVaultonomyStore = (
     intendedPairingState: { userState: "disinterested" },
     expressInterestInPairing: () =>
       set({ intendedPairingState: { userState: "interested" } }),
+    expressDisinterestInPairing: () =>
+      set({ intendedPairingState: { userState: "disinterested" } }),
   }));
 };
