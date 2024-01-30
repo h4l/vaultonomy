@@ -1,14 +1,28 @@
 import { createStore } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
+import { RedditEIP712Challenge } from "../../reddit/api-client";
+import { HexString } from "../../types";
 import { browser } from "../../webextension";
 import { createVaultonomyBackgroundProvider } from "../hooks/createVaultonomyBackgroundProvider";
 import { VaultonomyBackgroundProvider } from "../rpc/VaultonomyBackgroundProvider";
 import { createExtensionStorage } from "./zustandExtensionStorage";
 
-type PairingState =
-  | { userState: "disinterested" }
-  | { userState: "interested" };
+type UserInterest = "disinterested" | "interested";
+
+type Result<T, E = null> =
+  | { result: "ok"; value: T }
+  | { result: "error"; error: E };
+
+type FetchedPairingMessage = Result<RedditEIP712Challenge>;
+
+type SignedPairingMessage = Result<HexString>;
+
+/**
+ * Whether we have received a successful response to a address registration
+ * request. The string value is an identifier for the challenge pairing message.
+ */
+type SentPairingMessage = Result<string>;
 
 export type VaultonomyStateActions = {
   expressInterestInPairing: () => void;
@@ -18,12 +32,19 @@ export type VaultonomyStateActions = {
 export type VaultonomyStateData = {
   isOnDevServer: boolean;
   provider: VaultonomyBackgroundProvider;
-  intendedPairingState: PairingState;
+  /** Determines whether the pairing UI is collapsed or expanded. */
+  pairing_UserInterest: UserInterest | null;
+  pairing_FetchedPairingMessage: FetchedPairingMessage | null;
+  pairing_SignedPairingMessage: SignedPairingMessage | null;
+  pairing_SentPairingMessage: SentPairingMessage | null;
 };
 
 type PersistedVaultonomyStateData = Pick<
   VaultonomyStateData,
-  "intendedPairingState"
+  | "pairing_UserInterest"
+  | "pairing_FetchedPairingMessage"
+  | "pairing_SignedPairingMessage"
+  | "pairing_SentPairingMessage"
 >;
 
 export type VaultonomyState = VaultonomyStateData & VaultonomyStateActions;
@@ -47,16 +68,24 @@ export const createVaultonomyStore = (
         provider:
           provider ??
           createVaultonomyBackgroundProvider({ isOnDevServer: isOnDevServer }),
-        intendedPairingState: { userState: "disinterested" },
+        pairing_UserInterest: null,
+        pairing_FetchedPairingMessage: null,
+        pairing_SignedPairingMessage: null,
+        pairing_SentPairingMessage: null,
         expressInterestInPairing: () =>
-          set({ intendedPairingState: { userState: "interested" } }),
+          set({ pairing_UserInterest: "interested" }),
         expressDisinterestInPairing: () =>
-          set({ intendedPairingState: { userState: "disinterested" } }),
+          set({ pairing_UserInterest: "disinterested" }),
       }),
       {
         name: "vaultonomy-ui-state",
-        partialize({ intendedPairingState }): PersistedVaultonomyStateData {
-          return { intendedPairingState };
+        partialize(s): PersistedVaultonomyStateData {
+          return {
+            pairing_UserInterest: s.pairing_UserInterest,
+            pairing_FetchedPairingMessage: s.pairing_FetchedPairingMessage,
+            pairing_SignedPairingMessage: s.pairing_SignedPairingMessage,
+            pairing_SentPairingMessage: s.pairing_SentPairingMessage,
+          };
         },
         storage:
           isOnDevServer ?

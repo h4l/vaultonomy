@@ -14,7 +14,7 @@ export function Pairing(): JSX.Element {
     expressInterestInPairing,
     expressDisinterestInPairing,
   ] = useVaultonomyStore((s) => [
-    s.intendedPairingState,
+    s.pairing_UserInterest,
     s.expressInterestInPairing,
     s.expressDisinterestInPairing,
   ]);
@@ -26,7 +26,7 @@ export function Pairing(): JSX.Element {
       heading={
         <Heading className="text-center">“I want to change my Vault…”</Heading>
       }
-      expanded={intendedPairingState.userState === "interested"}
+      expanded={intendedPairingState === "interested"}
       onExpand={expressInterestInPairing}
       onCollapse={expressDisinterestInPairing}
     >
