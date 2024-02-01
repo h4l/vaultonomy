@@ -1,10 +1,27 @@
-import { ReactElement, ReactNode, useId, useRef } from "react";
+import {
+  ReactElement,
+  ReactNode,
+  RefObject,
+  createContext,
+  useContext,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+} from "react";
 import { twMerge } from "tailwind-merge";
 import { Address } from "viem";
 
+import { assert } from "../assert";
+import { log } from "../logging";
 import { Button } from "./Button";
 import { EthInput, VaultonomyCard } from "./Card";
 import { Heading } from "./Heading";
+import {
+  PositionProgressLine,
+  ProgressLineContainer,
+  usePositionReachedBroadcast,
+} from "./ProgressLine";
 import { useExpandCollapseElement } from "./hooks/useExpandCollapseElement";
 import { useVaultonomyStore } from "./state/useVaultonomyStore";
 
@@ -221,128 +238,103 @@ function PairingSteps(): JSX.Element {
   return (
     <>
       <main aria-label="Pairing Steps" className="relative max-w-[34rem]">
-        <ProgressLine completed={"30%"} />
-        <div className="z-10 relative grid grid-cols-[2rem_1fr] gap-x-2 gap-y-2">
-          <PairingStep num={1} name="Connect Wallet" state="past">
-            <StepAction state="done">Wallet connected</StepAction>
-          </PairingStep>
+        <ProgressLineContainer>
+          <PositionProgressLine />
+          <div className="z-10 relative grid grid-cols-[2rem_1fr] gap-x-2 gap-y-2">
+            <PairingStep num={1} name="Connect Wallet" state="past">
+              <StepAction state="done">Wallet connected</StepAction>
+            </PairingStep>
 
-          <PairingStep num={2} name="Fetch Pairing Message" state="past">
-            <StepAction state="error">
-              {/* Wallet pairing message fetched from Reddit */}
-              Failed to fetch pairing message from Reddit
-            </StepAction>
-          </PairingStep>
+            <PairingStep num={2} name="Fetch Pairing Message" state="past">
+              <StepAction state="error">
+                {/* Wallet pairing message fetched from Reddit */}
+                Failed to fetch pairing message from Reddit
+              </StepAction>
+            </PairingStep>
 
-          <PairingStep num={3} name="Review & Sign Message" state="present">
-            <StepBody>
-              <p className="mb-4">
-                Reddit's Vault pairing message is below. Sign it with your
-                Wallet to prove to Reddit that you own your Wallet's address,
-                and that you wish to make it your Vault address.
-              </p>
-              <Button size="l" className="block m-4">
-                Sign Message
-              </Button>
-            </StepBody>
-            {/* <StepAction state="done">Message signed</StepAction> */}
-            <StepAction state="pending">
-              Awaiting signature from Wallet…
-            </StepAction>
-          </PairingStep>
+            <PairingStep num={3} name="Review & Sign Message" state="present">
+              <StepBody>
+                <p className="mb-4">
+                  Reddit's Vault pairing message is below. Sign it with your
+                  Wallet to prove to Reddit that you own your Wallet's address,
+                  and that you wish to make it your Vault address.
+                </p>
+                <Button size="l" className="block m-4">
+                  Sign Message
+                </Button>
+              </StepBody>
+              {/* <StepAction state="done">Message signed</StepAction> */}
+              <StepAction state="pending">
+                Awaiting signature from Wallet…
+              </StepAction>
+            </PairingStep>
 
-          <PairingStep num={4} name="Send Pairing Request" state="future">
-            <StepAction state="done">Message sent</StepAction>
-            <StepAction state="done">Wallet paired as your Vault</StepAction>
-          </PairingStep>
+            <PairingStep num={4} name="Send Pairing Request" state="future">
+              <StepAction state="done">Message sent</StepAction>
+              <StepAction state="done">Wallet paired as your Vault</StepAction>
+            </PairingStep>
 
-          <PairingStep num={5} name="All done!" state="future">
-            <StepBody className="grid grid-cols-[1fr_auto] gap-x-4 mb-6">
-              <p className="mb-6 col-span-2">
-                Nice job. To celebrate your{" "}
-                <em className="">Vault's autonomy</em> you can mint a
-                commemorative Vaultonomy Card for your Reddit username. A token
-                of your appreciation.
-              </p>
+            <PairingStep num={5} name="All done!" state="future">
+              <StepBody className="grid grid-cols-[1fr_auto] gap-x-4 mb-6">
+                <p className="mb-6 col-span-2">
+                  Nice job. To celebrate your{" "}
+                  <em className="">Vault's autonomy</em> you can mint a
+                  commemorative Vaultonomy Card for your Reddit username. A
+                  token of your appreciation.
+                </p>
 
-              <aside
-                aria-label="Vaultonomy Card"
-                className="flex flex-col gap-4 justify-between"
-              >
-                <div>
-                  {/* <Heading level={4} className="mt-4">
+                <aside
+                  aria-label="Vaultonomy Card"
+                  className="flex flex-col gap-4 justify-between"
+                >
+                  <div>
+                    {/* <Heading level={4} className="mt-4">
                     Vaultonomy Card
                   </Heading> */}
-                  <ul className="list-disc ml-4 text-sm">
-                    <li className="my-2">
-                      Your card will be displayed on:
-                      <ul className="list-disc ml-4">
-                        <li>
-                          <a
-                            className="underline underline-offset-2 text-blue-500"
-                            target="_blank"
-                            href="https://vaultonomy.eth.link/cards"
-                          >
-                            https://vaultonomy.eth.link/cards
-                          </a>
-                        </li>
-                        <li>Your Wallet as an NFT (e.g. OpenSea)</li>
-                      </ul>
-                    </li>
-                    <li className="my-2">
-                      Pay what you like — your card's number is its rank by
-                      price, updated in real time. Proceeds go to Vaultonomy
-                      development.
-                    </li>
-                    {/* <li>A bespoke on-chain NFT</li>
+                    <ul className="list-disc ml-4 text-sm">
+                      <li className="my-2">
+                        Your card will be displayed on:
+                        <ul className="list-disc ml-4">
+                          <li>
+                            <a
+                              className="underline underline-offset-2 text-blue-500"
+                              target="_blank"
+                              href="https://vaultonomy.eth.link/cards"
+                            >
+                              https://vaultonomy.eth.link/cards
+                            </a>
+                          </li>
+                          <li>Your Wallet as an NFT (e.g. OpenSea)</li>
+                        </ul>
+                      </li>
+                      <li className="my-2">
+                        Pay what you like — your card's number is its rank by
+                        price, updated in real time. Proceeds go to Vaultonomy
+                        development.
+                      </li>
+                      {/* <li>A bespoke on-chain NFT</li>
                     <li>
                       This is <strong>not</strong> a Reddit Avatar.
                     </li> */}
-                  </ul>
-                </div>
+                    </ul>
+                  </div>
 
-                <div>
-                  <EthInput />
-                  <Button
-                    size="l"
-                    className="my-4 mb-[0.8rem] w-full justify-self-end"
-                  >
-                    Mint
-                  </Button>
-                </div>
-              </aside>
-              <VaultonomyCard className="self-center" />
-            </StepBody>
-          </PairingStep>
-        </div>
+                  <div>
+                    <EthInput />
+                    <Button
+                      size="l"
+                      className="my-4 mb-[0.8rem] w-full justify-self-end"
+                    >
+                      Mint
+                    </Button>
+                  </div>
+                </aside>
+                <VaultonomyCard className="self-center" />
+              </StepBody>
+            </PairingStep>
+          </div>
+        </ProgressLineContainer>
       </main>
-    </>
-  );
-}
-
-function ProgressLine({
-  completed,
-}: {
-  completed: number | `${string}%`;
-}): JSX.Element {
-  return (
-    // TODO: check dark colours
-    <>
-      <div
-        className={[
-          "absolute z-0 left-4 h-full border-r",
-          "border-neutral-500 dark:border-neutral-200",
-        ].join(" ")}
-      />
-      <div
-        style={{
-          height: typeof completed === "number" ? `${completed}px` : completed,
-        }}
-        className={[
-          "absolute z-0 left-4 border-r",
-          "border-neutral-800 dark:border-neutral-200",
-        ].join(" ")}
-      />
     </>
   );
 }
@@ -358,10 +350,19 @@ function PairingStep({
   state: "past" | "present" | "future";
   children?: ReactElement | ReactElement[];
 }): JSX.Element {
-  const textTwClasses = state === "future" ? "text-neutral-500" : undefined;
+  const textTwClasses =
+    state === "future" ? "text-neutral-500 dark:text-neutral-500" : undefined;
+  const progressPosition = useRef<HTMLSpanElement>(null);
+
+  usePositionReachedBroadcast({
+    isReached: state !== "past",
+    position: progressPosition,
+  });
+
   return (
     <>
       <span
+        ref={progressPosition}
         className={twMerge(
           "pl-2 clip-pairing-step-number",
           "mt-6 mb-2 text-4xl font-semibold justify-self-center",
