@@ -110,7 +110,7 @@ function ExpandingNonModalDialog({
     <section
       aria-label={sectionLabel}
       className={[
-        "border-t border-b transition-backgroundColor duration-700",
+        "border-b transition-backgroundColor duration-700",
         "border-neutral-200  border-b-neutral-300",
         "dark:border-neutral-800  dark:border-b-neutral-750",
         idleBgClasses,
@@ -127,8 +127,11 @@ function ExpandingNonModalDialog({
             idleBgClasses,
             "hover:bg-neutral-25 dark:hover:bg-neutral-875",
             "active:bg-white dark:active:bg-neutral-850",
-            "border-b border-transparent",
-            "border-collapse hover:border-neutral-300 hover:border-l-neutral-400 hover:border-b-neutral-400 dark:hover:border-neutral-750 dark:hover:border-l-neutral-700 dark:hover:border-b-neutral-700",
+            "border-t border-b",
+            isExpanded ? "" : "-mb-[1px]", // hide the closed parent's border under the button
+            "border-neutral-200  border-b-neutral-300",
+            "dark:border-neutral-800  dark:border-b-neutral-750",
+            "border-collapse hover:border-neutral-300  hover:border-b-neutral-400 dark:hover:border-neutral-750 dark:hover:border-b-neutral-700",
           ].join(" ")}
           onClick={() => {
             toggleExpansion();
