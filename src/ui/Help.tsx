@@ -16,11 +16,13 @@ import { assert } from "../assert";
 
 type SelectionMode = "preview" | "pin";
 
+type HelpText = string | (() => JSX.Element);
+
 interface HelpItemSelectedAction {
   type: "help-item-selected";
   mode: SelectionMode;
   helpId: string;
-  helpText: string;
+  helpText: HelpText;
 }
 interface HelpItemDeselectedAction {
   type: "help-item-deselected";
@@ -42,7 +44,7 @@ type HelpAction =
 
 interface HelpItem {
   helpId: string;
-  helpText: string;
+  helpText: HelpText;
 }
 
 interface HelpState {
@@ -83,12 +85,14 @@ function helpReducer(help: HelpState, action: HelpAction): HelpState {
       return { ...help, helpEnabled: false };
     }
     case "help-item-selected": {
+      const helpItem: HelpItem = {
+        helpId: action.helpId,
+        helpText: action.helpText,
+      };
       return {
         ...help,
-        [action.mode === "pin" ? "pinnedHelpItem" : "previewHelpItem"]: {
-          helpId: action.helpId,
-          helpText: action.helpText,
-        },
+        [action.mode === "pin" ? "pinnedHelpItem" : "previewHelpItem"]:
+          helpItem,
       };
     }
     case "help-item-deselected": {
@@ -115,23 +119,17 @@ export function useRootHelpState(): HelpState {
   return help;
 }
 
-interface HelpProps {
-  disabled?: boolean;
-  helpId?: string;
-  helpText: string;
-}
+type HelpMessageProps =
+  | { helpId?: undefined; helpText: string }
+  | { helpId: string; helpText: HelpText };
 
 function ScreenReaderHelp({
   helpId: _helpId,
   helpText,
   children,
-}: {
-  helpId?: string;
-  helpText: string;
-  children?: ReactNode;
-}): JSX.Element {
+}: HelpMessageProps & { children?: ReactNode }): JSX.Element {
   const help = useContext(HelpContext);
-  const helpId = _helpId ?? helpText;
+  const helpId: string = _helpId === undefined ? helpText : _helpId;
   const isPinned = getSelectedHelpItem(help, { helpId, mode: "pin" });
   return (
     <div
@@ -139,7 +137,7 @@ function ScreenReaderHelp({
       aria-label={isPinned ? "pinned extra help" : "extra help"}
       aria-hidden={help.helpEnabled ? undefined : "true"}
     >
-      <span className="sr-only">{helpText}</span>
+      <span className="sr-only">{renderHelpText(helpText)}</span>
       {children}
     </div>
   );
@@ -151,12 +149,7 @@ const HelpButton = forwardRef(function HelpButton(
     helpText,
     className,
     style,
-  }: {
-    helpId?: string;
-    helpText: string;
-    className?: string;
-    style?: CSSProperties;
-  },
+  }: HelpMessageProps & { className?: string; style?: CSSProperties },
   ref: ForwardedRef<HTMLButtonElement>,
 ): JSX.Element {
   const helpId = _helpId ?? helpText;
@@ -225,7 +218,8 @@ export function WithInlineHelp({
   iconOffsetTop,
   iconOffsetBottom,
   ...props
-}: HelpProps & {
+}: HelpMessageProps & {
+  disabled?: boolean;
   iconOffsetLeft?: string;
   iconOffsetTop?: string;
   iconOffsetBottom?: string;
@@ -259,7 +253,7 @@ export function WithInlineHelp({
     <div ref={container} className={`${className || ""} relative`}>
       {disabled ?
         undefined
-      : <ScreenReaderHelp helpText={props.helpText}>
+      : <ScreenReaderHelp {...props}>
           <HelpButton
             ref={button}
             {...props}
@@ -438,7 +432,7 @@ export function HelpModal(): JSX.Element {
             aria-disabled={selectedHelpItem ? undefined : "true"}
           >
             {selectedHelpItem ?
-              selectedHelpItem.helpText
+              renderHelpText(selectedHelpItem.helpText)
             : <i className="italic">
                 Press a <span className="sr-only">pin help button</span>
                 <HelpIcon className="inline" /> to show more information here.
@@ -449,6 +443,10 @@ export function HelpModal(): JSX.Element {
       </aside>
     </div>
   );
+}
+
+function renderHelpText(helpText: HelpText): JSX.Element {
+  return typeof helpText === "string" ? <>{helpText}</> : helpText();
 }
 
 function HelpIcon({
