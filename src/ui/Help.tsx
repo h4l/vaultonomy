@@ -184,10 +184,10 @@ const HelpButton = forwardRef(function HelpButton(
   return (
     <button
       ref={ref}
+      role="switch"
+      aria-checked={helpId === help.pinnedHelpItem?.helpId}
       aria-hidden={help.helpEnabled ? undefined : "true"}
-      aria-label={
-        isPinned ? "unpin help from help area" : "pin help to help area"
-      }
+      aria-label="pin help to help area"
       style={style}
       className={`group focus-visible:outline-offset-1
                   ${help.helpEnabled ? "" : "hidden"}
@@ -381,9 +381,9 @@ export function HelpModal(): JSX.Element {
         onTransitionEnd={() => setTransitionState("at-end")}
       >
         <button
-          aria-label={
-            help.helpEnabled ? "Disable extra help" : "Enable extra help"
-          }
+          role="switch"
+          aria-checked={help.helpEnabled}
+          aria-label="enable extra help"
           className={`fixed left-2 bottom-2 group focus-visible:outline-offset-0
           ${help.helpEnabled && selectedHelpItem ? "drop-shadow" : ""}`}
           onClick={() => {
