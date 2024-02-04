@@ -9,7 +9,7 @@ import { UserProfile } from "./UserProfile";
 import { Vault } from "./Vault";
 import { VaultonomyLogo } from "./VaultonomyLogo";
 import { Wallet } from "./Wallet";
-import { useRedditUserProfile } from "./hooks/useRedditAccountProfile";
+import { useRedditAccount } from "./hooks/useRedditAccount";
 import { VaultonomyContext } from "./state/VaultonomyContext";
 import { createVaultonomyStore } from "./state/createVaultonomyStore";
 
@@ -39,7 +39,7 @@ export function App({ isOnDevServer }: { isOnDevServer?: boolean } = {}) {
 }
 
 function AppUI() {
-  const userProfile = useRedditUserProfile();
+  const userProfile = useRedditAccount();
 
   return (
     <>
@@ -48,7 +48,11 @@ function AppUI() {
       </header>
       <main>
         <UserProfile
-          profile={userProfile.isRedditAvailable ? userProfile.data : undefined}
+          profile={
+            userProfile.isRedditAvailable ?
+              userProfile.data?.profile
+            : undefined
+          }
           // <UserProfile
           //   profile={{
           //     hasPremium: true,

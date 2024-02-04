@@ -9,13 +9,14 @@ export function UserProfile({
 }): JSX.Element {
   return (
     <section
+      id="account"
       aria-label="Reddit account details"
       className="flex flex-col items-center"
     >
       <span aria-label="status" className="sr-only">
-        {profile === undefined
-          ? "Disconnected from Reddit"
-          : "Connected to Reddit"}
+        {profile === undefined ?
+          "Disconnected from Reddit"
+        : "Connected to Reddit"}
       </span>
       <WithInlineHelp
         iconOffsetLeft="0.5rem"
@@ -27,7 +28,7 @@ export function UserProfile({
           avatarUrl={profile?.accountIconFullBodyURL}
         />
       </WithInlineHelp>
-      {profile ? (
+      {profile ?
         <WithInlineHelp
           iconOffsetTop="58%"
           helpText="Your Reddit account's username."
@@ -37,7 +38,7 @@ export function UserProfile({
             hasPremium={profile.hasPremium}
           />
         </WithInlineHelp>
-      ) : undefined}
+      : undefined}
     </section>
   );
 }
@@ -54,12 +55,10 @@ function Username({
       <span aria-hidden="true">
         <span className="text-sm font-medium">u</span>/
       </span>
-      {username ? (
+      {username ?
         <span aria-label="username">{username}</span>
-      ) : (
-        <span aria-hidden="true">???</span>
-      )}
-      {hasPremium ? (
+      : <span aria-hidden="true">???</span>}
+      {hasPremium ?
         // Icon sits to the right of username without affecting the username's
         // central position. So we use absolute positioning.
         <>
@@ -68,7 +67,7 @@ function Username({
             Reddit Premium User
           </span>
         </>
-      ) : undefined}
+      : undefined}
     </p>
   );
 }

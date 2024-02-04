@@ -21,6 +21,7 @@ import {
   RedditRegisterAddressWithAccount,
   RedditRegisterAddressWithAccountParams,
   RedditUserProfile,
+  isErrorCode,
 } from "./reddit-interaction-spec";
 
 export { AccountVaultAddress, RedditEIP712Challenge } from "./api-client";
@@ -33,27 +34,37 @@ export interface RedditProviderEvents {
   disconnectSelf: EmptyCallback;
 }
 
-export class RedditProviderError extends VaultonomyError {
-  type: ErrorCode | null;
-  constructor(
-    options: ErrorOptions & { type: ErrorCode | null; message: string },
-  ) {
+export abstract class AnyRedditProviderError extends VaultonomyError {
+  abstract type: ErrorCode | null;
+  constructor(options: ErrorOptions & { message: string }) {
     super(options.message, { cause: options.cause });
-    this.type = options.type;
   }
 
-  static from(error: JSONRPCErrorException): RedditProviderError {
-    const type =
-      error.code === ErrorCode.USER_NOT_LOGGED_IN ||
-      error.code === ErrorCode.REDDIT_TAB_DISCONNECTED
-        ? error.code
-        : null;
-    return new RedditProviderError({
-      type,
+  static from(error: JSONRPCErrorException): AnyRedditProviderError {
+    if (isErrorCode(error.code)) {
+      return new RedditProviderError({
+        type: error.code,
+        message: error.message,
+        cause: error,
+      });
+    }
+    return new UnknownRedditProviderError({
       message: error.message,
       cause: error,
     });
   }
+}
+
+export class RedditProviderError extends AnyRedditProviderError {
+  type: ErrorCode;
+  constructor(options: ErrorOptions & { type: ErrorCode; message: string }) {
+    super(options);
+    this.type = options.type;
+  }
+}
+
+export class UnknownRedditProviderError extends AnyRedditProviderError {
+  type: null = null;
 }
 
 /** An client interface to the reddit-interaction service.
@@ -97,27 +108,27 @@ export class RedditProvider {
     this.getUserProfile = createRCPMethodCaller({
       method: RedditGetUserProfile,
       client,
-      mapError: RedditProviderError.from,
+      mapError: AnyRedditProviderError.from,
     });
     this.createAddressOwnershipChallenge = createRCPMethodCaller({
       method: RedditCreateAddressOwnershipChallenge,
       client,
-      mapError: RedditProviderError.from,
+      mapError: AnyRedditProviderError.from,
     });
     this.registerAddressWithAccount = createRCPMethodCaller({
       method: RedditRegisterAddressWithAccount,
       client,
-      mapError: RedditProviderError.from,
+      mapError: AnyRedditProviderError.from,
     });
     this.getUserVaultAddress = createRCPMethodCaller({
       method: RedditGetUserVaultAddress,
       client,
-      mapError: RedditProviderError.from,
+      mapError: AnyRedditProviderError.from,
     });
     this.getAccountVaultAddresses = createRCPMethodCaller({
       method: RedditGetAccountVaultAddresses,
       client,
-      mapError: RedditProviderError.from,
+      mapError: AnyRedditProviderError.from,
     });
   }
 

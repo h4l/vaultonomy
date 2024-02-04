@@ -23,6 +23,13 @@ export enum ErrorCode {
   REDDIT_TAB_DISCONNECTED = 1,
 }
 
+export function isErrorCode(num: number): num is ErrorCode {
+  return (
+    num === ErrorCode.USER_NOT_LOGGED_IN ||
+    num == ErrorCode.REDDIT_TAB_DISCONNECTED
+  );
+}
+
 export const RedditUserProfile = z.object({
   userID: z.string(),
   username: z.string(),

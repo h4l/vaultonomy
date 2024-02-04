@@ -27,6 +27,7 @@ export function EthAccount({
       className="w-80 grid gap-x-4 gap-y-[0.125rem] auto-rows-min grid-cols-[auto_auto_auto_auto_auto_1fr] items-end"
     >
       <Heading
+        id={title.toLowerCase().replaceAll(/\s+/g, "-")}
         className={`row-start-1 col-start-1 col-span-6 flex flex-row justify-center`}
       >
         {subtitle ?

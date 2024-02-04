@@ -13,6 +13,7 @@ import {
 } from "react";
 
 import { assert, assertUnreachable } from "../assert";
+import { log } from "../logging";
 
 type ProgressLinePosition = HTMLElement | "end";
 type ProgressLinePositionRef = RefObject<HTMLElement> | "end";
@@ -48,12 +49,21 @@ function reducer(
   let positionStates = state.positionStates;
   switch (action.type) {
     case "position-changed":
+      if (
+        positionStates[action.id]?.position === action.position &&
+        positionStates[action.id]?.reached === action.reached
+      ) {
+        return state;
+      }
+
       positionStates = {
         ...positionStates,
         [action.id]: { position: action.position, reached: action.reached },
       };
       break;
     case "position-removed":
+      if (positionStates[action.id] === undefined) return state;
+
       positionStates = { ...positionStates };
       delete positionStates[action.id];
       break;
@@ -87,9 +97,11 @@ export function ProgressLineContainer({
 
 /** Get the furthest ahead of two elements by document order. */
 function lastElement<T extends Node>(a: T, b: T): T {
-  return a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ?
-      a
-    : b;
+  const aCmpB = a.compareDocumentPosition(b);
+  // Rarely, a node can be disconnected from the DOM before we handle it.
+  // Probably only happens when paused in the debugger in practice.
+  if (aCmpB & Node.DOCUMENT_POSITION_DISCONNECTED) return !a.parentNode ? b : a;
+  return aCmpB & Node.DOCUMENT_POSITION_FOLLOWING ? b : a;
 }
 
 function furthestReachedPosition(
@@ -259,6 +271,15 @@ export function usePositionReachedBroadcast({
   useEffect(() => {
     const pos = position === "end" ? position : position?.current;
     if (!pos) return;
+    if (pos !== "end" && !pos.parentNode) {
+      log.debug(
+        "usePositionReachedBroadcast not broadcasting disconnected pos:",
+        pos,
+        "id:",
+        id,
+      );
+      return;
+    }
 
     dispatch({
       id,

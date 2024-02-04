@@ -10,11 +10,11 @@ import { createExtensionStorage } from "./zustandExtensionStorage";
 
 type UserInterest = "disinterested" | "interested";
 
-type Result<T, E = null> =
-  | { result: "ok"; value: T }
-  | { result: "error"; error: E };
+export type Result<T, E = null> =
+  | { result: "ok"; value: T; error?: undefined }
+  | { result: "error"; error: E; value: undefined };
 
-type FetchedPairingMessage = Result<RedditEIP712Challenge>;
+export type FetchedPairingMessage = Result<RedditEIP712Challenge>;
 
 type SignedPairingMessage = Result<HexString>;
 

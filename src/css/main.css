@@ -7,6 +7,7 @@
      devices. Looks janky. */
   html {
     -webkit-tap-highlight-color: transparent;
+    scroll-behavior: smooth;
   }
 
   body {
@@ -61,5 +62,12 @@
   }
   .clip-pairing-step-number {
     clip-path: xywh(0 0px 100% 86%);
+  }
+
+  .ring-none {
+    /* tw uses two shadows for its rings, but doesn't provide a way to fully
+       disable them both */
+    --tw-ring-shadow: 0 0 transparent;
+    --tw-ring-offset-shadow: 0 0 transparent;
   }
 }
