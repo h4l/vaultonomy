@@ -1,8 +1,11 @@
-import { ReactNode, useRef } from "react";
+import { ReactNode, useEffect, useRef } from "react";
 import { twMerge } from "tailwind-merge";
 
+import { assert } from "../../assert";
+import { log } from "../../logging";
 import { Heading } from "../Heading";
 import { usePositionReachedBroadcast } from "../ProgressLine";
+import { AriaLiveAlert } from "../a11y";
 import { DoneIcon, ErrorIcon, PendingIcon } from "../icons";
 
 export type PairingStepState = "past" | "present" | "future";
@@ -65,12 +68,14 @@ const StepActionIcons = {
 };
 
 export function StepAction({
+  alertKey,
   state,
   headline,
   details,
 }: {
+  alertKey?: string;
   state: "done" | "pending" | "error";
-  headline?: ReactNode;
+  headline: string;
   details?: ReactNode;
 }): JSX.Element {
   const progressPosition = useRef<HTMLSpanElement>(null);
@@ -105,6 +110,9 @@ export function StepAction({
           )}
         >
           {headline}
+          {state === "error" && alertKey && (
+            <AriaLiveAlert alertId={alertKey} message={headline} />
+          )}
         </p>
         {details ?
           <p>
