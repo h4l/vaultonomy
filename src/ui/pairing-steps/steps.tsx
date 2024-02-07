@@ -5,7 +5,7 @@ export function RedditErrorStepAction({
   key,
   while: _while,
 }: {
-  key: string;
+  key?: string;
   while: string;
 }) {
   return (

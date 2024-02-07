@@ -30,14 +30,9 @@ import { PairingStep, StepAction, StepBody } from "./pairing-steps/components";
 import { useVaultonomyStore } from "./state/useVaultonomyStore";
 
 export function Pairing(): JSX.Element {
-  const [
-    intendedPairingState,
-    expressInterestInPairing,
-    expressDisinterestInPairing,
-  ] = useVaultonomyStore((s) => [
-    s.pairing_UserInterest,
-    s.expressInterestInPairing,
-    s.expressDisinterestInPairing,
+  const [pairingInterest, setPairingInterest] = useVaultonomyStore((s) => [
+    s.pairingInterest,
+    s.setPairingInterest,
   ]);
 
   return (
@@ -47,9 +42,9 @@ export function Pairing(): JSX.Element {
       heading={
         <Heading className="text-center">“I want to change my Vault…”</Heading>
       }
-      expanded={intendedPairingState === "interested"}
-      onExpand={expressInterestInPairing}
-      onCollapse={expressDisinterestInPairing}
+      expanded={pairingInterest === "interested"}
+      onExpand={() => setPairingInterest("interested")}
+      onCollapse={() => setPairingInterest("disinterested")}
     >
       <div className="mx-10 my-8 gap-16 flex flex-col justify-center items-center">
         {/* <Heading className="text-center">Pair Wallet with Reddit</Heading> */}

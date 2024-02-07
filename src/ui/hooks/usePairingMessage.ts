@@ -1,10 +1,13 @@
 import { RedditEIP712Challenge } from "../../reddit/api-client";
 import { FetchedPairingMessage } from "../state/createVaultonomyStore";
-import { useVaultonomyStore } from "../state/useVaultonomyStore";
+import { useVaultonomyStoreUser } from "../state/useVaultonomyStoreUser";
 
-export function usePairingMessage(): FetchedPairingMessage | null {
-  const lastFetchedPairingMessage = useVaultonomyStore(
-    (s) => s.pairing_FetchedPairingMessage,
+export function usePairingMessage(
+  userId: string | undefined,
+): FetchedPairingMessage | null {
+  const lastFetchedPairingMessage = useVaultonomyStoreUser(
+    userId,
+    ({ user }) => user.fetchedPairingMessage,
   );
 
   // TODO: this should be pure, so handle expiry by explicitly changing the

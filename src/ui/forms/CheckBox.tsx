@@ -1,46 +1,32 @@
-import { ReactNode, useId, useState } from "react";
+import { useId, useState } from "react";
 
-import { log } from "../../logging";
 import { CheckboxSelected, CheckboxUnselected } from "../icons";
 
-const prefixes = [
-  [],
-  ["checked"],
-  ["hover"],
-  ["checked", "hover"],
-  ["checked", "focus"],
-];
-const checkboxResetClasses = ["_bg-none", "bg-transparent", "border-none"];
-const checkboxReset = prefixes
-  .flatMap((pf) => {
-    const prefix = `${pf.join(":")}${pf ? ":" : ""}`;
-    return checkboxResetClasses.map((cls) => `${prefix}${cls}`);
-  })
-  .join(" ");
-
-export function CheckBox({
-  selected,
-  onChange,
-  ...inputProps
-}: {
+export type CheckBoxProps = {
+  id?: string;
   name?: string;
   "aria-label"?: string;
   "aria-labeledBy"?: string;
   "aria-description"?: string;
   "aria-describedBy"?: string;
   selected?: boolean;
+  required?: boolean;
   onChange?: (isSelected: boolean) => void;
-}) {
+};
+
+export function CheckBox({ selected, onChange, ...inputProps }: CheckBoxProps) {
   const [isSelected, setIsSelected] = useState(selected ?? false);
   const Icon = isSelected ? CheckboxSelected : CheckboxUnselected;
+
+  const toggle = () => {
+    setIsSelected(!isSelected);
+    onChange && onChange(!isSelected);
+  };
 
   return (
     <div
       className="mx-2 grid grid-rows-1 grid-cols-1 w-6 h-6 shrink-0 items-center justify-items-center"
-      onClick={() => {
-        setIsSelected(!isSelected);
-        onChange && onChange(!isSelected);
-      }}
+      onClick={toggle}
     >
       <svg
         aria-hidden="true"
@@ -66,7 +52,7 @@ export function CheckBox({
           "checked:focus:bg-transparent ",
         ].join(" ")}
         type="checkbox"
-        onChange={() => setIsSelected(!isSelected)}
+        onChange={toggle}
         checked={isSelected}
         {...inputProps}
       />
@@ -77,35 +63,17 @@ export function CheckBox({
 export function InlineCheckBox({
   name,
   label,
-  description,
-}: {
+  ...props
+}: CheckBoxProps & {
   name: string;
   label: string;
-  description?: ReactNode;
 }) {
-  const labelId = description ? useId() : undefined;
-  const descId = description ? useId() : undefined;
+  const checkboxId = props.id || useId();
   return (
     <div className="flex flex-row">
-      <CheckBox
-        name={name}
-        // Apple's VoiceOver has poor support for labeling checkboxes. The
-        // only things that work right are:
-        // <label><input type="checkbox">my label</label> or using aria-label
-        // on the input. For simplicity, we use aria-label and hide the visual
-        // label for screen readers.
-        aria-label={label}
-        aria-describedBy={descId}
-      />
+      <CheckBox {...props} id={checkboxId} />
       <div>
-        <label aria-hidden="true" id={labelId} htmlFor={name}>
-          {label}
-        </label>
-        {description && (
-          <p id={descId} role="note">
-            {description}
-          </p>
-        )}
+        <label htmlFor={checkboxId}>{label}</label>
       </div>
     </div>
   );
