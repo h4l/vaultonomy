@@ -13,6 +13,7 @@ import {
 } from "react";
 
 import { assert } from "../assert";
+import { ScreenReaderOnly } from "./a11y";
 
 type SelectionMode = "preview" | "pin";
 
@@ -119,7 +120,7 @@ export function useRootHelpState(): HelpState {
   return help;
 }
 
-type HelpMessageProps =
+export type HelpMessageProps =
   | { helpId?: undefined; helpText: string }
   | { helpId: string; helpText: HelpText };
 
@@ -137,11 +138,13 @@ function ScreenReaderHelp({
       aria-label={isPinned ? "pinned extra help" : "extra help"}
       aria-hidden={help.helpEnabled ? undefined : "true"}
     >
-      <span className="sr-only">{renderHelpText(helpText)}</span>
+      <ScreenReaderOnly>{renderHelpText(helpText)}</ScreenReaderOnly>
       {children}
     </div>
   );
 }
+
+type HelpButtonAppearanceProps = { idleBackgroundClasses?: string };
 
 const HelpButton = forwardRef(function HelpButton(
   {
@@ -149,7 +152,9 @@ const HelpButton = forwardRef(function HelpButton(
     helpText,
     className,
     style,
-  }: HelpMessageProps & { className?: string; style?: CSSProperties },
+    idleBackgroundClasses,
+  }: HelpMessageProps &
+    HelpButtonAppearanceProps & { className?: string; style?: CSSProperties },
   ref: ForwardedRef<HTMLButtonElement>,
 ): JSX.Element {
   const helpId = _helpId ?? helpText;
@@ -202,7 +207,7 @@ const HelpButton = forwardRef(function HelpButton(
         className={`p-[0.125rem]  group-hover:scale-110 group-focus-visible:scale-110 group-active:scale-125
                     bg-green-700 transition-all duration-300
         ${isPinned ? "clip-circle" : "clip-circle-40"}
-        ${isSelected ? "text-neutral-100" : "bg-transparent"}`}
+        ${isSelected ? "text-neutral-100" : idleBackgroundClasses ?? "bg-transparent"}`}
       >
         <HelpIcon />
       </div>
@@ -217,15 +222,18 @@ export function WithInlineHelp({
   iconOffsetLeft,
   iconOffsetTop,
   iconOffsetBottom,
+  "sr-help-order": srHelpOrder = "before-content",
   ...props
-}: HelpMessageProps & {
-  disabled?: boolean;
-  iconOffsetLeft?: string;
-  iconOffsetTop?: string;
-  iconOffsetBottom?: string;
-  children: ReactNode;
-  className?: string;
-}): JSX.Element {
+}: HelpMessageProps &
+  HelpButtonAppearanceProps & {
+    disabled?: boolean;
+    iconOffsetLeft?: string;
+    iconOffsetTop?: string;
+    iconOffsetBottom?: string;
+    children: ReactNode;
+    className?: string;
+    "sr-help-order"?: "before-content" | "after-content";
+  }): JSX.Element {
   if (iconOffsetTop && iconOffsetBottom) {
     throw new Error(
       "Both iconOffsetTop and iconOffsetBottom are set, which is ambiguous",
@@ -249,20 +257,23 @@ export function WithInlineHelp({
       : undefined,
   };
 
+  const renderedHelp =
+    disabled ? undefined : (
+      <ScreenReaderHelp {...props}>
+        <HelpButton
+          ref={button}
+          {...props}
+          style={style}
+          className="absolute __-left-8 __top-[calc(45%_-_0.875rem)]"
+        />
+      </ScreenReaderHelp>
+    );
+
   return (
     <div ref={container} className={`${className || ""} relative`}>
-      {disabled ?
-        undefined
-      : <ScreenReaderHelp {...props}>
-          <HelpButton
-            ref={button}
-            {...props}
-            style={style}
-            className="absolute __-left-8 __top-[calc(45%_-_0.875rem)]"
-          />
-        </ScreenReaderHelp>
-      }
+      {srHelpOrder === "before-content" && renderedHelp}
       {children}
+      {srHelpOrder === "after-content" && renderedHelp}
     </div>
   );
 }
