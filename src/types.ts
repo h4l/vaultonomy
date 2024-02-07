@@ -45,3 +45,8 @@ export type RecursivePartial<T> = {
   : T[P] extends object | undefined ? RecursivePartial<T[P]>
   : T[P];
 };
+
+// https://github.com/wevm/wagmi/blob/e9289fa973190aa59a077a2bfb6cc7f2bd901e59/packages/core/src/types/utils.ts#L3
+/** Combines members of an intersection into a readable type. */
+// https://twitter.com/mattpocockuk/status/1622730173446557697?s=20&t=NdpAcmEFXY01xkqU3KO0Mg
+export type Evaluate<type> = { [key in keyof type]: type[key] } & unknown;

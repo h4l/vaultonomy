@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "noErrorTruncation": true,
     "target": "ESNext",
     "useDefineForClassFields": true,
     "lib": ["DOM", "DOM.Iterable", "ESNext"],
@@ -20,7 +21,7 @@
     "allowSyntheticDefaultImports": true,
     "esModuleInterop": false,
     "forceConsistentCasingInFileNames": true,
-    "types": ["@types/jest", "@types/chrome"]
+    "types": ["@types/jest", "@types/chrome"],
   },
-  "include": ["./src", "jest-setup.ts"]
+  "include": ["./src", "jest-setup.ts"],
 }
