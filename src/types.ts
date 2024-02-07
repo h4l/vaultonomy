@@ -39,3 +39,9 @@ export const EthHexSignature = z
   .string()
   .regex(/^0x[0-9a-f]{130}$/, "Invalid hex signature string")
   .transform((s) => s.toLowerCase());
+
+export type RecursivePartial<T> = {
+  [P in keyof T]?: T[P] extends (infer U)[] ? RecursivePartial<U>[]
+  : T[P] extends object | undefined ? RecursivePartial<T[P]>
+  : T[P];
+};
