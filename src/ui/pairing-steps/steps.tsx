@@ -16,7 +16,7 @@ export function RedditErrorStepAction({
       details={
         <>
           This is probably temporary — is Reddit working?
-          <ul>
+          <ul className="list-outside list-disc ml-6">
             <li>Try refreshing your Reddit tab and try again soon.</li>
             <li>
               If this keeps happening, contact{" "}
