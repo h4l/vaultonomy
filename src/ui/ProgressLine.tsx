@@ -216,7 +216,7 @@ const ProgressLine = forwardRef<HTMLDivElement, ProgressLineProps>(
       <>
         <div
           className={[
-            "absolute z-0 left-4 h-full border-r",
+            "absolute z-0 left-[0.95rem] h-full border-r",
             "border-neutral-500 dark:border-neutral-500",
           ].join(" ")}
         />
@@ -227,7 +227,7 @@ const ProgressLine = forwardRef<HTMLDivElement, ProgressLineProps>(
             height: progressPosition ?? "0%",
           }}
           className={[
-            "absolute z-0 left-4 border-r-2 border-l",
+            "absolute z-0 left-[0.95rem] border-r border-l-2",
             "border-neutral-800 dark:border-neutral-200",
             "duration-1000 ease-in-out",
           ].join(" ")}
