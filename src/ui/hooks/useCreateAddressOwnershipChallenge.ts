@@ -21,8 +21,7 @@ export function useCreateAddressOwnershipChallenge({
       mutationKey: ["RedditProvider", "createAddressOwnershipChallenge"],
       mutationFn: async () => {
         return await redditProvider.createAddressOwnershipChallenge({
-          // FIXME: include userId in request to detect change of user session on Reddit side.
-          // userId,
+          userId,
           address,
         });
       },

@@ -165,11 +165,11 @@ export class VaultonomyBackgroundServiceSession {
     );
     server.addMethod(
       RedditGetAccountVaultAddresses.name,
-      RedditGetAccountVaultAddresses.signature.implement(async () => {
+      RedditGetAccountVaultAddresses.signature.implement(async (params) => {
         if (!this.redditProvider) {
           throw redditDisconnectedError(RedditGetAccountVaultAddresses.name);
         }
-        return await this.redditProvider.getAccountVaultAddresses();
+        return await this.redditProvider.getAccountVaultAddresses(params);
       }),
     );
 

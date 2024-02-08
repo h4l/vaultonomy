@@ -45,7 +45,7 @@ export function FetchPairingMessageStep(): JSX.Element {
   const account = useAccount();
   const redditAccount = useRedditAccount();
   const userId = redditAccount.data?.profile?.userID;
-  const activeVault = useRedditAccountActiveVault();
+  const activeVault = useRedditAccountActiveVault({ userId });
   const fetchedPairingMessage = usePairingMessage(userId);
 
   // const { state, content } = renderState();

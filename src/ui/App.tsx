@@ -64,7 +64,7 @@ function AppUI() {
         />
 
         <div className="m-10 flex flex-row flex-wrap justify-center gap-x-40 gap-y-20">
-          <Vault />
+          <Vault userId={userProfile.data?.profile?.userID} />
           <Wallet />
         </div>
 
