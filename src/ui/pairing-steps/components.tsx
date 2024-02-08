@@ -117,9 +117,7 @@ export function StepAction({
           )}
         </p>
         {details ?
-          <p>
-            <small>{details}</small>
-          </p>
+          <div className="text-sm m-2">{details}</div>
         : undefined}
       </div>
     </>
