@@ -15,7 +15,9 @@ import {
   RedditCreateAddressOwnershipChallenge,
   RedditCreateAddressOwnershipChallengeParams,
   RedditGetAccountVaultAddresses,
+  RedditGetAccountVaultAddressesParams,
   RedditGetUserProfile,
+  RedditGetUserProfileParams,
   RedditGetUserVaultAddress,
   RedditGetUserVaultAddressParams,
   RedditRegisterAddressWithAccount,
@@ -105,7 +107,7 @@ export class RedditProvider {
 
   constructor(options: { redditInteractionClient: JSONRPCClient }) {
     const client = options.redditInteractionClient;
-    this.getUserProfile = createRCPMethodCaller({
+    this._getUserProfile = createRCPMethodCaller({
       method: RedditGetUserProfile,
       client,
       mapError: AnyRedditProviderError.from,
@@ -132,9 +134,19 @@ export class RedditProvider {
     });
   }
 
+  // This is required because params is optional with default null, but
+  // createRCPMethodCaller doesn't support null default args.
+  private _getUserProfile: (
+    params: RedditGetUserProfileParams | null,
+  ) => Promise<RedditUserProfile>;
+
   // TODO: should we make these return functional error values rather than throw?
 
-  getUserProfile: () => Promise<RedditUserProfile>;
+  getUserProfile(
+    params: RedditGetUserProfileParams | null = null,
+  ): Promise<RedditUserProfile> {
+    return this._getUserProfile(params);
+  }
   createAddressOwnershipChallenge: (
     params: RedditCreateAddressOwnershipChallengeParams,
   ) => Promise<RedditEIP712Challenge>;
@@ -144,5 +156,7 @@ export class RedditProvider {
   getUserVaultAddress: (
     params: RedditGetUserVaultAddressParams,
   ) => Promise<Address | null>;
-  getAccountVaultAddresses: () => Promise<Array<AccountVaultAddress>>;
+  getAccountVaultAddresses: (
+    params: RedditGetAccountVaultAddressesParams,
+  ) => Promise<Array<AccountVaultAddress>>;
 }

@@ -79,13 +79,29 @@ describe("createServerSession()", () => {
   });
 
   describe("reddit_getUserProfile", () => {
-    test("responds with profile of logged-in user", async () => {
-      const response = await client.request("reddit_getUserProfile", null);
+    test.each([null, { userId: null }, { userId: "t2_abc" }])(
+      "responds with profile of logged-in user",
+      async (params) => {
+        const response = await client.request("reddit_getUserProfile", params);
 
-      expect(RedditUserProfile.safeParse(response).success).toBeTruthy();
-      expect(response).toEqual(loggedInUser().user);
+        expect(RedditUserProfile.safeParse(response).success).toBeTruthy();
+        expect(response).toEqual(loggedInUser().user);
 
-      expect(sessionManager.getPageData).toBeCalledTimes(1);
+        expect(sessionManager.getPageData).toBeCalledTimes(1);
+      },
+    );
+
+    test("responds with error if logged-in user does not match userId param", async () => {
+      const response = client.request("reddit_getUserProfile", {
+        userId: "t2_other",
+      });
+
+      await expect(response).rejects.toEqual(
+        new JSONRPCErrorException(
+          "Active session is not for the expected userId",
+          ErrorCode.WRONG_USER,
+        ),
+      );
     });
 
     test("responds with error if user is not logged in to reddit", async () => {
@@ -105,12 +121,26 @@ describe("createServerSession()", () => {
     test("responds with challenge data", async () => {
       const response = await client.request(
         "reddit_createAddressOwnershipChallenge",
-        { address: "0x" + "0".repeat(40) },
+        { userId: "t2_abc", address: "0x" + "0".repeat(40) },
       );
 
       expect(RedditEIP712Challenge.safeParse(response).success).toBeTruthy();
       expect(response).toEqual(redditEIP712Challenge());
       expect(createAddressOwnershipChallenge).toBeCalledTimes(1);
+    });
+
+    test("responds with error if logged-in user does not match userId param", async () => {
+      const response = client.request(
+        "reddit_createAddressOwnershipChallenge",
+        { userId: "t2_other", address: "0x" + "0".repeat(40) },
+      );
+
+      await expect(response).rejects.toEqual(
+        new JSONRPCErrorException(
+          "Active session is not for the expected userId",
+          ErrorCode.WRONG_USER,
+        ),
+      );
     });
 
     test("responds with error when API request fails", async () => {
@@ -124,6 +154,7 @@ describe("createServerSession()", () => {
         );
 
       const resp = client.request("reddit_createAddressOwnershipChallenge", {
+        userId: "t2_abc",
         address: "0x" + "0".repeat(40),
       });
       await expect(resp).rejects.toEqual(
@@ -133,7 +164,8 @@ describe("createServerSession()", () => {
   });
 
   describe("reddit_registerAddressWithAccount", () => {
-    const params = () => ({
+    const params = (userId: string = "t2_abc") => ({
+      userId,
       address: "0x" + "0".repeat(40),
       challengeSignature: "0x" + "0".repeat(130),
     });
@@ -145,6 +177,20 @@ describe("createServerSession()", () => {
 
       await expect(resp).resolves.toBeNull();
       expect(registerAddressWithAccount).toBeCalledTimes(1);
+    });
+
+    test("responds with error if logged-in user does not match userId param", async () => {
+      const response = client.request(
+        "reddit_registerAddressWithAccount",
+        params("t2_other"),
+      );
+
+      await expect(response).rejects.toEqual(
+        new JSONRPCErrorException(
+          "Active session is not for the expected userId",
+          ErrorCode.WRONG_USER,
+        ),
+      );
     });
 
     test("responds with error when API request fails", async () => {
@@ -216,13 +262,28 @@ describe("createServerSession()", () => {
         .mockReset()
         .mockResolvedValue(addresses());
 
-      const resp = client.request("reddit_getAccountVaultAddresses", null);
+      const resp = client.request("reddit_getAccountVaultAddresses", {
+        userId: "t2_abc",
+      });
 
       await expect(resp).resolves.toEqual(addresses());
       expect(getRedditAccountVaultAddresses).toBeCalledTimes(1);
       expect(getRedditAccountVaultAddresses).toBeCalledWith({
         authToken: "secret",
       });
+    });
+
+    test("responds with error if logged-in user does not match userId param", async () => {
+      const response = client.request("reddit_getAccountVaultAddresses", {
+        userId: "t2_other",
+      });
+
+      await expect(response).rejects.toEqual(
+        new JSONRPCErrorException(
+          "Active session is not for the expected userId",
+          ErrorCode.WRONG_USER,
+        ),
+      );
     });
 
     test("responds with error when API request fails", async () => {
@@ -235,7 +296,9 @@ describe("createServerSession()", () => {
           }),
         );
 
-      const resp = client.request("reddit_getAccountVaultAddresses", null);
+      const resp = client.request("reddit_getAccountVaultAddresses", {
+        userId: "t2_abc",
+      });
       await expect(resp).rejects.toEqual(
         new JSONRPCErrorException("getRedditAccountVaultAddresses failed", 0),
       );

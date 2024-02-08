@@ -23,12 +23,22 @@ import {
 
 async function getUserSession(
   sessionManager: SessionManager,
+  expectedUserId: string | null,
 ): Promise<UserPageData> {
   const pageData = await sessionManager.getPageData();
   if (!pageData.loggedIn) {
     throw new JSONRPCErrorException(
       "User is not logged in to the Reddit website",
       ErrorCode.USER_NOT_LOGGED_IN,
+    );
+  }
+  if (expectedUserId !== null && expectedUserId !== pageData.user.userID) {
+    // TODO: should we do something extra here? We could manage multiple
+    // sessions, per-user. We could automatically try to re-auth with the
+    // current reddit session.
+    throw new JSONRPCErrorException(
+      "Active session is not for the expected userId",
+      ErrorCode.WRONG_USER,
     );
   }
   // Session can't be expired, getPageData() only returns unexpired sessions,
@@ -52,8 +62,11 @@ export function createServerSession<
 
   service.addMethod(
     RedditGetUserProfile.name,
-    RedditGetUserProfile.signature.implement(async () => {
-      const session = await getUserSession(sessionManager);
+    RedditGetUserProfile.signature.implement(async (params) => {
+      const session = await getUserSession(
+        sessionManager,
+        params?.userId ?? null,
+      );
       return session.user;
     }),
   );
@@ -61,7 +74,7 @@ export function createServerSession<
     RedditCreateAddressOwnershipChallenge.name,
     RedditCreateAddressOwnershipChallenge.signature.implement(
       async (params) => {
-        const session = await getUserSession(sessionManager);
+        const session = await getUserSession(sessionManager, params.userId);
         return await createAddressOwnershipChallenge({
           authToken: session.auth.token,
           address: params.address,
@@ -72,7 +85,7 @@ export function createServerSession<
   service.addMethod(
     RedditRegisterAddressWithAccount.name,
     RedditRegisterAddressWithAccount.signature.implement(async (params) => {
-      const session = await getUserSession(sessionManager);
+      const session = await getUserSession(sessionManager, params.userId);
       await registerAddressWithAccount({
         authToken: session.auth.token,
         address: params.address,
@@ -84,7 +97,8 @@ export function createServerSession<
   service.addMethod(
     RedditGetUserVaultAddress.name,
     RedditGetUserVaultAddress.signature.implement(async (params) => {
-      const session = await getUserSession(sessionManager);
+      // This method does not depend on the logged-in user identity
+      const session = await getUserSession(sessionManager, null);
       return (
         (await getRedditUserVaultAddress({
           authToken: session.auth.token,
@@ -95,8 +109,8 @@ export function createServerSession<
   );
   service.addMethod(
     RedditGetAccountVaultAddresses.name,
-    RedditGetAccountVaultAddresses.signature.implement(async () => {
-      const session = await getUserSession(sessionManager);
+    RedditGetAccountVaultAddresses.signature.implement(async (params) => {
+      const session = await getUserSession(sessionManager, params.userId);
       return await getRedditAccountVaultAddresses({
         authToken: session.auth.token,
       });

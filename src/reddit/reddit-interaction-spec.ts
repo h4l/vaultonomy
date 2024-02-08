@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { string, z } from "zod";
 
 import { PortName } from "../PortName";
 import { defineMethod } from "../rpc/typing";
@@ -21,6 +21,7 @@ export const REDDIT_INTERACTION_PORT_NAME = new PortName("reddit-interaction");
 export enum ErrorCode {
   USER_NOT_LOGGED_IN = 0,
   REDDIT_TAB_DISCONNECTED = 1,
+  WRONG_USER = 2,
 }
 
 export function isErrorCode(num: number): num is ErrorCode {
@@ -29,6 +30,13 @@ export function isErrorCode(num: number): num is ErrorCode {
     num == ErrorCode.REDDIT_TAB_DISCONNECTED
   );
 }
+
+export const RedditGetUserProfileParams = z.object({
+  userId: z.string().nullish(),
+});
+export type RedditGetUserProfileParams = z.infer<
+  typeof RedditGetUserProfileParams
+>;
 
 export const RedditUserProfile = z.object({
   userID: z.string(),
@@ -41,11 +49,12 @@ export type RedditUserProfile = z.infer<typeof RedditUserProfile>;
 
 export const RedditGetUserProfile = defineMethod({
   name: "reddit_getUserProfile",
-  params: z.null(),
+  params: RedditGetUserProfileParams.nullable(),
   returns: RedditUserProfile,
 });
 
 export const RedditCreateAddressOwnershipChallengeParams = z.object({
+  userId: z.string(),
   address: EthAddress,
 });
 export type RedditCreateAddressOwnershipChallengeParams = z.infer<
@@ -59,6 +68,7 @@ export const RedditCreateAddressOwnershipChallenge = defineMethod({
 });
 
 export const RedditRegisterAddressWithAccountParams = z.object({
+  userId: z.string(),
   address: EthAddress,
   challengeSignature: EthHexSignature,
 });
@@ -85,8 +95,15 @@ export const RedditGetUserVaultAddress = defineMethod({
   returns: EthAddress.nullable(),
 });
 
+export const RedditGetAccountVaultAddressesParams = z.object({
+  userId: z.string(),
+});
+export type RedditGetAccountVaultAddressesParams = z.infer<
+  typeof RedditGetAccountVaultAddressesParams
+>;
+
 export const RedditGetAccountVaultAddresses = defineMethod({
   name: "reddit_getAccountVaultAddresses",
-  params: z.null(),
+  params: RedditGetAccountVaultAddressesParams,
   returns: z.array(AccountVaultAddress),
 });

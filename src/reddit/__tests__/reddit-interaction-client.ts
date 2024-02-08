@@ -65,6 +65,7 @@ describe("RedditProvider()", () => {
 
     test("createAddressOwnershipChallenge()", async () => {
       const resp = reddit.createAddressOwnershipChallenge({
+        userId: "t2_abc",
         address: `0x${"0".repeat(40)}`,
       });
       port.receiveMessage(
@@ -75,6 +76,7 @@ describe("RedditProvider()", () => {
 
     test("registerAddressWithAccount()", async () => {
       const resp = reddit.registerAddressWithAccount({
+        userId: "t2_abc",
         address: `0x${"0".repeat(40)}`,
         challengeSignature: `0x${"0".repeat(130)}`,
       });
@@ -91,7 +93,7 @@ describe("RedditProvider()", () => {
     });
 
     test("getAccountVaultAddresses()", async () => {
-      const resp = reddit.getAccountVaultAddresses();
+      const resp = reddit.getAccountVaultAddresses({ userId: "t2_abc" });
       const addresses = (): Array<AccountVaultAddress> => [
         {
           address: "0x5318810BD26f9209c3d4ff22891F024a2b0A739a",
