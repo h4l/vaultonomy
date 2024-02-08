@@ -78,7 +78,7 @@ export function StepAction({
   headline: string;
   details?: ReactNode;
 }): JSX.Element {
-  const progressPosition = useRef<HTMLSpanElement>(null);
+  const progressPosition = useRef<HTMLDivElement>(null);
 
   // currently actions are added as they become active, so they're always reached
   usePositionReachedBroadcast({
@@ -89,17 +89,19 @@ export function StepAction({
   const Icon = StepActionIcons[state];
   return (
     <>
-      <span
-        ref={progressPosition}
-        className="py-[0.125rem] justify-self-center bg-neutral-100 dark:bg-neutral-850"
-      >
-        <Icon
-          size={24}
-          className={
-            state === "pending" ? "animate-beat text-neutral-700" : undefined
-          }
-        />
-      </span>
+      <div className="justify-self-center">
+        <div
+          ref={progressPosition}
+          className="py-[0.125rem] bg-neutral-100 dark:bg-neutral-850"
+        >
+          <Icon
+            size={24}
+            className={
+              state === "pending" ? "animate-beat text-neutral-700" : undefined
+            }
+          />
+        </div>
+      </div>
       <div>
         <p
           className={twMerge(
