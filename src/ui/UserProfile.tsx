@@ -25,7 +25,7 @@ export function UserProfile({
       >
         <UserAvatar
           className="w-40"
-          avatarUrl={profile?.accountIconFullBodyURL}
+          avatarUrl={profile?.accountIconFullBodyURL || undefined}
         />
       </WithInlineHelp>
       {profile ?

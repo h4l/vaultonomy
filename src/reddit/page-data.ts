@@ -15,7 +15,7 @@ const RawPageData = z.object({
         // has Reddit Premium (via award or subscription)
         isGold: z.boolean().default(false),
         accountIcon: z.string().url(),
-        snoovatarFullBodyAsset: z.string().url(),
+        snoovatarFullBodyAsset: z.string().url().nullable().default(null),
         // username (not display name)
         displayText: z.string(),
       })
@@ -40,7 +40,7 @@ const RedditUser = z.object({
   username: z.string(),
   hasPremium: z.boolean(),
   accountIconURL: z.string().url(),
-  accountIconFullBodyURL: z.string().url(),
+  accountIconFullBodyURL: z.string().nullable(),
 });
 type RedditUser = z.infer<typeof RedditUser>;
 

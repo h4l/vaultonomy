@@ -1,5 +1,6 @@
 import { jest } from "@jest/globals";
 
+import { assert } from "../../assert";
 import {
   DEFAULT_PAGE_DATA_URL,
   PageData,
@@ -49,6 +50,45 @@ describe("fetchPageData()", () => {
     expect(fetch).toBeCalledTimes(1);
     expect(fetch).nthCalledWith(1, DEFAULT_PAGE_DATA_URL);
   });
+
+  test.each([
+    {},
+    { snoovatarFullBodyAsset: undefined },
+    { snoovatarFullBodyAsset: null },
+  ])(
+    "provides data for logged-in user without avatar",
+    async (raw: { snoovatarFullBodyAsset?: null }) => {
+      const fetch = jest.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        text: async () => {
+          const data = pageDataLoggedIn() as any;
+          assert(data.user.account.snoovatarFullBodyAsset);
+          delete data.user.account.snoovatarFullBodyAsset;
+          data.user.account = { ...data.user.account, ...raw };
+          return html(data);
+        },
+      } as Response);
+
+      const expected: PageData = {
+        loggedIn: true,
+        user: {
+          userID: "t2_abc",
+          hasPremium: true,
+          accountIconFullBodyURL: null,
+          accountIconURL: "https://example.com/imgSquare",
+          username: "exampleuser",
+        },
+        auth: {
+          token: "abc-123",
+          expires: new Date("2023-01-01T00:00:00.000Z"),
+        },
+      };
+      await expect(fetchPageData()).resolves.toStrictEqual(expected);
+      expect(fetch).toBeCalledTimes(1);
+      expect(fetch).nthCalledWith(1, DEFAULT_PAGE_DATA_URL);
+    },
+  );
 
   test.each(pageDataLoggedOut().map((pageData) => [html(pageData)]))(
     "provides data for logged-out user",
