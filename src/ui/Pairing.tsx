@@ -1,32 +1,23 @@
-import {
-  ReactElement,
-  ReactNode,
-  RefObject,
-  createContext,
-  useContext,
-  useEffect,
-  useId,
-  useRef,
-  useState,
-} from "react";
-import { twMerge } from "tailwind-merge";
+import { ReactElement, ReactNode, useId, useMemo, useRef } from "react";
 import { Address } from "viem";
+import { useAccount } from "wagmi";
 
-import { assert } from "../assert";
-import { log } from "../logging";
+import { normaliseRedditChallenge } from "../signing";
 import { Button } from "./Button";
 import { EthInput, VaultonomyCard } from "./Card";
 import { Heading } from "./Heading";
-import {
-  PositionProgressLine,
-  ProgressLineContainer,
-  usePositionReachedBroadcast,
-} from "./ProgressLine";
+import { PositionProgressLine, ProgressLineContainer } from "./ProgressLine";
 import { useExpandCollapseElement } from "./hooks/useExpandCollapseElement";
+import { usePairingMessage } from "./hooks/usePairingMessage";
+import { useRedditAccount } from "./hooks/useRedditAccount";
+import { useRedditAccountActiveVault } from "./hooks/useRedditAccountActiveVault";
+import { useSignedPairingMessage } from "./hooks/useSignedPairingMessage";
 import { ExpandMoreIcon40 } from "./icons";
+import { PAIRING_MESSAGE } from "./ids";
 import { ConnectWalletStep } from "./pairing-steps/ConnectWalletStep";
 import { FetchPairingMessageStep } from "./pairing-steps/FetchPairingMessageStep";
-import { PairingStep, StepAction, StepBody } from "./pairing-steps/components";
+import { SignMessageStep } from "./pairing-steps/SignMessageStep";
+import { PairingStep, StepBody } from "./pairing-steps/components";
 import { useVaultonomyStore } from "./state/useVaultonomyStore";
 
 export function Pairing(): JSX.Element {
@@ -94,7 +85,7 @@ function ExpandingNonModalDialog({
 }): JSX.Element {
   const bodyEl = useRef<HTMLDivElement>(null);
 
-  const { toggleExpansion, transitionEnd, isExpanded, isTransitioning } =
+  const { toggleExpansion, transitionEnd, isExpanded } =
     useExpandCollapseElement({
       el: bodyEl.current,
       initiallyExpanded,
@@ -237,6 +228,21 @@ function Dialogue({
 }
 
 function PairingSteps(): JSX.Element {
+  const account = useAccount();
+  const redditAccount = useRedditAccount();
+  const userId = redditAccount.data?.profile?.userID;
+  const redditUserName = redditAccount.data?.profile?.username;
+  const activeVault = useRedditAccountActiveVault({ userId });
+  const fetchedPairingMessage = usePairingMessage(userId);
+  const signedPairingMessage = useSignedPairingMessage(userId);
+
+  const normalisedChallenge = useMemo(
+    () =>
+      fetchedPairingMessage?.value ?
+        normaliseRedditChallenge(fetchedPairingMessage?.value)
+      : undefined,
+    [fetchedPairingMessage?.value],
+  );
   return (
     <>
       <main aria-label="Pairing Steps" className="relative max-w-[34rem]">
@@ -248,30 +254,19 @@ function PairingSteps(): JSX.Element {
             </PairingStep> */}
             <ConnectWalletStep />
 
-            <FetchPairingMessageStep />
-            {/* <PairingStep num={2} name="Fetch Pairing Message" state="future"> */}
-            {/* Wallet pairing message fetched from Reddit */}
-            {/* <StepAction state="error">
-                Failed to fetch pairing message from Reddit
-              </StepAction> */}
-            {/* </PairingStep> */}
+            <FetchPairingMessageStep
+              address={account.address}
+              activeVault={activeVault}
+              fetchedPairingMessage={fetchedPairingMessage}
+              redditUserName={redditUserName}
+              userId={userId}
+            />
 
-            <PairingStep num={3} name="Review & Sign Message" state="future">
-              <StepBody>
-                <p className="mb-4">
-                  Reddit's Vault pairing message is below. Sign it with your
-                  Wallet to prove to Reddit that you own your Wallet's address,
-                  and that you wish to make it your Vault address.
-                </p>
-                <Button size="l" className="block m-4">
-                  Sign Message
-                </Button>
-              </StepBody>
-              {/* <StepAction state="done">Message signed</StepAction> */}
-              {/* <StepAction state="pending">
-                Awaiting signature from Wallet…
-              </StepAction> */}
-            </PairingStep>
+            <SignMessageStep
+              address={account.address}
+              challenge={normalisedChallenge}
+              userId={userId}
+            />
 
             <PairingStep num={4} name="Send Pairing Request" state="future">
               {/* <StepAction state="pending">Message sent</StepAction>
@@ -365,7 +360,7 @@ function PairingMessage({
 }: {
   message: RedditVaultPairingMessageFields;
 }): JSX.Element {
-  const headingId = useId();
+  const headingId = PAIRING_MESSAGE;
   return (
     <aside aria-labelledby={headingId} className="">
       <div className="max-w-prose mx-auto">
@@ -374,7 +369,9 @@ function PairingMessage({
         </Heading>
         <div className="prose">
           {/* TODO: maybe more info here. Allow viewing/copying the typed data?  */}
-          <p></p>
+          <p>
+            Your Wallet should show you these fields when you sign the Message.
+          </p>
         </div>
       </div>
       <div className="flex flex-row flex-wrap justify-center gap-x-40 gap-y-20">

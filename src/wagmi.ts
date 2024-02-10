@@ -1,5 +1,5 @@
 import { CreateConnectorFn, createConfig, http } from "wagmi";
-import { mainnet } from "wagmi/chains";
+import { mainnet, optimism } from "wagmi/chains";
 import { coinbaseWallet, injected, walletConnect } from "wagmi/connectors";
 
 export enum WalletConnectorType {
@@ -14,9 +14,10 @@ export enum WalletConnectorType {
 const devModeInjectedConnector = injected();
 
 export const wagmiConfig = createConfig({
-  chains: [mainnet],
+  chains: [mainnet, optimism],
   transports: {
     [mainnet.id]: http(),
+    [optimism.id]: http(),
   },
   connectors: [
     devModeInjectedConnector,

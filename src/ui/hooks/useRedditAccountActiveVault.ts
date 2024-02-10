@@ -10,6 +10,9 @@ function activeVaultAddress(
   return vaultAddresses?.find((va) => va.isActive);
 }
 
+export type RedditAccountActiveVaultResult = ReturnType<
+  typeof useRedditAccountActiveVault
+>;
 export function useRedditAccountActiveVault({
   userId,
 }: {

@@ -1,7 +1,17 @@
+import {
+  Address,
+  ByteArray,
+  Hex,
+  hashTypedData,
+  isAddressEqual,
+  verifyTypedData,
+} from "viem";
 import { normalizeChainId } from "wagmi";
 
+import { VaultonomyError } from "./VaultonomyError";
 import { RedditEIP712Challenge } from "./reddit/api-client";
 import { Evaluate } from "./types";
+import { Result } from "./ui/state/createVaultonomyStore";
 
 type RedditEIP712ChallengeDomain = RedditEIP712Challenge["domain"];
 type NormalisedDomain = Omit<
@@ -55,5 +65,84 @@ export function normaliseRedditChallenge(
   return {
     ...raw,
     domain: normalisedDomain,
+  };
+}
+
+class InvalidOwnershipChallengeError extends VaultonomyError {
+  constructor(
+    message: string,
+    public readonly challenge:
+      | RedditEIP712Challenge
+      | NormalisedRedditEIP712Challenge,
+    public readonly expectedUsername: string,
+    public readonly expectedAddress: Address,
+  ) {
+    super(message);
+  }
+}
+
+export function validateRedditChallenge({
+  challenge,
+  address,
+  redditUserName,
+}: {
+  challenge: RedditEIP712Challenge | NormalisedRedditEIP712Challenge;
+  redditUserName: string;
+  address: Address;
+}): void {
+  if (!isAddressEqual(address, challenge.message.address)) {
+    throw new InvalidOwnershipChallengeError(
+      "Challenge message's addresses is not the expected address",
+      challenge,
+      redditUserName,
+      address,
+    );
+  }
+  if (redditUserName !== challenge.message.redditUserName) {
+    throw new InvalidOwnershipChallengeError(
+      "Challenge message's redditUserName is not the expected redditUserName",
+      challenge,
+      redditUserName,
+      address,
+    );
+  }
+}
+
+export type VerifySignedRedditChallengeResult =
+  | { isValid: true }
+  | { isValid: false; reasonShort: string; reason: string };
+
+export async function verifySignedRedditChallenge({
+  challenge,
+  expectedAddress,
+  signature,
+}: {
+  challenge: NormalisedRedditEIP712Challenge;
+  expectedAddress: Address;
+  signature: Hex;
+}): Promise<VerifySignedRedditChallengeResult> {
+  if (isAddressEqual(expectedAddress, challenge.message.address))
+    if (
+      await verifyTypedData({
+        ...challenge,
+        address: expectedAddress,
+        signature,
+      })
+    ) {
+      // Note that we're are are intentionally not trying to verify contract/non-EOA
+      // signatures here. I've not tested empirically, but my belief is that Reddit
+      // won't be verifying contract signatures (which is a shame, as they' be very
+      // useful to manage large numbers of NFTs). Reddit's messages use chain 1 (Eth
+      // mainnet), so presumably a contract wallet would need to be on mainnet,
+      // which could a.) make it expensive to use, an b) not very practical for
+      // managing NFTs on Polygon POS.
+      return { isValid: true };
+    }
+  return {
+    isValid: false,
+    reasonShort: "Signature does not match the message and Wallet address.",
+    reason:
+      `Signature ${signature} is not valid for expected address ` +
+      `${expectedAddress} and message hash ${hashTypedData(challenge)}`,
   };
 }

@@ -16,7 +16,10 @@ export type Result<T, E = null> =
 
 export type FetchedPairingMessage = Result<RedditEIP712Challenge>;
 
-type SignedPairingMessage = Result<HexString>;
+type SignedPairingMessage = Result<
+  HexString,
+  "cancelled" | "sign-failed" | "signature-invalid"
+>;
 
 /**
  * Whether we have received a successful response to a address registration

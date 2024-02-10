@@ -1,18 +1,20 @@
-import { useMutation } from "@tanstack/react-query";
-import { ReactElement, ReactNode, useRef, useState } from "react";
+import { ReactNode, useRef } from "react";
+import { Address } from "viem";
 import { useAccount } from "wagmi";
 
-import { assert, assertUnreachable } from "../../assert";
+import { assert } from "../../assert";
 import { log } from "../../logging";
 import { Button } from "../Button";
 import { Heading } from "../Heading";
-import { WithInlineHelp } from "../Help";
 import { Link } from "../Link";
-import { CheckBox, InlineCheckBox } from "../forms/CheckBox";
+import { InlineCheckBox } from "../forms/CheckBox";
 import { useCreateAddressOwnershipChallenge } from "../hooks/useCreateAddressOwnershipChallenge";
 import { usePairingMessage } from "../hooks/usePairingMessage";
 import { useRedditAccount } from "../hooks/useRedditAccount";
-import { useRedditAccountActiveVault } from "../hooks/useRedditAccountActiveVault";
+import {
+  RedditAccountActiveVaultResult,
+  useRedditAccountActiveVault,
+} from "../hooks/useRedditAccountActiveVault";
 import {
   FetchedPairingMessage,
   PairingChecklist,
@@ -41,19 +43,20 @@ function ThisStep({
   );
 }
 
-export function FetchPairingMessageStep(): JSX.Element {
-  const account = useAccount();
-  const redditAccount = useRedditAccount();
-  const userId = redditAccount.data?.profile?.userID;
-  const activeVault = useRedditAccountActiveVault({ userId });
-  const fetchedPairingMessage = usePairingMessage(userId);
-
-  // const { state, content } = renderState();
-
-  if (
-    !(account.isConnected && account.address) ||
-    !redditAccount.data?.profile
-  ) {
+export function FetchPairingMessageStep({
+  address,
+  userId,
+  redditUserName,
+  activeVault,
+  fetchedPairingMessage,
+}: {
+  address: Address | undefined;
+  userId: string | undefined;
+  redditUserName: string | undefined;
+  activeVault: RedditAccountActiveVaultResult;
+  fetchedPairingMessage: FetchedPairingMessage | null;
+}): JSX.Element {
+  if (!address || !userId || !redditUserName) {
     // account & reddit errors handled by previous step
     return <ThisStep state="future" />;
   }
@@ -87,22 +90,25 @@ export function FetchPairingMessageStep(): JSX.Element {
 
   return (
     <FetchPairingMessage
-      address={account.address}
+      address={address}
       fetchedPairingMessage={fetchedPairingMessage}
       hasActiveVault={!!activeVault.data}
-      userId={redditAccount.data.profile.userID}
+      userId={userId}
+      redditUserName={redditUserName}
     />
   );
 }
 
 function FetchPairingMessage({
   userId,
+  redditUserName,
   address,
   hasActiveVault,
   fetchedPairingMessage,
 }: {
   userId: string;
-  address: `0x${string}`;
+  redditUserName: string;
+  address: Address;
   hasActiveVault: boolean;
   fetchedPairingMessage: FetchedPairingMessage | null;
 }): JSX.Element {
@@ -113,6 +119,7 @@ function FetchPairingMessage({
 
   const mutation = useCreateAddressOwnershipChallenge({
     userId,
+    redditUserName,
     address,
   });
 

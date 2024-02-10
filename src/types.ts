@@ -71,3 +71,7 @@ export type RecursivePartial<T> = {
 /** Combines members of an intersection into a readable type. */
 // https://twitter.com/mattpocockuk/status/1622730173446557697?s=20&t=NdpAcmEFXY01xkqU3KO0Mg
 export type Evaluate<type> = { [key in keyof type]: type[key] } & unknown;
+
+export type RequiredNonNullable<T> = {
+  [P in keyof T]-?: NonNullable<T[P]>;
+};
