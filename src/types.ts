@@ -1,5 +1,33 @@
-import { Address, getAddress, isAddress } from "viem";
+import { Address, checksumAddress, getAddress, isAddress } from "viem";
 import { z } from "zod";
+
+function transformAddress(
+  rawAddress: string,
+  context: z.RefinementCtx,
+): { rawAddress: Address; checksumAddress: Address } {
+  const withoutChecksum = rawAddress.toLowerCase();
+  if (!isAddress(withoutChecksum)) {
+    context.addIssue({
+      message: "Invalid address",
+      code: z.ZodIssueCode.custom,
+    });
+    return z.NEVER;
+  }
+
+  const checksumAddress = getAddress(withoutChecksum);
+
+  // If the address is lowercase we don't validate its checksum
+  if (withoutChecksum === rawAddress) return { rawAddress, checksumAddress };
+
+  if (checksumAddress !== rawAddress) {
+    context.addIssue({
+      message: "Invalid address checksum",
+      code: z.ZodIssueCode.custom,
+    });
+    return z.NEVER;
+  }
+  return { rawAddress, checksumAddress };
+}
 
 /** An Ethereum 0x... address.
  *
@@ -8,30 +36,23 @@ import { z } from "zod";
  *
  * The value is transformed into a checksum address if it's not already.
  */
-export const EthAddress = z.string().transform((arg, context): Address => {
-  if (!isAddress(arg)) {
-    context.addIssue({
-      message: "Invalid address",
-      code: z.ZodIssueCode.custom,
-    });
-    return z.NEVER;
-  }
+export const EthAddress = z
+  .string()
+  .transform(
+    (arg, context): Address => transformAddress(arg, context).checksumAddress,
+  );
 
-  const checksumAddress = getAddress(arg);
-
-  // If the address is lowercase we don't validate its checksum
-  if (arg.toLowerCase() === arg) return checksumAddress;
-
-  if (checksumAddress !== arg) {
-    context.addIssue({
-      message: "Invalid address checksum",
-      code: z.ZodIssueCode.custom,
-    });
-    return z.NEVER;
-  }
-  return checksumAddress;
-});
-
+/**
+ * A `0x...` address, byte-for-byte identical to lowercase or checksum input format.
+ *
+ * Non-lowercase inputs are validate and parsing fails if the checksum is not
+ * correct. Lowercase inputs are only validated to be valid Eth hex addresses.
+ */
+export const RawEthAddress = z
+  .string()
+  .transform(
+    (arg, context): Address => transformAddress(arg, context).rawAddress,
+  );
 export const HexString = z.string().regex(/^0x[0-9a-fA-F]*$/);
 export type HexString = `0x${string}`;
 

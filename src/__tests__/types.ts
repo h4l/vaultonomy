@@ -1,30 +1,48 @@
-import { EthAddress, EthHexSignature } from "../types";
+import { EthAddress, EthHexSignature, RawEthAddress } from "../types";
+
+const checksumAddress = "0xd2A2B709af3B6d0bba1cCbd1edD65f353aA42C66";
 
 describe("EthAddress", () => {
   test("accepts address with valid checksum", () => {
-    expect(
-      EthAddress.parse("0xd2A2B709af3B6d0bba1cCbd1edD65f353aA42C66"),
-    ).toEqual("0xd2A2B709af3B6d0bba1cCbd1edD65f353aA42C66");
+    expect(EthAddress.parse(checksumAddress)).toEqual(checksumAddress);
   });
 
   test("accepts address with no embedded checksum (lowercase)", () => {
-    expect(
-      EthAddress.parse(
-        "0xd2A2B709af3B6d0bba1cCbd1edD65f353aA42C66".toLowerCase(),
-      ),
-    ).toEqual("0xd2A2B709af3B6d0bba1cCbd1edD65f353aA42C66");
+    expect(EthAddress.parse(checksumAddress.toLowerCase())).toEqual(
+      checksumAddress,
+    );
   });
 
   test("rejects address with invalid checksum", () => {
     expect(() =>
-      EthAddress.parse(
-        "0xd2A2B709af3B6d0bba1cCbd1edD65f353aA42C66".replace("A", "a"),
-      ),
+      EthAddress.parse(checksumAddress.replace("A", "a")),
     ).toThrowError("Invalid address checksum");
   });
 
   test("rejects address with invalid structure", () => {
     expect(() => EthAddress.parse("0x...")).toThrowError("Invalid address");
+  });
+});
+
+describe("RawEthAddress", () => {
+  test("accepts address with valid checksum", () => {
+    expect(RawEthAddress.parse(checksumAddress)).toEqual(checksumAddress);
+  });
+
+  test("accepts address with no embedded checksum (lowercase)", () => {
+    expect(RawEthAddress.parse(checksumAddress.toLowerCase())).toEqual(
+      checksumAddress.toLowerCase(),
+    );
+  });
+
+  test("rejects address with invalid checksum", () => {
+    expect(() =>
+      RawEthAddress.parse(checksumAddress.replace("A", "a")),
+    ).toThrowError("Invalid address checksum");
+  });
+
+  test("rejects address with invalid structure", () => {
+    expect(() => RawEthAddress.parse("0x...")).toThrowError("Invalid address");
   });
 });
 
