@@ -6,8 +6,8 @@ import { useRedditProvider } from "./useRedditProvider";
 
 function activeVaultAddress(
   vaultAddresses?: ReadonlyArray<AccountVaultAddress>,
-): AccountVaultAddress | undefined {
-  return vaultAddresses?.find((va) => va.isActive);
+): AccountVaultAddress | null {
+  return vaultAddresses?.find((va) => va.isActive) ?? null;
 }
 
 export type RedditAccountActiveVaultResult = ReturnType<

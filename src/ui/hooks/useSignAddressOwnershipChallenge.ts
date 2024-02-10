@@ -21,6 +21,7 @@ import { useVaultonomyStore } from "../state/useVaultonomyStore";
 type OwnershipChallengeSigningErrorOptions = {
   address: Address;
   challenge: NormalisedRedditEIP712Challenge;
+  elapsedTimeMs: number;
   message: string;
 } & ErrorOptions;
 
@@ -28,19 +29,33 @@ class BadWalletBehaviourError extends VaultonomyError {}
 class OwnershipChallengeSigningError extends VaultonomyError {
   address: Address;
   challenge: NormalisedRedditEIP712Challenge;
+  elapsedTimeMs: number;
 
   constructor({
     address,
     challenge,
+    elapsedTimeMs,
     message,
     ...superOptions
   }: OwnershipChallengeSigningErrorOptions) {
     super(message, superOptions);
     this.address = address;
     this.challenge = challenge;
+    this.elapsedTimeMs = elapsedTimeMs;
   }
 
   get isUserCancellation() {
+    return this.isRejectedRequest && !this.isAutomaticCancellation;
+  }
+
+  get isAutomaticCancellation() {
+    // Consider cancels within 1s to be automatic wallet cancels. e.g. Ledger
+    // auto-cancels signature requests in the same way as if the user had
+    // cancelled.
+    return this.isRejectedRequest && this.elapsedTimeMs < 1000;
+  }
+
+  get isRejectedRequest() {
     return (
       typeof this.cause === "object" &&
       (this.cause as Record<string, unknown>)?.name ===
@@ -93,8 +108,11 @@ export function useSignAddressOwnershipChallenge({
     ],
     mutationFn: async () => {
       let signature: Hex;
+      const startTimeMs = Date.now();
+      let elapsedTimeMs: number;
       try {
         signature = await signTypedData(config, challenge);
+        elapsedTimeMs = Date.now() - startTimeMs;
 
         // Rainbow wallet returns the string "null" when the user cancels the sign
         // request, instead of sending a user cancelation error.
@@ -106,10 +124,12 @@ export function useSignAddressOwnershipChallenge({
           );
         }
       } catch (e) {
+        elapsedTimeMs = Date.now() - startTimeMs;
         const cause = e as SignTypedDataErrorType;
         throw new SignFailedOwnershipChallengeSigningError({
           address,
           challenge,
+          elapsedTimeMs,
           message: "Signing request to Wallet failed",
           cause,
         });
@@ -130,6 +150,7 @@ export function useSignAddressOwnershipChallenge({
         signature,
         address,
         challenge,
+        elapsedTimeMs,
         message: verification.reasonShort,
       });
     },
@@ -143,8 +164,13 @@ export function useSignAddressOwnershipChallenge({
         cause instanceof OwnershipChallengeSigningError &&
         cause.isUserCancellation
       )
-        error = "cancelled";
-      else if (cause instanceof InvalidSigOwnershipChallengeSigError)
+        error = "user-cancelled";
+      else if (
+        cause instanceof OwnershipChallengeSigningError &&
+        cause.isAutomaticCancellation
+      ) {
+        error = "wallet-cancelled";
+      } else if (cause instanceof InvalidSigOwnershipChallengeSigError)
         error = "signature-invalid";
       else error = "sign-failed";
 

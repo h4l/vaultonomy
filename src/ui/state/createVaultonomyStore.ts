@@ -16,9 +16,9 @@ export type Result<T, E = null> =
 
 export type FetchedPairingMessage = Result<RedditEIP712Challenge>;
 
-type SignedPairingMessage = Result<
+export type SignedPairingMessage = Result<
   HexString,
-  "cancelled" | "sign-failed" | "signature-invalid"
+  "user-cancelled" | "wallet-cancelled" | "sign-failed" | "signature-invalid"
 >;
 
 /**

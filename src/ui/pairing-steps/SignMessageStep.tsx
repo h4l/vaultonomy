@@ -1,22 +1,16 @@
-import { error } from "loglevel";
-import { ReactNode } from "react";
+import { ReactNode, useState } from "react";
 import { Address } from "viem";
-import { useChainId, useSwitchChain } from "wagmi";
+import { mainnet } from "viem/chains";
+import { useSwitchChain } from "wagmi";
 
-import { assert, assertUnreachable } from "../../assert";
+import { assertUnreachable } from "../../assert";
 import { NormalisedRedditEIP712Challenge } from "../../signing";
 import { RequiredNonNullable } from "../../types";
 import { Button } from "../Button";
+import { IndeterminateProgressBar } from "../IndeterminateProgressBar";
 import { Link } from "../Link";
-import { usePairingMessage } from "../hooks/usePairingMessage";
-import { useRedditAccount } from "../hooks/useRedditAccount";
 import { useSignAddressOwnershipChallenge } from "../hooks/useSignAddressOwnershipChallenge";
 import { PAIRING_MESSAGE, WALLET } from "../ids";
-import {
-  ResultError,
-  SignedPairingMessage,
-} from "../state/createVaultonomyStore";
-import { useVaultonomyStore } from "../state/useVaultonomyStore";
 import { useVaultonomyStoreUser } from "../state/useVaultonomyStoreUser";
 import { PairingStepsInlineHelp } from "./PairingStepsInlineHelp";
 import {
@@ -25,7 +19,6 @@ import {
   StepAction,
   StepBody,
 } from "./components";
-import { RedditErrorStepAction } from "./steps";
 
 function ThisStep({
   state,
@@ -44,28 +37,32 @@ function ThisStep({
 export type SignMessageStepParams = {
   userId: string | undefined;
   address: Address | undefined;
+  walletChainId: number | undefined;
   challenge: NormalisedRedditEIP712Challenge | undefined;
 };
 
 export function SignMessageStep({
   userId,
   address,
+  walletChainId,
   challenge,
-}: {
-  userId: string | undefined;
-  address: Address | undefined;
-  challenge: NormalisedRedditEIP712Challenge | undefined;
-}): JSX.Element {
+}: SignMessageStepParams): JSX.Element {
   if (
     userId === undefined ||
     address === undefined ||
+    walletChainId === undefined ||
     challenge === undefined
   ) {
     return <ThisStep state="future" />;
   }
 
   return (
-    <SignMessage userId={userId} address={address} challenge={challenge} />
+    <SignMessage
+      userId={userId}
+      address={address}
+      walletChainId={walletChainId}
+      challenge={challenge}
+    />
   );
 }
 
@@ -75,11 +72,11 @@ type SignMessageParams = RequiredNonNullable<SignMessageStepParams>;
 function SignMessage({
   userId,
   address,
+  walletChainId,
   challenge,
 }: SignMessageParams): JSX.Element {
-  const chainId = useChainId();
-  const { chains, switchChain } = useSwitchChain();
-
+  const [userDidSwitchChains, setUserDidSwitchChains] =
+    useState<boolean>(false);
   const { mutate, status, error } = useSignAddressOwnershipChallenge({
     userId,
     address,
@@ -98,21 +95,14 @@ function SignMessage({
     );
   }
 
-  if (BigInt(chainId) !== challenge.domain.chainId) {
+  if (
+    walletChainId !== undefined &&
+    BigInt(walletChainId) !== challenge.domain.chainId
+  ) {
     return (
       <ThisStep state="present">
-        <StepAction
-          state="error"
-          headline={`Incorrect chain ID ${chainId}`}
-          details={
-            <Button
-              onClick={() =>
-                switchChain({ chainId: Number(challenge.domain.chainId) })
-              }
-            >
-              Switch Chain
-            </Button>
-          }
+        <EnableEthereumInWallet
+          onSwitchStart={() => setUserDidSwitchChains(true)}
         />
       </ThisStep>
     );
@@ -120,6 +110,9 @@ function SignMessage({
 
   return (
     <ThisStep state="present">
+      {userDidSwitchChains ?
+        <StepAction state="done" headline="Wallet using Ethereum network" />
+      : undefined}
       <StepBody>
         <p className="mb-2">
           Sign{" "}
@@ -150,11 +143,16 @@ function SignMessage({
         </ul>
         <Button
           size="l"
-          className="block m-4"
+          className="relative block m-4"
           disabled={status === "pending"}
           onClick={() => mutate()}
         >
           Sign Message
+          {status === "pending" ?
+            <div className="absolute bottom-0 left-0 w-full">
+              <IndeterminateProgressBar />
+            </div>
+          : undefined}
         </Button>
       </StepBody>
       {(status === "pending" || !result) && (
@@ -163,11 +161,82 @@ function SignMessage({
           headline="Awaiting signature from your Wallet…"
         />
       )}
-      {/* TODO: need to consult stored error */}
-      {!result?.error || result.error === "cancelled" ?
-        undefined
-      : <SignMessageError error={result.error} />}
+      {result?.error && status !== "pending" ?
+        result.error === "user-cancelled" ?
+          undefined
+        : result.error === "wallet-cancelled" ?
+          <StepAction
+            state="error"
+            headline="Your Wallet rejected your signature request"
+            details={
+              <>
+                <p className="my-2">
+                  Unless you cancelled the request yourself, your Wallet may be
+                  blocking the typed-data ("EIP-712") signature format of
+                  Reddit's Message for security reasons.
+                </p>
+
+                <p className="my-2">
+                  For example, Ledger Live auto-rejects typed-data signature
+                  requests that it doesn't have prior knowledge of. And it does
+                  not yet know about Reddit's. But connecting a Ledger device
+                  via MetaMask works correctly.
+                </p>
+              </>
+            }
+          />
+        : <SignMessageError error={result.error} />
+      : undefined}
     </ThisStep>
+  );
+}
+
+function EnableEthereumInWallet({
+  onSwitchStart,
+}: {
+  onSwitchStart?: () => void;
+}) {
+  const { switchChain, status, error } = useSwitchChain();
+  return (
+    <>
+      <StepAction
+        state="error"
+        headline={`Your Wallet app has the wrong network enabled`}
+        details={
+          <>
+            Your Wallet app needs to enable the Ethereum network to sign
+            Reddit's Message.
+            <Button
+              size="l"
+              className="relative block m-4"
+              onClick={() => {
+                onSwitchStart && onSwitchStart();
+                switchChain({ chainId: mainnet.id });
+              }}
+            >
+              Enable Ethereum Chain
+              {status === "pending" ?
+                <div className="absolute bottom-0 left-0 w-full">
+                  <IndeterminateProgressBar />
+                </div>
+              : undefined}
+            </Button>
+          </>
+        }
+      />
+      {status === "error" && error?.name !== "UserRejectedRequestError" ?
+        <StepAction
+          state="error"
+          headline="Vaultonomy hit an error while asking your Wallet to enable the Ethereum network."
+        />
+      : undefined}
+      {status === "pending" ?
+        <StepAction
+          state="pending"
+          headline="Asking Wallet app to enable the Ethereum network…"
+        />
+      : undefined}
+    </>
   );
 }
 

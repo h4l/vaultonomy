@@ -2,7 +2,12 @@ import { ReactElement, ReactNode, useId, useMemo, useRef } from "react";
 import { Address } from "viem";
 import { useAccount } from "wagmi";
 
-import { normaliseRedditChallenge } from "../signing";
+import { AccountVaultAddress } from "../reddit/reddit-interaction-client";
+import { RedditUserProfile } from "../reddit/reddit-interaction-spec";
+import {
+  NormalisedRedditEIP712Challenge,
+  normaliseRedditChallenge,
+} from "../signing";
 import { Button } from "./Button";
 import { EthInput, VaultonomyCard } from "./Card";
 import { Heading } from "./Heading";
@@ -20,28 +25,46 @@ import { SignMessageStep } from "./pairing-steps/SignMessageStep";
 import { PairingStep, StepBody } from "./pairing-steps/components";
 import { useVaultonomyStore } from "./state/useVaultonomyStore";
 
-export function Pairing(): JSX.Element {
+export function Pairing({
+  userProfile,
+  activeVault,
+}: {
+  userProfile: RedditUserProfile | undefined;
+  activeVault: AccountVaultAddress | null | undefined;
+}): JSX.Element {
+  const hasNoActiveVault = activeVault === null;
   const [pairingInterest, setPairingInterest] = useVaultonomyStore((s) => [
     s.pairingInterest,
     s.setPairingInterest,
   ]);
+  const pairingMessage = useValidatedPairingMessage(userProfile?.userID);
 
   return (
     <ExpandingNonModalDialog
       sectionLabel="Pair Wallet with Reddit"
       dialogLabel="Pair Wallet with Reddit"
       heading={
-        <Heading className="text-center">“I want to change my Vault…”</Heading>
+        <Heading className="text-center">
+          {hasNoActiveVault ?
+            <>“I want a Vault for my account…”</>
+          : <>“I want to change my Vault…”</>}
+        </Heading>
       }
-      expanded={pairingInterest === "interested"}
+      expanded={!!(pairingInterest === "interested" && userProfile)}
       onExpand={() => setPairingInterest("interested")}
       onCollapse={() => setPairingInterest("disinterested")}
     >
       <div className="mx-10 my-8 gap-16 flex flex-col justify-center items-center">
         {/* <Heading className="text-center">Pair Wallet with Reddit</Heading> */}
-        <PairingNarrative />
+        <PairingNarrative
+          redditUserName={userProfile?.username}
+          hasNoActiveVault={hasNoActiveVault}
+        />
         <PairingSteps />
-        <PairingMessage
+        {pairingMessage?.messageFields ?
+          <PairingMessage message={pairingMessage.messageFields} />
+        : undefined}
+        {/* <PairingMessage
           message={{
             domain: {
               name: "reddit",
@@ -57,10 +80,30 @@ export function Pairing(): JSX.Element {
                 "3afeac718855f79a1052384582f3e7bff7c8606d5e225c00db9db977897d5d04",
             },
           }}
-        />
+        /> */}
       </div>
     </ExpandingNonModalDialog>
   );
+}
+
+function useValidatedPairingMessage(userId: string | undefined):
+  | {
+      messageFields: RedditVaultPairingMessageFields;
+      normalisedPairingMessage: NormalisedRedditEIP712Challenge;
+    }
+  | undefined {
+  const fetchedPairingMessage = usePairingMessage(userId);
+  return useMemo(() => {
+    if (!fetchedPairingMessage || fetchedPairingMessage.result !== "ok")
+      return undefined;
+    const normalisedPairingMessage = normaliseRedditChallenge(
+      fetchedPairingMessage.value,
+    );
+    const messageFields = challengeAsPairingMessageFields(
+      normalisedPairingMessage,
+    );
+    return { normalisedPairingMessage, messageFields };
+  }, [fetchedPairingMessage]);
 }
 
 /**
@@ -152,7 +195,14 @@ function ExpandingNonModalDialog({
   );
 }
 
-function PairingNarrative(): JSX.Element {
+function PairingNarrative({
+  redditUserName: _redditUserName,
+  hasNoActiveVault,
+}: {
+  redditUserName: string | undefined;
+  hasNoActiveVault: boolean | undefined;
+}): JSX.Element {
+  const redditUserName = (_redditUserName ?? "Unknown").toUpperCase();
   const headingId = useId();
   return (
     <aside
@@ -160,7 +210,7 @@ function PairingNarrative(): JSX.Element {
       className="grid grid-cols-[auto_1fr] max-w-prose gap-x-4 gap-y-2"
     >
       <Heading id={headingId} level={3} className="text-center col-span-2">
-        The pairing process
+        The Pairing Process
       </Heading>
       {/* <div className="col-span-2">
         <h3 className="text-center text-xl">Act 1</h3>
@@ -168,12 +218,15 @@ function PairingNarrative(): JSX.Element {
       </div> */}
       <Setting>Somewhere on the Internet, present day.</Setting>
       <Stage>
-        SUPERBADGER, a Reddit user, is talking to REDDIT with the help of
+        {redditUserName}, a Reddit user, is talking to REDDIT with the help of
         VAULTONOMY.
       </Stage>
-      <Dialogue name="SUPERBADGER">
-        “I want to change my Vault Address. But I’m not giving you my seed
-        phrase, I’ve got my own Wallet…”
+      <Dialogue name={redditUserName}>
+        “
+        {hasNoActiveVault ?
+          <>I want a Vault for my account.</>
+        : <>I want to change my Vault Address.</>}{" "}
+        But I’m not giving you my seed phrase, I’ve got my own Wallet…”
       </Dialogue>
       <Dialogue name="REDDIT">
         “OK. But I need to be sure the new Address is yours. If you can sign a
@@ -181,11 +234,16 @@ function PairingNarrative(): JSX.Element {
         I’ll make it your Vault.”
       </Dialogue>
       <Dialogue name="VAULTONOMY">
+        “I'm here to mediate between your Wallet and Reddit to get you a Vault
+        using your Wallet's Address. Follow these steps and we'll have your
+        Wallet paired as your Vault in no time!”
+      </Dialogue>
+      {/* <Dialogue name="VAULTONOMY">
         “The message Reddit needs you to sign is below. When you’re ready, hit{" "}
         <em>Pair Wallet</em> and sign the message with your Wallet. Then I’ll
         pass it on to Reddit, and your Wallet’s address will become your Vault
         Address too.”
-      </Dialogue>
+      </Dialogue> */}
     </aside>
   );
 }
@@ -264,6 +322,7 @@ function PairingSteps(): JSX.Element {
 
             <SignMessageStep
               address={account.address}
+              walletChainId={account.chainId}
               challenge={normalisedChallenge}
               userId={userId}
             />
@@ -355,6 +414,25 @@ interface RedditVaultPairingMessageFields {
   };
 }
 
+function challengeAsPairingMessageFields(
+  challenge: NormalisedRedditEIP712Challenge,
+): RedditVaultPairingMessageFields {
+  return {
+    domain: {
+      name: challenge.domain.name,
+      chainId: `${Number(challenge.domain.chainId)}`,
+      version: challenge.domain.version,
+      salt: challenge.domain.salt,
+    },
+    message: {
+      address: challenge.message.address,
+      redditUser: challenge.message.redditUserName,
+      expiresAt: new Date(challenge.message.expiresAt),
+      nonce: challenge.message.nonce,
+    },
+  };
+}
+
 function PairingMessage({
   message,
 }: {
@@ -377,7 +455,7 @@ function PairingMessage({
       <div className="flex flex-row flex-wrap justify-center gap-x-40 gap-y-20">
         <PairingMessageSection
           name="Domain"
-          explanation="The Domain is the recipient of the Message you’re signing. (Like the payee on a bank cheque.) It stops your message being re-used."
+          explanation="The Domain is the recipient of the Message you’re signing. (Like the payee on a bank cheque.) It stops your message being used in a way you don't expect — it's only for Reddit."
         >
           <PairingMessageField
             name="Name"
