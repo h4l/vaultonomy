@@ -5,7 +5,7 @@
 import { z } from "zod";
 
 import { HTTPResponseError } from "../errors/http";
-import { EthAddress, EthHexSignature } from "../types";
+import { EthAddress, EthHexSignature, RawEthAddress } from "../types";
 
 // TODO: review how strictly we validate the challenge structure.
 // We need to be sure that we're presenting a challenge for Reddit, so it
@@ -27,7 +27,7 @@ export const RedditEIP712Challenge = z.object({
     version: z.string(),
   }),
   message: z.object({
-    address: z.string(),
+    address: RawEthAddress,
     expiresAt: z.string(),
     nonce: z.string(),
     redditUserName: z.string(),
