@@ -1,12 +1,20 @@
+import { z } from "zod";
+
 import { StorageAreaGetSetRemove } from "../webextension";
 import { UserPageData } from "./page-data";
 import { safeGetPrivateCache } from "./private-cache";
 
 const SESSION_KEY = "reddit.session";
 
+export const StoredUserPageData = z.object({
+  requestedAt: z.number(),
+  userPageData: UserPageData,
+});
+export type StoredUserPageData = z.infer<typeof StoredUserPageData>;
+
 export interface IUserPageDataCache {
-  getUserSession(): Promise<UserPageData | undefined>;
-  setUserSession(userSession: UserPageData): Promise<void>;
+  getUserSession(): Promise<StoredUserPageData | undefined>;
+  setUserSession(userSession: StoredUserPageData): Promise<void>;
   clear(): Promise<void>;
 }
 
@@ -27,11 +35,11 @@ export function createPrivateUserPageDataCache(): IUserPageDataCache {
 export class UserPageDataCache implements IUserPageDataCache {
   constructor(private readonly cache: StorageAreaGetSetRemove) {}
 
-  async getUserSession(): Promise<UserPageData | undefined> {
+  async getUserSession(): Promise<StoredUserPageData | undefined> {
     try {
       const session = (await this.cache.get(SESSION_KEY))[SESSION_KEY];
       if (session === undefined) return undefined;
-      return UserPageData.parse(session);
+      return StoredUserPageData.parse(session);
     } catch (error) {
       console.error(
         `Failed to load ${SESSION_KEY} from cache as UserPageData. Resetting cache.`,
@@ -42,7 +50,7 @@ export class UserPageDataCache implements IUserPageDataCache {
     return undefined;
   }
 
-  async setUserSession(userSession: UserPageData): Promise<void> {
+  async setUserSession(userSession: StoredUserPageData): Promise<void> {
     try {
       await this.cache.set({ [SESSION_KEY]: userSession });
     } catch (error) {
@@ -64,10 +72,10 @@ class AsyncUserPageDataCache implements IUserPageDataCache {
     private readonly userPageDataCache: Promise<UserPageDataCache | undefined>,
   ) {}
 
-  async getUserSession(): Promise<UserPageData | undefined> {
+  async getUserSession(): Promise<StoredUserPageData | undefined> {
     return (await this.userPageDataCache)?.getUserSession();
   }
-  async setUserSession(userSession: UserPageData): Promise<void> {
+  async setUserSession(userSession: StoredUserPageData): Promise<void> {
     (await this.userPageDataCache)?.setUserSession(userSession);
   }
   async clear(): Promise<void> {

@@ -1,11 +1,14 @@
 import { jest } from "@jest/globals";
 import { mock } from "jest-mock-extended";
 
+import { sleep } from "../../__tests__/testing.utils";
 import { assert } from "../../assert";
 import { HTTPResponseError } from "../../errors/http";
 import { log } from "../../logging";
-import type { UserPageDataCache } from "../UserPageDataCache";
-import { UserPageData } from "../page-data";
+import type {
+  StoredUserPageData,
+  UserPageDataCache,
+} from "../UserPageDataCache";
 import { anonUser, loggedInUser } from "./page-data.fixtures";
 
 type PageDataModule = typeof import("../page-data");
@@ -31,8 +34,9 @@ const { SessionManager, createCachedSessionManager } = await import(
   "../SessionManager"
 );
 
-const DAY = 1000 * 60 * 60 * 24;
 const SECOND = 1000;
+const HOUR = 1000 * 60 * 60;
+const DAY = HOUR * 24;
 
 describe("createCachedSessionManager()", () => {
   test("uses createPrivateUserPageDataCache()", () => {
@@ -46,8 +50,9 @@ describe("createCachedSessionManager()", () => {
   });
 });
 
+// TODO: test for noStore ignoring cached value
 describe("SessionManager", () => {
-  let cachedUser: UserPageData | undefined;
+  let cachedUser: StoredUserPageData | undefined;
   const cache: UserPageDataCache = mock<UserPageDataCache>();
 
   beforeEach(() => {
@@ -69,11 +74,16 @@ describe("SessionManager", () => {
   test("concurrent requests are grouped and served by a single fetchPageData() call", async () => {
     const user1Expires = Date.now() + DAY;
     const user1 = loggedInUser({ authExpires: new Date(user1Expires) });
-    jest.mocked(fetchPageData).mockResolvedValueOnce(user1);
+
+    jest.mocked(fetchPageData).mockImplementationOnce(async () => {
+      await sleep();
+      return user1;
+    });
 
     const sm = new SessionManager(cache);
-
     const pendingSessions = [...new Array(5)].map(() => sm.getPageData());
+
+    await jest.advanceTimersToNextTimerAsync();
     const sessions = await Promise.all(pendingSessions);
 
     for (const session of sessions) {
@@ -112,13 +122,13 @@ describe("SessionManager", () => {
 
     const sm = new SessionManager(cache);
     await expect(sm.getPageData()).resolves.toEqual(noUser);
-    jest.advanceTimersByTime(SECOND);
+    jest.advanceTimersByTime(SECOND / 2);
     await expect(sm.getPageData()).resolves.toEqual(noUser);
     // The second request is served from the in-memory cache
     expect(fetchPageData).toHaveBeenCalledTimes(1);
 
-    // in-memory cache expires after a few seconds
-    jest.advanceTimersByTime(5 * SECOND);
+    // logged-out responses are cached for ~1 second
+    jest.advanceTimersByTime(SECOND);
 
     await expect(sm.getPageData()).resolves.toEqual(noUser);
     expect(fetchPageData).toHaveBeenCalledTimes(2);
@@ -135,12 +145,12 @@ describe("SessionManager", () => {
     expect(fetchPageData).toHaveBeenCalledTimes(1);
 
     // cache is now populated with user1 response
-    jest.advanceTimersByTime(DAY / 2);
+    await jest.advanceTimersByTimeAsync(DAY / 2);
 
-    // Start a new environment with no in-memory cache
+    // Start a new environment with no in-memory cache but the same persistent cache
     const sm2 = new SessionManager(cache);
     await expect(sm2.getPageData()).resolves.toEqual(user1);
-    jest.advanceTimersByTime(DAY / 4);
+    await jest.advanceTimersByTimeAsync(DAY / 4);
     await expect(sm2.getPageData()).resolves.toEqual(user1);
 
     // The second request is served from the in-persistent cache
@@ -149,7 +159,7 @@ describe("SessionManager", () => {
     expect(fetchPageData).toHaveBeenCalledTimes(1);
 
     // Once user1 expires, fetchPageData is called again
-    jest.advanceTimersByTime(DAY / 4);
+    await jest.advanceTimersByTimeAsync(DAY / 4);
 
     const user2Expires = Date.now() + DAY;
     assert(user1Expires < user2Expires);
@@ -160,71 +170,87 @@ describe("SessionManager", () => {
     expect(fetchPageData).toHaveBeenCalledTimes(2);
   });
 
-  // test("concurrent requests that fail are handled by a single fetchPageData()", async () => {
-
-  test("Recovers from fetchPageData() errors by retrying", async () => {
+  test("Throws errors from fetchPageData without retrying", async () => {
     jest.spyOn(log, "error").mockImplementation(() => {});
 
     const user1Expires = Date.now() + DAY;
     const user1 = loggedInUser({ authExpires: new Date(user1Expires) });
 
-    // getPageData makes 3 attempts max when fetchPageData requests fail
     jest
       .mocked(fetchPageData)
-      .mockRejectedValueOnce(new HTTPResponseError("fail1", {} as any))
-      .mockRejectedValueOnce(new HTTPResponseError("fail2X", {} as any))
+      .mockImplementationOnce(async () => {
+        sleep();
+        throw new HTTPResponseError("fail1", {} as any);
+      })
       .mockResolvedValueOnce(user1);
 
     const sm1 = new SessionManager(cache);
-    const pendingPageData = sm1.getPageData();
 
-    // First attempt happens immediately and fails
-    await jest.advanceTimersByTimeAsync(10);
+    // First attempt fails (concurrent requests use the same request & error)
+    const [req1, req2] = [sm1.getPageData(), sm1.getPageData()];
+    await expect(req1).rejects.toThrow("fail1");
+    await expect(req2).rejects.toThrow("fail1");
     expect(fetchPageData).toHaveBeenCalledTimes(1);
 
-    // Second attempt happens 100ms after first fails. It also fails.
-    await jest.advanceTimersByTimeAsync(100);
-    expect(fetchPageData).toHaveBeenCalledTimes(2);
-
-    // Third attempt happens 1000ms after second fails. It succeeds.
-    await jest.advanceTimersByTimeAsync(1000);
-    expect(fetchPageData).toHaveBeenCalledTimes(3);
-
-    await expect(pendingPageData).resolves.toEqual(user1);
-    expect(log.error).toBeCalledTimes(2);
+    // Second attempt succeeds
+    await jest.advanceTimersByTimeAsync(10);
+    await expect(sm1.getPageData()).resolves.toEqual(user1);
   });
 
-  test("Throws last fetchPageData() error after 3 attempts", async () => {
-    jest.spyOn(log, "error").mockImplementation(() => {});
+  // TODO: Test error responses are not cached
 
+  test("minFresh", async () => {
     const user1 = loggedInUser({ authExpires: new Date(Date.now() + DAY) });
+    const user2 = loggedInUser({ authExpires: new Date(Date.now() + DAY * 2) });
+
     jest
       .mocked(fetchPageData)
-      .mockRejectedValueOnce(new HTTPResponseError("fail1", {} as any))
-      .mockRejectedValueOnce(new HTTPResponseError("fail2", {} as any))
-      .mockRejectedValueOnce(new HTTPResponseError("fail3", {} as any))
-      .mockResolvedValueOnce(user1);
+      .mockResolvedValueOnce(user1)
+      .mockResolvedValueOnce(user2);
 
-    const sm1 = new SessionManager(cache);
-    const pendingPageData = sm1.getPageData();
-    pendingPageData.catch(() => {}); // prevent the error being unhandled before we expect it
+    const sm = new SessionManager(cache);
+    await expect(sm.getPageData()).resolves.toEqual(user1);
 
-    await jest.advanceTimersByTimeAsync(200);
-    // Requests that come in while retrying use the ongoing retrying response
-    const concurrentRequest = sm1.getPageData();
-    concurrentRequest.catch(() => {});
+    // 1h 1s left
+    await jest.advanceTimersByTimeAsync(HOUR * 23 - SECOND);
+    await expect(sm.getPageData({ minFresh: HOUR })).resolves.toEqual(user1);
+
+    // Now 1s less than 1h left
+    await jest.advanceTimersByTimeAsync(SECOND * 2);
+    await expect(sm.getPageData({ minFresh: HOUR })).resolves.toEqual(user2);
+  });
+
+  test("maxAge", async () => {
+    const user1 = loggedInUser({ authExpires: new Date(Date.now() + DAY) });
+    const user2 = loggedInUser({ authExpires: new Date(Date.now() + DAY * 2) });
+
+    jest
+      .mocked(fetchPageData)
+      .mockResolvedValueOnce(user1)
+      .mockResolvedValueOnce(user2);
+
+    const sm = new SessionManager(cache);
+    await expect(sm.getPageData()).resolves.toEqual(user1);
+
+    await jest.advanceTimersByTimeAsync(SECOND / 2);
+    await expect(sm.getPageData({ maxAge: SECOND })).resolves.toEqual(user1);
 
     await jest.advanceTimersByTimeAsync(SECOND);
-    expect(fetchPageData).toHaveBeenCalledTimes(3);
+    await expect(sm.getPageData({ maxAge: SECOND })).resolves.toEqual(user2);
+  });
 
-    await expect(pendingPageData).rejects.toThrowError(HTTPResponseError);
-    await expect(pendingPageData).rejects.toThrowError("fail3");
-    await expect(concurrentRequest).rejects.toThrowError(HTTPResponseError);
-    await expect(concurrentRequest).rejects.toThrowError("fail3");
+  test("Errors are not cached", async () => {
+    jest
+      .mocked(fetchPageData)
+      .mockRejectedValueOnce(new Error("fail1"))
+      .mockRejectedValueOnce(new Error("fail2"));
 
-    expect(log.error).toBeCalledTimes(3);
+    const sm = new SessionManager(cache);
+    await expect(sm.getPageData()).rejects.toThrowError("fail1");
 
-    // The error response isn't cached after the retry attempts fail
-    await expect(sm1.getPageData()).resolves.toEqual(user1);
+    await jest.advanceTimersByTimeAsync(SECOND / 2);
+    await expect(sm.getPageData({ maxAge: SECOND })).rejects.toThrowError(
+      "fail2",
+    );
   });
 });

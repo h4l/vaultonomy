@@ -21,21 +21,36 @@ import {
   RedditRegisterAddressWithAccount,
 } from "./reddit-interaction-spec";
 
+const LOGGED_OUT_LIFETIME = 1000;
+const MIN_SESSION_LENGTH = 1000 * 60 * 10;
+
+// TODO: we should clear the user session cache when a non-cached request sees a
+// logged-out user, otherwise we'll hold onto credentials after logout.
+
 async function getUserSession(
   sessionManager: SessionManager,
   expectedUserId: string | null,
 ): Promise<UserPageData> {
-  const pageData = await sessionManager.getPageData();
+  const pageData = await sessionManager.getPageData(
+    // When not requesting the session for a specific user, we revalidate the
+    // current session by requesting the live page data, bypassing the cache.
+    // Allow these responses to be cached in-memory for 1s to avoid duplicate requests.
+    expectedUserId === null ?
+      { maxAge: LOGGED_OUT_LIFETIME }
+      // When fetching a session for a known user, just require that there's a
+      // reasonable amount of session length remaining on their auth token.
+    : { minFresh: MIN_SESSION_LENGTH },
+  );
+  // We don't cache logged-out responses, so this will be an up-to-date result
   if (!pageData.loggedIn) {
     throw new JSONRPCErrorException(
       "User is not logged in to the Reddit website",
       ErrorCode.USER_NOT_LOGGED_IN,
     );
   }
+
   if (expectedUserId !== null && expectedUserId !== pageData.user.userID) {
-    // TODO: should we do something extra here? We could manage multiple
-    // sessions, per-user. We could automatically try to re-auth with the
-    // current reddit session.
+    // The UI is responsible for handling this situation.
     throw new JSONRPCErrorException(
       "Active session is not for the expected userId",
       ErrorCode.WRONG_USER,
