@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useRef } from "react";
+import { ReactNode, useRef } from "react";
 import { WagmiProvider } from "wagmi";
 
 import { wagmiConfig } from "../wagmi";
@@ -13,14 +13,25 @@ import { useRedditAccount } from "./hooks/useRedditAccount";
 import { useRedditAccountActiveVault } from "./hooks/useRedditAccountActiveVault";
 import { VaultonomyContext } from "./state/VaultonomyContext";
 import { createVaultonomyStore } from "./state/createVaultonomyStore";
+import { useStoreCurrentUserId } from "./state/useStoreCurrentUserId";
 
 const queryClient = new QueryClient();
 
-export function DevServerRoot(): JSX.Element {
-  return <App isOnDevServer={true} />;
+export function App() {
+  return (
+    <AppContext>
+      <AppUI />
+    </AppContext>
+  );
 }
 
-export function App({ isOnDevServer }: { isOnDevServer?: boolean } = {}) {
+export function AppContext({
+  isOnDevServer,
+  children,
+}: {
+  isOnDevServer?: boolean;
+  children?: ReactNode;
+} = {}) {
   const help = useRootHelpState();
   const store = useRef(createVaultonomyStore({ isOnDevServer })).current;
 
@@ -28,23 +39,19 @@ export function App({ isOnDevServer }: { isOnDevServer?: boolean } = {}) {
     <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>
         <VaultonomyContext.Provider value={store}>
-          {/* <VaultonomyRoot> */}
-          <HelpContext.Provider value={help}>
-            <AppUI />
-          </HelpContext.Provider>
-          {/* </VaultonomyRoot> */}
+          <HelpContext.Provider value={help}>{children}</HelpContext.Provider>
         </VaultonomyContext.Provider>
       </QueryClientProvider>
     </WagmiProvider>
   );
 }
 
-function AppUI() {
-  const userProfile = useRedditAccount();
-  const userId = userProfile.data?.profile?.userID;
-  const { isRedditAvailable, data: activeVault } = useRedditAccountActiveVault({
-    userId,
-  });
+export function AppUI() {
+  const redditAccount = useRedditAccount();
+  useStoreCurrentUserId(redditAccount);
+  const userId = redditAccount.data?.userID;
+  const activeVault = useRedditAccountActiveVault({ userId });
+  const wallet = useAccount();
 
   return (
     <>
