@@ -8,34 +8,35 @@ import { bindPortToJSONRPCServer } from "./rpc/webextension-port-json-rpc";
 import { browser } from "./webextension";
 import { retroactivePortDisconnection } from "./webextensions/retroactivePortDisconnection";
 
-let availabilityConnection: chrome.runtime.Port | undefined;
-let connectionOverlay: ConnectionOverlay | undefined;
+type Stop = () => void;
+
+let stop: Stop | undefined = undefined;
 
 function isStarted(): boolean {
-  return availabilityConnection !== undefined;
+  return stop !== undefined;
 }
 
-function start() {
+function start(): Stop {
   if (isStarted()) {
-    console.warn("attempted to start() when already started");
-    return;
+    assert(false, "attempted to start() when already started");
   }
 
-  availabilityConnection = createAvailabilityConnection();
-  handleRedditInteractionConnections();
+  const availabilityConnection = createAvailabilityConnection();
+  const stopRedditInteractionConnections = handleRedditInteractionConnections(
+    availabilityConnection,
+  );
 
-  connectionOverlay = new ConnectionOverlay({
-    onRemoved: () => isStarted() && stop(),
+  const connectionOverlay = new ConnectionOverlay({
+    onRemoved: () => stop && stop(),
   });
   connectionOverlay.render();
-}
 
-function stop() {
-  availabilityConnection?.disconnect();
-  availabilityConnection = undefined;
-
-  connectionOverlay?.remove();
-  connectionOverlay = undefined;
+  return () => {
+    stop = undefined;
+    stopRedditInteractionConnections();
+    availabilityConnection.disconnect();
+    connectionOverlay.remove();
+  };
 }
 
 export function createAvailabilityConnection(): chrome.runtime.Port {
@@ -45,14 +46,17 @@ export function createAvailabilityConnection(): chrome.runtime.Port {
   retroactivePortDisconnection.register(port);
   retroactivePortDisconnection.addRetroactiveDisconnectListener(port, () => {
     log.debug("availability Port disconnected");
-    stop();
+    stop && stop();
   });
   // TODO: add explicit message handler to stop?
   return port;
 }
 
-export function handleRedditInteractionConnections() {
-  browser.runtime.onConnect.addListener((port) => {
+export function handleRedditInteractionConnections(
+  availabilityConnection: chrome.runtime.Port,
+): Stop {
+  const onConnect = (port: chrome.runtime.Port): void => {
+    log.debug("Port Connected:", port.name);
     retroactivePortDisconnection.register(port);
     if (!REDDIT_INTERACTION_PORT_NAME.matches(port.name)) {
       log.debug("Closing unexpected connection: ", port);
@@ -78,17 +82,20 @@ export function handleRedditInteractionConnections() {
         port.disconnect();
       },
     );
-  });
+  };
+  browser.runtime.onConnect.addListener(onConnect);
+  return () => browser.runtime.onConnect.removeListener(onConnect);
 }
 
 export function main() {
   if (document.readyState === "complete") {
-    start();
+    stop = start();
     return;
+  } else {
+    document.addEventListener("readystatechange", () => {
+      if (document.readyState === "complete") {
+        stop = start();
+      }
+    });
   }
-  document.addEventListener("readystatechange", () => {
-    if (document.readyState === "complete") {
-      start();
-    }
-  });
 }
