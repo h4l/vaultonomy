@@ -10,6 +10,7 @@ import {
 import { MockPort } from "../../__tests__/webextension.mock";
 
 import { sleep } from "../../__tests__/testing.utils";
+import { retroactivePortDisconnection } from "../../webextensions/retroactivePortDisconnection";
 import {
   bindPortToJSONRPCClient,
   bindPortToJSONRPCServer,
@@ -68,6 +69,7 @@ describe("bindPortToJSONRPCClient()", () => {
   let port: MockPort;
   beforeEach(() => {
     port = new MockPort();
+    retroactivePortDisconnection.register(port);
     client = new JSONRPCClient(createPortSendRequestFn(port));
   });
 

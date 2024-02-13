@@ -7,6 +7,8 @@ import {
   SendRequest,
 } from "json-rpc-2.0";
 
+import { retroactivePortDisconnection } from "../webextensions/retroactivePortDisconnection";
+
 type Unbind = () => void;
 
 export function bindPortToJSONRPCServer({
@@ -44,7 +46,7 @@ export function bindPortToJSONRPCClient({
   let disconnected = false;
   const unbind = (message: string) => {
     if (disconnected) return;
-    port.onDisconnect.removeListener(onDisconnect);
+    unbindDisconnect();
     port.onMessage.removeListener(onMessage);
     client.rejectAllPendingRequests(message);
     disconnected = true;
@@ -56,7 +58,11 @@ export function bindPortToJSONRPCClient({
     client.receive(message as JSONRPCResponse);
   };
 
-  port.onDisconnect.addListener(onDisconnect);
+  const unbindDisconnect =
+    retroactivePortDisconnection.addRetroactiveDisconnectListener(
+      port,
+      onDisconnect,
+    );
   port.onMessage.addListener(onMessage);
 
   return () => {
@@ -74,7 +80,7 @@ export function bindPortToJSONRPCServerAndClient({
   let disconnected = false;
   const unbind = (message: string) => {
     if (disconnected) return;
-    port.onDisconnect.removeListener(onDisconnect);
+    unbindDisconnect();
     port.onMessage.removeListener(onMessage);
     serverAndClient.rejectAllPendingRequests(message);
     disconnected = true;
@@ -86,7 +92,11 @@ export function bindPortToJSONRPCServerAndClient({
     serverAndClient.receiveAndSend(message);
   };
 
-  port.onDisconnect.addListener(onDisconnect);
+  const unbindDisconnect =
+    retroactivePortDisconnection.addRetroactiveDisconnectListener(
+      port,
+      onDisconnect,
+    );
   port.onMessage.addListener(onMessage);
 
   return () => {
