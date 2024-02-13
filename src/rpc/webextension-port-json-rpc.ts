@@ -7,9 +7,34 @@ import {
   SendRequest,
 } from "json-rpc-2.0";
 
+import { AssertionError } from "../assert";
 import { retroactivePortDisconnection } from "../webextensions/retroactivePortDisconnection";
 
 type Unbind = () => void;
+
+type JSONRPCServerOrClient =
+  | JSONRPCClient
+  | JSONRPCServer
+  | JSONRPCServerAndClient;
+const bindings = new WeakMap<chrome.runtime.Port, JSONRPCServerOrClient>();
+
+function ensureNotPreviouslyBound(
+  port: chrome.runtime.Port,
+  serverOrClient: JSONRPCClient | JSONRPCServer | JSONRPCServerAndClient,
+) {
+  const existing = bindings.get(port);
+  if (existing !== undefined) {
+    if (existing === serverOrClient) {
+      throw new AssertionError(
+        `Attempted to bind a previously-bound port ${port.name} to the same target: ${serverOrClient}`,
+      );
+    }
+    throw new AssertionError(
+      `Attempted to bind a previously-bound port ${port.name} to two different targets. Existing: ${existing}, latest: ${serverOrClient}`,
+    );
+  }
+  bindings.set(port, serverOrClient);
+}
 
 export function bindPortToJSONRPCServer({
   port,
@@ -18,6 +43,8 @@ export function bindPortToJSONRPCServer({
   port: chrome.runtime.Port;
   server: JSONRPCServer;
 }): Unbind {
+  ensureNotPreviouslyBound(port, server);
+
   const listener = async (message: unknown) => {
     const response = await server.receive(message as JSONRPCRequest);
     if (response !== null) port.postMessage(response);
@@ -43,6 +70,8 @@ export function bindPortToJSONRPCClient({
   port: chrome.runtime.Port;
   client: JSONRPCClient;
 }): Unbind {
+  ensureNotPreviouslyBound(port, client);
+
   let disconnected = false;
   const unbind = (message: string) => {
     if (disconnected) return;
@@ -77,6 +106,8 @@ export function bindPortToJSONRPCServerAndClient({
   port: chrome.runtime.Port;
   serverAndClient: JSONRPCServerAndClient;
 }): Unbind {
+  ensureNotPreviouslyBound(port, serverAndClient);
+
   let disconnected = false;
   const unbind = (message: string) => {
     if (disconnected) return;
