@@ -3,7 +3,7 @@ import { useQueries } from "@tanstack/react-query";
 import { RedditProviderError } from "../../reddit/reddit-interaction-client";
 import { ErrorCode } from "../../reddit/reddit-interaction-spec";
 import { useVaultonomyStore } from "../state/useVaultonomyStore";
-import { useRedditProvider } from "./useRedditProvider";
+import { assumeAvailable, useRedditProvider } from "./useRedditProvider";
 
 export type UseRedditAccountResult = ReturnType<typeof useRedditAccount>;
 
@@ -42,14 +42,18 @@ export function useRedditAccount() {
       {
         queryKey: ["RedditProvider", "UserProfile:cached", currentUserId],
         enabled: isAvailable && !!currentUserId,
-        queryFn: () => redditProvider.getUserProfile({ userId: currentUserId }),
+        queryFn: () =>
+          assumeAvailable(redditProvider).getUserProfile({
+            userId: currentUserId,
+          }),
         retry: canRetry,
       },
       {
         queryKey: ["RedditProvider", "UserProfile:current"],
         enabled: isAvailable,
         // by providing userId: null we always revalidate
-        queryFn: () => redditProvider.getUserProfile({ userId: null }),
+        queryFn: () =>
+          assumeAvailable(redditProvider).getUserProfile({ userId: null }),
         retry: canRetry,
       },
     ],

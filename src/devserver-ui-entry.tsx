@@ -5,10 +5,13 @@ import { createRoot } from "react-dom/client";
 import "./css/main.css";
 import { applyPolyfills } from "./polyfills";
 import { AppContext, AppUI } from "./ui/App";
+import { createVaultonomyStore } from "./ui/state/createVaultonomyStore";
+
+const vaultonomyStore = createVaultonomyStore({ isOnDevServer: true });
 
 export function DevServerRoot(): JSX.Element {
   return (
-    <AppContext isOnDevServer={true}>
+    <AppContext vaultonomyStore={vaultonomyStore}>
       <ReactQueryDevtools initialIsOpen={false} />
       <AppUI />
     </AppContext>

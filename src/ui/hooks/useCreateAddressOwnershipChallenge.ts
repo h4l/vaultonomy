@@ -4,7 +4,11 @@ import { log } from "../../logging";
 import { validateRedditChallenge } from "../../signing";
 import { PairingId } from "../state/createVaultonomyStore";
 import { usePairingState } from "../state/usePairingState";
-import { useRedditProvider } from "./useRedditProvider";
+import {
+  RedditNotConnectedError,
+  assumeAvailable,
+  useRedditProvider,
+} from "./useRedditProvider";
 
 type CreateAddressOwnershipChallengeOptions = {
   pairingId: PairingId;
@@ -28,7 +32,9 @@ export function useCreateAddressOwnershipChallenge({
       address,
     ],
     mutationFn: async () => {
-      const challenge = await redditProvider.createAddressOwnershipChallenge({
+      const challenge = await assumeAvailable(
+        redditProvider,
+      ).createAddressOwnershipChallenge({
         userId: pairingId.userId,
         address,
       });

@@ -2,7 +2,9 @@ import { Address } from "viem";
 import { createStore } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
+import { AssertionError, assert } from "../../assert";
 import { RedditEIP712Challenge } from "../../reddit/api-client";
+import { RedditProvider } from "../../reddit/reddit-interaction-client";
 import { HexString, RecursivePartial } from "../../types";
 import { browser } from "../../webextension";
 import { createVaultonomyBackgroundProvider } from "../hooks/createVaultonomyBackgroundProvider";
@@ -38,6 +40,15 @@ export type UpdatePairingStateFunction = (
 ) => void;
 
 export type VaultonomyStateActions = {
+  /**
+   * Set or remove the current provider.
+   *
+   * An existing provider cannot be overwritten by this call — the provider must
+   * be set to null before setting a new one. This is to prevent accidentally
+   * loosing a reference to a provider with an open Port connection.
+   */
+  setProvider(provider: VaultonomyBackgroundProvider | null): void;
+  setRedditProvider(redditProvider: RedditProvider | null): void;
   updatePairingState(id: PairingId): UpdatePairingStateFunction;
   setPairingInterest(userInterest: UserInterest): void;
   setCurrentUserId(currentUserId: string | null): void;
@@ -61,7 +72,8 @@ export type PartialPairingState = RecursivePartial<PairingState>;
 
 export type VaultonomyStateData = {
   isOnDevServer: boolean;
-  provider: VaultonomyBackgroundProvider;
+  provider: VaultonomyBackgroundProvider | null;
+  redditProvider: RedditProvider | null;
   /** The userId of the most recently seen Reddit user profile. */
   currentUserId: string | null;
   /** Determines whether the pairing UI is collapsed or expanded. */
@@ -102,15 +114,30 @@ export const createVaultonomyStore = (
       (set) => {
         const state: VaultonomyState = {
           isOnDevServer,
-          provider:
-            provider ??
-            createVaultonomyBackgroundProvider({
-              isOnDevServer: isOnDevServer,
-            }),
+          provider: provider ?? null,
+          redditProvider: null,
           currentUserId: null,
           pairingInterest: null,
           pairings: {},
           // actions
+          setProvider(provider: VaultonomyBackgroundProvider | null): void {
+            set((store) => {
+              assert(
+                !(provider && store.provider),
+                "attempted to replace an existing provider with a new provider",
+              );
+              return { provider };
+            });
+          },
+          setRedditProvider(redditProvider: RedditProvider | null): void {
+            set((store) => {
+              assert(
+                !(redditProvider && store.redditProvider),
+                "attempted to replace an existing redditProvider with a new redditProvider",
+              );
+              return { redditProvider };
+            });
+          },
           setPairingInterest(pairingInterest: UserInterest): void {
             set((store) => ({ ...store, pairingInterest }));
           },

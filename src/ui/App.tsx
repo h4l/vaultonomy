@@ -11,34 +11,38 @@ import { VaultonomyLogo } from "./VaultonomyLogo";
 import { Wallet } from "./Wallet";
 import { useRedditAccount } from "./hooks/useRedditAccount";
 import { useRedditAccountActiveVault } from "./hooks/useRedditAccountActiveVault";
+import { useVaultonomyBackgroundConnection } from "./hooks/useVaultonomyBackgroundProvider";
 import { VaultonomyContext } from "./state/VaultonomyContext";
-import { createVaultonomyStore } from "./state/createVaultonomyStore";
+import {
+  VaultonomyStore,
+  createVaultonomyStore,
+} from "./state/createVaultonomyStore";
 import { useStoreCurrentUserId } from "./state/useStoreCurrentUserId";
 
 const queryClient = new QueryClient();
 
-export function App() {
+export function App({ vaultonomyStore }: { vaultonomyStore: VaultonomyStore }) {
   return (
-    <AppContext>
+    <AppContext vaultonomyStore={vaultonomyStore}>
       <AppUI />
     </AppContext>
   );
 }
 
 export function AppContext({
-  isOnDevServer,
+  vaultonomyStore,
   children,
 }: {
-  isOnDevServer?: boolean;
+  vaultonomyStore: VaultonomyStore;
   children?: ReactNode;
-} = {}) {
+}) {
   const help = useRootHelpState();
-  const store = useRef(createVaultonomyStore({ isOnDevServer })).current;
+  // const store = useRef(createVaultonomyStore({ isOnDevServer })).current;
 
   return (
     <WagmiProvider config={wagmiConfig}>
       <QueryClientProvider client={queryClient}>
-        <VaultonomyContext.Provider value={store}>
+        <VaultonomyContext.Provider value={vaultonomyStore}>
           <HelpContext.Provider value={help}>{children}</HelpContext.Provider>
         </VaultonomyContext.Provider>
       </QueryClientProvider>
@@ -47,6 +51,7 @@ export function AppContext({
 }
 
 export function AppUI() {
+  useVaultonomyBackgroundConnection();
   const redditAccount = useRedditAccount();
   useStoreCurrentUserId(redditAccount);
   const userId = redditAccount.data?.userID;
