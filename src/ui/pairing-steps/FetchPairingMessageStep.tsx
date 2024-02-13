@@ -1,6 +1,5 @@
 import { ReactNode, useRef } from "react";
 import { Address } from "viem";
-import { useAccount } from "wagmi";
 
 import { assert } from "../../assert";
 import { log } from "../../logging";
@@ -9,17 +8,9 @@ import { Heading } from "../Heading";
 import { Link } from "../Link";
 import { InlineCheckBox } from "../forms/CheckBox";
 import { useCreateAddressOwnershipChallenge } from "../hooks/useCreateAddressOwnershipChallenge";
-import { usePairingMessage } from "../hooks/usePairingMessage";
-import { useRedditAccount } from "../hooks/useRedditAccount";
-import {
-  RedditAccountActiveVaultResult,
-  useRedditAccountActiveVault,
-} from "../hooks/useRedditAccountActiveVault";
-import {
-  FetchedPairingMessage,
-  PairingChecklist,
-} from "../state/createVaultonomyStore";
-import { useVaultonomyStoreUser } from "../state/useVaultonomyStoreUser";
+import { UseRedditAccountActiveVaultResult } from "../hooks/useRedditAccountActiveVault";
+import { PairingChecklist, PairingId } from "../state/createVaultonomyStore";
+import { usePairingState } from "../state/usePairingState";
 import { PairingStepsInlineHelp } from "./PairingStepsInlineHelp";
 import {
   PairingStep,
@@ -44,19 +35,24 @@ function ThisStep({
 }
 
 export function FetchPairingMessageStep({
+  pairingId,
   address,
-  userId,
   redditUserName,
   activeVault,
-  fetchedPairingMessage,
 }: {
+  pairingId: PairingId | undefined;
   address: Address | undefined;
-  userId: string | undefined;
   redditUserName: string | undefined;
-  activeVault: RedditAccountActiveVaultResult;
-  fetchedPairingMessage: FetchedPairingMessage | null;
+  activeVault: UseRedditAccountActiveVaultResult;
 }): JSX.Element {
-  if (!address || !userId || !redditUserName) {
+  const { fetchedPairingMessage, startPairingAttemptsBlocked } =
+    usePairingState(pairingId, ({ pairing }) => ({
+      fetchedPairingMessage: pairing.fetchedPairingMessage,
+      startPairingAttemptsBlocked: pairing.startPairingAttemptsBlocked,
+    }));
+  const hasActiveVault = activeVault.data !== null;
+
+  if (!pairingId || !redditUserName || !address) {
     // account & reddit errors handled by previous step
     return <ThisStep state="future" />;
   }
@@ -89,41 +85,6 @@ export function FetchPairingMessageStep({
   }
 
   return (
-    <FetchPairingMessage
-      address={address}
-      fetchedPairingMessage={fetchedPairingMessage}
-      hasActiveVault={!!activeVault.data}
-      userId={userId}
-      redditUserName={redditUserName}
-    />
-  );
-}
-
-function FetchPairingMessage({
-  userId,
-  redditUserName,
-  address,
-  hasActiveVault,
-  fetchedPairingMessage,
-}: {
-  userId: string;
-  redditUserName: string;
-  address: Address;
-  hasActiveVault: boolean;
-  fetchedPairingMessage: FetchedPairingMessage | null;
-}): JSX.Element {
-  const startPairingAttemptsBlocked = useVaultonomyStoreUser(
-    userId,
-    ({ user }) => user.startPairingAttemptsBlocked,
-  );
-
-  const mutation = useCreateAddressOwnershipChallenge({
-    userId,
-    redditUserName,
-    address,
-  });
-
-  return (
     <ThisStep state="present">
       {/* TODO: should we include this confirmation? Seems unnecessary. */}
       <StepAction
@@ -138,10 +99,10 @@ function FetchPairingMessage({
       <StepBody>
         <PairingStartPreamble hasActiveVault={hasActiveVault} />
         <StartPairingForm
-          onSubmit={mutation.mutate}
+          pairingId={pairingId}
           hasActiveVault={hasActiveVault}
-          status={mutation.status}
-          userId={userId}
+          redditUserName={redditUserName}
+          address={address}
         />
       </StepBody>
 
@@ -214,45 +175,45 @@ function PairingStartPreamble({
 }
 
 function StartPairingForm({
-  userId,
+  pairingId,
   hasActiveVault,
-  onSubmit,
-  status,
+  redditUserName,
+  address,
 }: {
-  userId: string | undefined;
+  pairingId: PairingId;
   hasActiveVault: boolean;
-  onSubmit: () => void;
-  status: "pending" | "idle" | "success" | "error";
+  redditUserName: string;
+  address: Address;
 }): JSX.Element {
+  const mutation = useCreateAddressOwnershipChallenge({
+    pairingId,
+    redditUserName,
+    address,
+  });
+
   const formRef = useRef<HTMLFormElement>(null);
 
   const {
     startPairingAttemptsBlocked,
-    setStartPairingAttemptsBlocked,
-    checklist,
-    updateChecklist,
-  } = useVaultonomyStoreUser(userId, ({ user, s }) => ({
-    startPairingAttemptsBlocked: user.startPairingAttemptsBlocked,
-    setStartPairingAttemptsBlocked: (startPairingAttemptsBlocked: number) => {
-      userId ?
-        s.updateUser(userId)({ startPairingAttemptsBlocked })
-      : undefined;
-    },
-    checklist: user.startPairingChecklist,
-    updateChecklist: (item: PairingChecklist, done: boolean) => {
-      userId ?
-        s.updateUser(userId)({ startPairingChecklist: { [item]: done } })
-      : undefined;
-    },
+    startPairingChecklist,
+    updatePairingState,
+  } = usePairingState(pairingId, ({ pairing }) => ({
+    fetchedPairingMessage: pairing.fetchedPairingMessage,
+    startPairingAttemptsBlocked: pairing.startPairingAttemptsBlocked,
+    startPairingChecklist: pairing.startPairingChecklist,
   }));
 
   const toggleChecklist = (item: PairingChecklist) =>
-    updateChecklist(item, !checklist[item]);
+    updatePairingState({
+      startPairingChecklist: { [item]: !startPairingChecklist[item] },
+    });
 
   const isFormValid = (): boolean => {
     if (!hasActiveVault) return true;
     return (
-      checklist.madeBackup && checklist.loadedBackup && checklist.testedBackup
+      startPairingChecklist.madeBackup &&
+      startPairingChecklist.loadedBackup &&
+      startPairingChecklist.testedBackup
     );
   };
 
@@ -270,18 +231,20 @@ function StartPairingForm({
       noValidate={true}
       onSubmit={(e) => {
         e.preventDefault();
-        if (status !== "idle") {
+        if (mutation.status !== "idle") {
           log.error("ignored onSubmit() while not idle");
           return;
         }
         if (isFormValid()) {
           log.debug("form submit OK", e);
 
-          onSubmit();
+          mutation.mutate();
         } else {
           log.debug("form submit blocked", startPairingAttemptsBlocked + 1);
 
-          setStartPairingAttemptsBlocked(startPairingAttemptsBlocked + 1);
+          updatePairingState({
+            startPairingAttemptsBlocked: startPairingAttemptsBlocked + 1,
+          });
           focusFirstInvalidInput();
         }
       }}
@@ -321,7 +284,7 @@ function StartPairingForm({
             >
               <InlineCheckBox
                 required={true}
-                selected={checklist.madeBackup}
+                selected={startPairingChecklist.madeBackup}
                 onChange={() => toggleChecklist(PairingChecklist.madeBackup)}
                 name="made-backup"
                 label="I have a backup of my current Vault's 12-word phrase."
@@ -340,7 +303,7 @@ function StartPairingForm({
             >
               <InlineCheckBox
                 required={true}
-                selected={checklist.loadedBackup}
+                selected={startPairingChecklist.loadedBackup}
                 onChange={() => toggleChecklist(PairingChecklist.loadedBackup)}
                 name="loaded-backup"
                 label="I have loaded my Vault's 12-word phrase into a Wallet."
@@ -361,7 +324,7 @@ function StartPairingForm({
             >
               <InlineCheckBox
                 required={true}
-                selected={checklist.testedBackup}
+                selected={startPairingChecklist.testedBackup}
                 onChange={() => toggleChecklist(PairingChecklist.testedBackup)}
                 name="tested-backup"
                 label="I have used my Vault-Wallet to transfer an Avatar from my Vault's address to my new Wallet's address."
@@ -380,7 +343,11 @@ function StartPairingForm({
           </>
         )}
       >
-        <Button disabled={status !== "idle"} size="l" className="block m-4">
+        <Button
+          disabled={mutation.status !== "idle"}
+          size="l"
+          className="block m-4"
+        >
           Start Pairing
         </Button>
       </PairingStepsInlineHelp>

@@ -1,9 +1,14 @@
-import { ReactElement } from "react";
-import { useAccount } from "wagmi";
+import { ReactNode } from "react";
+import { UseAccountReturnType } from "wagmi";
 
 import { assert, assertUnreachable } from "../../assert";
+import { AccountVaultAddress } from "../../reddit/api-client";
+import { RedditProviderError } from "../../reddit/reddit-interaction-client";
 import { ErrorCode } from "../../reddit/reddit-interaction-spec";
-import { useRedditAccount } from "../hooks/useRedditAccount";
+import { Link } from "../Link";
+import { UseRedditAccountResult } from "../hooks/useRedditAccount";
+import { UseRedditAccountActiveVaultResult } from "../hooks/useRedditAccountActiveVault";
+import { WALLET } from "../ids";
 import {
   PairingStep,
   PairingStepState,
@@ -12,124 +17,121 @@ import {
 } from "./components";
 import { RedditErrorStepAction } from "./steps";
 
-function renderState(): { state: PairingStepState; content?: ReactElement[] } {
-  const account = useAccount();
-  const redditAccount = useRedditAccount();
-
-  const content: ReactElement[] = [];
+export function ConnectWalletStep({
+  redditAccount,
+  activeVault,
+  wallet,
+}: {
+  redditAccount: UseRedditAccountResult;
+  activeVault: UseRedditAccountActiveVaultResult;
+  wallet: UseAccountReturnType;
+}): JSX.Element {
   if (
     !redditAccount.isRedditAvailable ||
-    redditAccount.data?.error?.type === ErrorCode.REDDIT_TAB_DISCONNECTED
+    (redditAccount.error instanceof RedditProviderError &&
+      redditAccount.error.type === ErrorCode.REDDIT_TAB_DISCONNECTED)
   ) {
-    content.push(
-      <StepAction
-        key="reddit-account"
-        state="error"
-        headline="Vaultonomy is not connected to a Reddit tab"
-        details={
-          <a
-            className="underline underline-offset-2 text-blue-500"
-            href="#account"
-          >
-            Connect to a Reddit tab to continue.
-          </a>
-        }
-      />,
+    return (
+      <ThisStep state="present">
+        <StepAction
+          state="error"
+          headline="Vaultonomy is not connected to a Reddit tab"
+          details={
+            <>
+              <Link toId="account">Connect to a Reddit tab</Link> to continue.
+            </>
+          }
+        />
+        ,
+      </ThisStep>
     );
-    return { state: "present", content };
   }
-  if (redditAccount.status === "pending") {
-    content.push(
-      <StepAction
-        key="reddit-account"
-        state="pending"
-        headline="Getting Reddit account details…"
-      />,
-    );
-    return { state: "present", content };
-  }
-  if (redditAccount.data?.error) {
-    assert(redditAccount.data?.error.type === ErrorCode.USER_NOT_LOGGED_IN);
 
-    content.push(
-      <StepAction
-        key="reddit-account"
-        state="error"
-        headline="You're not logged in on Reddit"
-        details="Log in on your Reddit tab and try again."
-      />,
+  if (redditAccount.status === "pending" || activeVault.status === "pending") {
+    return (
+      <ThisStep state="present">
+        <StepAction
+          key="reddit-account"
+          state="pending"
+          headline="Getting Reddit account details…"
+        />
+        ,
+      </ThisStep>
     );
-    return { state: "present", content };
   }
-  if (redditAccount.error) {
-    content.push(
+  if (redditAccount.error instanceof RedditProviderError) {
+    assert(redditAccount.error.type === ErrorCode.USER_NOT_LOGGED_IN);
+    return (
+      <ThisStep state="present">
+        <StepAction
+          key="reddit-account"
+          state="error"
+          headline="You're not logged in on Reddit"
+          details="Log in on your Reddit tab and try again."
+        />
+      </ThisStep>
+    );
+  }
+  if (redditAccount.error || activeVault.error) {
+    <ThisStep state="present">
       <RedditErrorStepAction
         key="reddit-account"
         while="getting your account details from Reddit"
-      />,
-    );
-    return { state: "present", content };
+      />
+    </ThisStep>;
   }
 
   assert(redditAccount.data);
-  content.push(
-    <StepAction
-      key="reddit-account"
-      state="done"
-      headline="Reddit account connected"
-    />,
-  );
 
-  const state = account.isConnected ? "past" : "present";
-
-  switch (account.status) {
-    case "connected":
-    // Treat reconnecting as connected as wagmi seems to toggle to reconnecting
-    // when re-rendering for no apparent reason, which causes the loading
-    // indicator to flash for a split second.
-    case "reconnecting":
-      content.push(
-        <StepAction key="connected" state="done" headline="Wallet connected" />,
-      );
-      break;
-    case "connecting":
-    case "disconnected":
-      content.push(
+  // Treat reconnecting as connected as wagmi seems to toggle to reconnecting
+  // when re-rendering for no apparent reason, which causes the loading
+  // indicator to flash for a split second.
+  if (wallet.status === "connected" || wallet.status === "reconnecting") {
+    return (
+      <ThisStep state="past">
+        <StepAction
+          key="reddit-account"
+          state="done"
+          headline="Reddit account connected"
+        />
+        <StepAction key="connected" state="done" headline="Wallet connected" />
+      </ThisStep>
+    );
+  } else if (
+    wallet.status === "connecting" ||
+    wallet.status === "disconnected"
+  ) {
+    return (
+      <ThisStep state="present">
         <StepBody key="body">
           <p className="mb-4">
-            <a
-              // TODO: create a custom anchor element
-              className="underline underline-offset-2 text-blue-500"
-              href="#wallet"
-            >
-              Connect your Wallet
-            </a>{" "}
-            to continue.
+            <Link toId={WALLET}>Connect your Wallet</Link> to continue.
           </p>
-        </StepBody>,
-      );
-      if (account.status === "connecting") {
-        content.push(
+        </StepBody>
+        {wallet.status === "connecting" ?
           <StepAction
             key="connecting"
             state="pending"
             headline="Wallet connecting…"
-          />,
-        );
-      }
-      break;
-    default:
-      assertUnreachable(account);
+          />
+        : undefined}
+      </ThisStep>
+    );
   }
-  return { state, content };
+
+  assertUnreachable(wallet);
 }
 
-export function ConnectWalletStep(): JSX.Element {
-  const { state, content } = renderState();
-
+function ThisStep({
+  state,
+  children,
+}: {
+  state: PairingStepState;
+  children?: ReactNode;
+}) {
   return (
     <PairingStep num={1} name="Connect Reddit & Wallet" state={state}>
-      {content}
+      {children}
     </PairingStep>
   );
 }

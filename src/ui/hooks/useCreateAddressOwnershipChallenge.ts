@@ -2,33 +2,34 @@ import { useMutation } from "@tanstack/react-query";
 
 import { log } from "../../logging";
 import { validateRedditChallenge } from "../../signing";
-import { useVaultonomyStore } from "../state/useVaultonomyStore";
+import { PairingId } from "../state/createVaultonomyStore";
+import { usePairingState } from "../state/usePairingState";
 import { useRedditProvider } from "./useRedditProvider";
 
 type CreateAddressOwnershipChallengeOptions = {
-  userId: string;
+  pairingId: PairingId;
   redditUserName: string;
   address: `0x${string}`;
 };
 export function useCreateAddressOwnershipChallenge({
-  userId,
+  pairingId,
   redditUserName,
   address,
 }: CreateAddressOwnershipChallengeOptions) {
   const { redditProvider } = useRedditProvider();
-  const updateUser = useVaultonomyStore((s) => s.updateUser(userId));
+  const { updatePairingState } = usePairingState(pairingId);
 
   return useMutation({
     mutationKey: [
       "RedditProvider",
       "createAddressOwnershipChallenge",
-      userId,
+      pairingId,
       redditUserName,
       address,
     ],
     mutationFn: async () => {
       const challenge = await redditProvider.createAddressOwnershipChallenge({
-        userId,
+        userId: pairingId.userId,
         address,
       });
 
@@ -36,11 +37,11 @@ export function useCreateAddressOwnershipChallenge({
       return challenge;
     },
     onSuccess(value) {
-      updateUser({ fetchedPairingMessage: { result: "ok", value } });
+      updatePairingState({ fetchedPairingMessage: { result: "ok", value } });
     },
     onError(error) {
       log.error("useCreateAddressOwnershipChallenge error:", error);
-      updateUser({
+      updatePairingState({
         fetchedPairingMessage: { result: "error", error: null },
       });
     },

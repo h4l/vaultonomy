@@ -11,7 +11,8 @@ import { IndeterminateProgressBar } from "../IndeterminateProgressBar";
 import { Link } from "../Link";
 import { useSignAddressOwnershipChallenge } from "../hooks/useSignAddressOwnershipChallenge";
 import { PAIRING_MESSAGE, WALLET } from "../ids";
-import { useVaultonomyStoreUser } from "../state/useVaultonomyStoreUser";
+import { PairingId } from "../state/createVaultonomyStore";
+import { usePairingState } from "../state/usePairingState";
 import { PairingStepsInlineHelp } from "./PairingStepsInlineHelp";
 import {
   PairingStep,
@@ -35,20 +36,20 @@ function ThisStep({
 }
 
 export type SignMessageStepParams = {
-  userId: string | undefined;
+  pairingId: PairingId | undefined;
   address: Address | undefined;
   walletChainId: number | undefined;
   challenge: NormalisedRedditEIP712Challenge | undefined;
 };
 
 export function SignMessageStep({
-  userId,
+  pairingId,
   address,
   walletChainId,
   challenge,
 }: SignMessageStepParams): JSX.Element {
   if (
-    userId === undefined ||
+    pairingId === undefined ||
     address === undefined ||
     walletChainId === undefined ||
     challenge === undefined
@@ -58,7 +59,7 @@ export function SignMessageStep({
 
   return (
     <SignMessage
-      userId={userId}
+      pairingId={pairingId}
       address={address}
       walletChainId={walletChainId}
       challenge={challenge}
@@ -70,7 +71,7 @@ export function SignMessageStep({
 
 type SignMessageParams = RequiredNonNullable<SignMessageStepParams>;
 function SignMessage({
-  userId,
+  pairingId,
   address,
   walletChainId,
   challenge,
@@ -78,16 +79,16 @@ function SignMessage({
   const [userDidSwitchChains, setUserDidSwitchChains] =
     useState<boolean>(false);
   const { mutate, status, error } = useSignAddressOwnershipChallenge({
-    userId,
+    pairingId,
     address,
     challenge,
   });
-  const result = useVaultonomyStoreUser(
-    userId,
-    ({ user }) => user.signedPairingMessage,
+  const { signedPairingMessage } = usePairingState(
+    pairingId,
+    ({ pairing }) => ({ signedPairingMessage: pairing.signedPairingMessage }),
   );
 
-  if (status === "success" || result?.result === "ok") {
+  if (status === "success" || signedPairingMessage?.result === "ok") {
     return (
       <ThisStep state="past">
         <StepAction state="done" headline="Message signed" />
@@ -155,16 +156,16 @@ function SignMessage({
           : undefined}
         </Button>
       </StepBody>
-      {(status === "pending" || !result) && (
+      {(status === "pending" || !signedPairingMessage) && (
         <StepAction
           state="pending"
           headline="Awaiting signature from your Wallet…"
         />
       )}
-      {result?.error && status !== "pending" ?
-        result.error === "user-cancelled" ?
+      {signedPairingMessage?.error && status !== "pending" ?
+        signedPairingMessage.error === "user-cancelled" ?
           undefined
-        : result.error === "wallet-cancelled" ?
+        : signedPairingMessage.error === "wallet-cancelled" ?
           <StepAction
             state="error"
             headline="Your Wallet rejected your signature request"
@@ -185,7 +186,7 @@ function SignMessage({
               </>
             }
           />
-        : <SignMessageError error={result.error} />
+        : <SignMessageError error={signedPairingMessage.error} />
       : undefined}
     </ThisStep>
   );

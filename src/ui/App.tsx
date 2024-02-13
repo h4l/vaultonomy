@@ -1,6 +1,6 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactNode, useRef } from "react";
-import { WagmiProvider } from "wagmi";
+import { WagmiProvider, useAccount } from "wagmi";
 
 import { wagmiConfig } from "../wagmi";
 import { HelpContext, HelpModal, useRootHelpState } from "./Help";
@@ -61,9 +61,7 @@ export function AppUI() {
       <main>
         <UserProfile
           profile={
-            userProfile.isRedditAvailable ?
-              userProfile.data?.profile
-            : undefined
+            redditAccount.isRedditAvailable ? redditAccount.data : undefined
           }
           // <UserProfile
           //   profile={{
@@ -76,13 +74,14 @@ export function AppUI() {
         />
 
         <div className="m-10 flex flex-row flex-wrap justify-center gap-x-40 gap-y-20">
-          <Vault userId={userProfile.data?.profile?.userID} />
-          <Wallet />
+          <Vault activeVault={activeVault} />
+          <Wallet wallet={wallet} />
         </div>
 
         <Pairing
-          userProfile={userProfile.data?.profile}
+          redditAccount={redditAccount}
           activeVault={activeVault}
+          wallet={wallet}
         />
 
         {/* <UserAvatar avatarUrl="https://i.redd.it/snoovatar/avatars/nftv2_bmZ0X2VpcDE1NToxMzdfOWQ4NTQyZWYxMjM3OTMzYmFkYmU4NjcyOTFmNmMwNDM0YjhkMzE1Y18yNzEz_rare_0411a65f-b673-43bf-ae65-b7cc7c9349a2.png" />

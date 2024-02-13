@@ -1,45 +1,75 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQueries } from "@tanstack/react-query";
 
-import {
-  RedditProvider,
-  RedditProviderError,
-} from "../../reddit/reddit-interaction-client";
-import { RedditUserProfile } from "../../reddit/reddit-interaction-spec";
+import { RedditProviderError } from "../../reddit/reddit-interaction-client";
+import { ErrorCode } from "../../reddit/reddit-interaction-spec";
+import { useVaultonomyStore } from "../state/useVaultonomyStore";
 import { useRedditProvider } from "./useRedditProvider";
 
-type RedditProviderResult<T extends Record<string, unknown>> =
-  | SuccessfulRedditProviderResult<T>
-  | FailedRedditProviderResult<T>;
-type SuccessfulRedditProviderResult<T extends Record<string, unknown>> = T & {
-  error?: undefined;
-};
-type FailedRedditProviderResult<T extends Record<string, unknown>> = {
-  [P in keyof T]?: undefined;
-} & { error: RedditProviderError };
+export type UseRedditAccountResult = ReturnType<typeof useRedditAccount>;
 
-export type RedditProfileResult = RedditProviderResult<{
-  profile: RedditUserProfile;
-}>;
-
-async function getUserProfile(
-  redditProvider: RedditProvider,
-): Promise<RedditProfileResult> {
-  try {
-    return { profile: await redditProvider.getUserProfile() };
-  } catch (error) {
-    if (!(error instanceof RedditProviderError)) throw error;
-    return { error };
+function canRetry(failureCount: number, error: unknown): boolean {
+  if (error instanceof RedditProviderError) {
+    switch (error.type) {
+      // Dont' retry these, as they indicate unexpected state rather than a
+      // temporary error that will resolve without intervention.
+      case ErrorCode.USER_NOT_LOGGED_IN:
+      case ErrorCode.WRONG_USER:
+        return false;
+    }
   }
+  return failureCount < 3;
 }
 
 export function useRedditAccount() {
   const { isAvailable, redditProvider } = useRedditProvider();
+  const currentUserId = useVaultonomyStore((s) => s.currentUserId);
+
+  // We use this hook / these queries to pro-actively notice when the user logs
+  // out of Reddit, or the user changes. We do this by making two concurrent
+  // requests, one for the last-seen userId, which can be served from cache. And
+  // another to fetch the current user session, not from cache. (The cache is on
+  // the reddit side, not the tanstack query cache).
+  //
+  // Because these queries are refreshed in the background when the user focuses
+  // our UI, we can rely on them to cause us to notice when a user has logged
+  // out or changed on the Reddit side, without actively polling Reddit.
+  //
+  // We won't actually make two queries to Reddit, as we aggregate concurrent
+  // queries on the Reddit side, and the :cached query can also be served from
+  // our cache without making a request to reddit.
+  const redditAccount = useQueries({
+    queries: [
+      {
+        queryKey: ["RedditProvider", "UserProfile:cached", currentUserId],
+        enabled: isAvailable && !!currentUserId,
+        queryFn: () => redditProvider.getUserProfile({ userId: currentUserId }),
+        retry: canRetry,
+      },
+      {
+        queryKey: ["RedditProvider", "UserProfile:current"],
+        enabled: isAvailable,
+        // by providing userId: null we always revalidate
+        queryFn: () => redditProvider.getUserProfile({ userId: null }),
+        retry: canRetry,
+      },
+    ],
+    combine: ([cached, current]) => {
+      if (
+        current.isSuccess ||
+        // If the revalidated response shows the user is not logged in, we
+        // should respect that and stop using the cached user.
+        (current.isError &&
+          current.error instanceof RedditProviderError &&
+          current.error.type === ErrorCode.USER_NOT_LOGGED_IN)
+      ) {
+        return current;
+      }
+      return cached;
+    },
+  });
+
   return {
-    ...useQuery({
-      queryKey: ["RedditProvider", "UserProfile"],
-      queryFn: () => getUserProfile(redditProvider),
-      enabled: isAvailable,
-    }),
+    ...redditAccount,
     isRedditAvailable: isAvailable,
   };
 }

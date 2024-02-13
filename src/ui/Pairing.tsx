@@ -1,9 +1,8 @@
 import { ReactElement, ReactNode, useId, useMemo, useRef } from "react";
 import { Address } from "viem";
-import { useAccount } from "wagmi";
+import { UseAccountReturnType } from "wagmi";
 
-import { AccountVaultAddress } from "../reddit/reddit-interaction-client";
-import { RedditUserProfile } from "../reddit/reddit-interaction-spec";
+import { RedditEIP712Challenge } from "../reddit/reddit-interaction-client";
 import {
   NormalisedRedditEIP712Challenge,
   normaliseRedditChallenge,
@@ -13,31 +12,46 @@ import { EthInput, VaultonomyCard } from "./Card";
 import { Heading } from "./Heading";
 import { PositionProgressLine, ProgressLineContainer } from "./ProgressLine";
 import { useExpandCollapseElement } from "./hooks/useExpandCollapseElement";
-import { usePairingMessage } from "./hooks/usePairingMessage";
-import { useRedditAccount } from "./hooks/useRedditAccount";
-import { useRedditAccountActiveVault } from "./hooks/useRedditAccountActiveVault";
-import { useSignedPairingMessage } from "./hooks/useSignedPairingMessage";
+import { UseRedditAccountResult } from "./hooks/useRedditAccount";
+import { UseRedditAccountActiveVaultResult } from "./hooks/useRedditAccountActiveVault";
 import { ExpandMoreIcon40 } from "./icons";
 import { PAIRING_MESSAGE } from "./ids";
 import { ConnectWalletStep } from "./pairing-steps/ConnectWalletStep";
 import { FetchPairingMessageStep } from "./pairing-steps/FetchPairingMessageStep";
 import { SignMessageStep } from "./pairing-steps/SignMessageStep";
 import { PairingStep, StepBody } from "./pairing-steps/components";
+import { PairingId } from "./state/createVaultonomyStore";
+import { getPairingId, usePairingState } from "./state/usePairingState";
 import { useVaultonomyStore } from "./state/useVaultonomyStore";
 
 export function Pairing({
-  userProfile,
+  redditAccount,
   activeVault,
+  wallet,
 }: {
-  userProfile: RedditUserProfile | undefined;
-  activeVault: AccountVaultAddress | null | undefined;
+  redditAccount: UseRedditAccountResult;
+  activeVault: UseRedditAccountActiveVaultResult;
+  wallet: UseAccountReturnType;
 }): JSX.Element {
-  const hasNoActiveVault = activeVault === null;
+  const hasNoActiveVault = activeVault.data === null;
   const [pairingInterest, setPairingInterest] = useVaultonomyStore((s) => [
     s.pairingInterest,
     s.setPairingInterest,
   ]);
-  const pairingMessage = useValidatedPairingMessage(userProfile?.userID);
+  const pairingId = getPairingId({
+    userId: redditAccount.data?.userID,
+    vaultAddress:
+      // null means no active vault, undefined means not loaded
+      activeVault.data === null ? null : activeVault.data?.address,
+    walletAddress: wallet.address,
+  });
+  const fetchedPairingMessage = usePairingState(
+    pairingId,
+    ({ pairing }) => pairing.fetchedPairingMessage,
+  );
+  const pairingMessage = useNormalisedPairingMessage(
+    fetchedPairingMessage?.value,
+  );
 
   return (
     <ExpandingNonModalDialog
@@ -50,17 +64,23 @@ export function Pairing({
           : <>“I want to change my Vault…”</>}
         </Heading>
       }
-      expanded={!!(pairingInterest === "interested" && userProfile)}
+      expanded={!!(pairingInterest === "interested")}
       onExpand={() => setPairingInterest("interested")}
       onCollapse={() => setPairingInterest("disinterested")}
     >
       <div className="mx-10 my-8 gap-16 flex flex-col justify-center items-center">
         {/* <Heading className="text-center">Pair Wallet with Reddit</Heading> */}
         <PairingNarrative
-          redditUserName={userProfile?.username}
+          redditUserName={redditAccount.data?.username}
           hasNoActiveVault={hasNoActiveVault}
         />
-        <PairingSteps />
+        <PairingSteps
+          wallet={wallet}
+          activeVault={activeVault}
+          redditAccount={redditAccount}
+          pairingId={pairingId}
+          normalisedPairingMessage={pairingMessage?.normalisedPairingMessage}
+        />
         {pairingMessage?.messageFields ?
           <PairingMessage message={pairingMessage.messageFields} />
         : undefined}
@@ -86,24 +106,23 @@ export function Pairing({
   );
 }
 
-function useValidatedPairingMessage(userId: string | undefined):
+function useNormalisedPairingMessage(
+  rawPairingMessage: RedditEIP712Challenge | undefined,
+):
   | {
       messageFields: RedditVaultPairingMessageFields;
       normalisedPairingMessage: NormalisedRedditEIP712Challenge;
     }
   | undefined {
-  const fetchedPairingMessage = usePairingMessage(userId);
   return useMemo(() => {
-    if (!fetchedPairingMessage || fetchedPairingMessage.result !== "ok")
-      return undefined;
-    const normalisedPairingMessage = normaliseRedditChallenge(
-      fetchedPairingMessage.value,
-    );
+    if (!rawPairingMessage) return undefined;
+    const normalisedPairingMessage =
+      normaliseRedditChallenge(rawPairingMessage);
     const messageFields = challengeAsPairingMessageFields(
       normalisedPairingMessage,
     );
     return { normalisedPairingMessage, messageFields };
-  }, [fetchedPairingMessage]);
+  }, [rawPairingMessage]);
 }
 
 /**
@@ -285,22 +304,19 @@ function Dialogue({
   // );
 }
 
-function PairingSteps(): JSX.Element {
-  const account = useAccount();
-  const redditAccount = useRedditAccount();
-  const userId = redditAccount.data?.profile?.userID;
-  const redditUserName = redditAccount.data?.profile?.username;
-  const activeVault = useRedditAccountActiveVault({ userId });
-  const fetchedPairingMessage = usePairingMessage(userId);
-  const signedPairingMessage = useSignedPairingMessage(userId);
-
-  const normalisedChallenge = useMemo(
-    () =>
-      fetchedPairingMessage?.value ?
-        normaliseRedditChallenge(fetchedPairingMessage?.value)
-      : undefined,
-    [fetchedPairingMessage?.value],
-  );
+function PairingSteps({
+  redditAccount,
+  wallet,
+  activeVault,
+  pairingId,
+  normalisedPairingMessage,
+}: {
+  redditAccount: UseRedditAccountResult;
+  activeVault: UseRedditAccountActiveVaultResult;
+  wallet: UseAccountReturnType;
+  pairingId: PairingId | undefined;
+  normalisedPairingMessage: NormalisedRedditEIP712Challenge | undefined;
+}): JSX.Element {
   return (
     <>
       <main aria-label="Pairing Steps" className="relative max-w-[34rem]">
@@ -310,21 +326,24 @@ function PairingSteps(): JSX.Element {
             {/* <PairingStep num={1} name="Connect Wallet" state="past">
               <StepAction state="done">Wallet connected</StepAction>
             </PairingStep> */}
-            <ConnectWalletStep />
+            <ConnectWalletStep
+              redditAccount={redditAccount}
+              wallet={wallet}
+              activeVault={activeVault}
+            />
 
             <FetchPairingMessageStep
-              address={account.address}
+              pairingId={pairingId}
+              address={wallet.address}
+              redditUserName={redditAccount?.data?.username}
               activeVault={activeVault}
-              fetchedPairingMessage={fetchedPairingMessage}
-              redditUserName={redditUserName}
-              userId={userId}
             />
 
             <SignMessageStep
-              address={account.address}
-              walletChainId={account.chainId}
-              challenge={normalisedChallenge}
-              userId={userId}
+              pairingId={pairingId}
+              address={wallet.address}
+              walletChainId={wallet.chainId}
+              challenge={normalisedPairingMessage}
             />
 
             <PairingStep num={4} name="Send Pairing Request" state="future">

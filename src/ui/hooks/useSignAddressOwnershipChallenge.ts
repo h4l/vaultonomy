@@ -15,7 +15,11 @@ import {
   NormalisedRedditEIP712Challenge,
   verifySignedRedditChallenge,
 } from "../../signing";
-import { SignedPairingMessage } from "../state/createVaultonomyStore";
+import {
+  PairingId,
+  SignedPairingMessage,
+} from "../state/createVaultonomyStore";
+import { usePairingState } from "../state/usePairingState";
 import { useVaultonomyStore } from "../state/useVaultonomyStore";
 
 type OwnershipChallengeSigningErrorOptions = {
@@ -88,21 +92,22 @@ class InvalidSigOwnershipChallengeSigError extends OwnershipChallengeSigningErro
 }
 
 export function useSignAddressOwnershipChallenge({
-  userId,
+  pairingId,
   address,
   challenge,
 }: {
-  userId: string;
+  pairingId: PairingId;
   address: Address;
   challenge: NormalisedRedditEIP712Challenge;
 }) {
   const config = useConfig();
-  const updateUser = useVaultonomyStore((s) => s.updateUser(userId));
+  // const updatePairingState = useVaultonomyStore((s) => s.updateUser(userId));
+  const { updatePairingState } = usePairingState(pairingId);
 
   return useMutation({
     mutationKey: [
       "SignAddressOwnershipChallenge",
-      userId,
+      pairingId,
       address,
       hashTypedData(challenge),
     ],
@@ -155,7 +160,7 @@ export function useSignAddressOwnershipChallenge({
       });
     },
     onSuccess(value) {
-      updateUser({ signedPairingMessage: { result: "ok", value } });
+      updatePairingState({ signedPairingMessage: { result: "ok", value } });
     },
     onError(cause) {
       log.error("useSignAddressOwnershipChallenge error:", cause);
@@ -174,7 +179,7 @@ export function useSignAddressOwnershipChallenge({
         error = "signature-invalid";
       else error = "sign-failed";
 
-      updateUser({ signedPairingMessage: { result: "error", error } });
+      updatePairingState({ signedPairingMessage: { result: "error", error } });
     },
   });
 }

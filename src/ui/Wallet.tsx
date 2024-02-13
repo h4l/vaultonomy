@@ -1,5 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { useAccount, useConnect, useDisconnect, useEnsName } from "wagmi";
+import {
+  UseAccountReturnType,
+  useAccount,
+  useConnect,
+  useDisconnect,
+  useEnsName,
+} from "wagmi";
 
 import { assert } from "../assert";
 import { log } from "../logging";
@@ -10,17 +16,20 @@ import { WithInlineHelp } from "./Help";
 import { IndeterminateProgressBar } from "./IndeterminateProgressBar";
 import { useLazyConnectors } from "./hooks/wallet";
 
-export function Wallet(): JSX.Element {
-  const account = useAccount();
-  const ensName = useEnsName({ address: account.address });
+export function Wallet({
+  wallet,
+}: {
+  wallet: UseAccountReturnType;
+}): JSX.Element {
+  const ensName = useEnsName({ address: wallet.address });
   const { disconnect } = useDisconnect();
 
-  if (account.isConnected) {
+  if (wallet.isConnected) {
     return (
       <>
         <EthAccount
           title="Wallet"
-          ethAddress={account.address}
+          ethAddress={wallet.address}
           ensName={ensName.data ?? undefined}
           footer={
             <LinkButton onClick={() => disconnect()} className="italic text-sm">
