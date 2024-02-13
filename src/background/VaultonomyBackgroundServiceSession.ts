@@ -68,14 +68,14 @@ function redditDisconnectedError(
  * connection active).
  */
 export class VaultonomyBackgroundServiceSession {
-  #disconnected: boolean = false;
+  private disconnected: boolean = false;
   private redditProvider: RedditProvider | undefined;
   private readonly jsonrpc: JSONRPCServerAndClient;
   private readonly vaultonomyUi: VaultonomyUiProvider;
   private readonly unbindFromPort: Unbind;
 
   constructor(private readonly port: chrome.runtime.Port) {
-    this.#disconnected = retroactivePortDisconnection.hasDisconnected(port);
+    this.disconnected = retroactivePortDisconnection.hasDisconnected(port);
     retroactivePortDisconnection.addRetroactiveDisconnectListener(port, () => {
       this.disconnect();
     });
@@ -108,7 +108,7 @@ export class VaultonomyBackgroundServiceSession {
 
     // The UI needs to send requests to Reddit. We have the RedditProvider which
     // translates method calls into reddit_* JSON RPC requests.
-    // src/redit/reddit-interaction-server.ts implements an RPC server that
+    // src/reddit/reddit-interaction-server.ts implements an RPC server that
     // handles those methods by communicating with Reddit.
     //
     // The UI doesn't connect directly to the Reddit tab (because the dev server
@@ -118,11 +118,11 @@ export class VaultonomyBackgroundServiceSession {
 
     server.addMethod(
       RedditGetUserProfile.name,
-      RedditGetUserProfile.signature.implement(async () => {
+      RedditGetUserProfile.signature.implement(async (params) => {
         if (!this.redditProvider) {
           throw redditDisconnectedError(RedditGetUserProfile.name);
         }
-        return await this.redditProvider.getUserProfile();
+        return await this.redditProvider.getUserProfile(params);
       }),
     );
     server.addMethod(
@@ -211,7 +211,7 @@ export class VaultonomyBackgroundServiceSession {
   }
 
   #logErrorUnlessDisconnected(msg: string, error: unknown): void {
-    if (!this.#disconnected) {
+    if (!this.disconnected) {
       log.error(msg, error);
     }
   }
@@ -220,7 +220,7 @@ export class VaultonomyBackgroundServiceSession {
    * Close this session's UI Port and Reddit Port (if any).
    */
   disconnect(): void {
-    this.#disconnected = true;
+    this.disconnected = true;
     this.unbindFromPort();
     this.port.disconnect();
     this.disconnectRedditProvider();
