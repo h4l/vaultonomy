@@ -1,9 +1,11 @@
+import { DateTime } from "luxon";
 import {
   Address,
   ByteArray,
   Hex,
   hashTypedData,
   isAddressEqual,
+  recoverAddress,
   verifyTypedData,
 } from "viem";
 import { normalizeChainId } from "wagmi";
@@ -109,40 +111,43 @@ export function validateRedditChallenge({
 }
 
 export type VerifySignedRedditChallengeResult =
-  | { isValid: true }
+  | { isValid: true; hash: Hex }
   | { isValid: false; reasonShort: string; reason: string };
 
 export async function verifySignedRedditChallenge({
   challenge,
-  expectedAddress,
   signature,
 }: {
   challenge: NormalisedRedditEIP712Challenge;
-  expectedAddress: Address;
   signature: Hex;
 }): Promise<VerifySignedRedditChallengeResult> {
-  if (isAddressEqual(expectedAddress, challenge.message.address))
-    if (
-      await verifyTypedData({
-        ...challenge,
-        address: expectedAddress,
-        signature,
-      })
-    ) {
-      // Note that we're are are intentionally not trying to verify contract/non-EOA
-      // signatures here. I've not tested empirically, but my belief is that Reddit
-      // won't be verifying contract signatures (which is a shame, as they' be very
-      // useful to manage large numbers of NFTs). Reddit's messages use chain 1 (Eth
-      // mainnet), so presumably a contract wallet would need to be on mainnet,
-      // which could a.) make it expensive to use, an b) not very practical for
-      // managing NFTs on Polygon POS.
-      return { isValid: true };
-    }
+  // Note that we're are are intentionally not trying to verify contract/non-EOA
+  // signatures here. I've not tested empirically, but my belief is that Reddit
+  // won't be verifying contract signatures (which is a shame, as they' be very
+  // useful to manage large numbers of NFTs). Reddit's messages use chain 1 (Eth
+  // mainnet), so presumably a contract wallet would need to be on mainnet,
+  // which could a.) make it expensive to use, an b) not very practical for
+  // managing NFTs on Polygon POS.
+  const expectedAddress = challenge.message.address;
+  const hash = hashTypedData(challenge);
+  const signatureAddress = await recoverAddress({ hash, signature });
+  if (isAddressEqual(expectedAddress, signatureAddress)) {
+    return { isValid: true, hash };
+  }
   return {
     isValid: false,
-    reasonShort: "Signature does not match the message and Wallet address.",
+    reasonShort: "Message signature is not correct.",
     reason:
-      `Signature ${signature} is not valid for expected address ` +
-      `${expectedAddress} and message hash ${hashTypedData(challenge)}`,
+      `Signature ${signature} is not made by expected address ` +
+      `${expectedAddress} for message hash ${hashTypedData(challenge)}.`,
   };
+}
+
+export function isExpired(
+  challenge: NormalisedRedditEIP712Challenge,
+  atTime?: number,
+): boolean {
+  const expiration = DateTime.fromISO(challenge.message.expiresAt).toMillis();
+  if (atTime === undefined) atTime = Date.now();
+  return atTime > expiration;
 }

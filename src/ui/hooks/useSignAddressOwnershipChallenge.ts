@@ -147,7 +147,6 @@ export function useSignAddressOwnershipChallenge({
       const verification = await verifySignedRedditChallenge({
         challenge,
         signature,
-        expectedAddress: address,
       });
       if (verification.isValid) return signature;
 

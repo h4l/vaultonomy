@@ -1,8 +1,15 @@
-import { expect } from "@jest/globals";
-import { concat, hashTypedData, keccak256 } from "viem";
+import { expect, jest } from "@jest/globals";
+import { PrivateKeyAccount, concat, hashTypedData, keccak256 } from "viem";
+import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 
+import { assert } from "../assert";
 import { RedditEIP712Challenge } from "../reddit/api-client";
-import { normaliseRedditChallenge } from "../signing";
+import {
+  NormalisedRedditEIP712Challenge,
+  isExpired,
+  normaliseRedditChallenge,
+  verifySignedRedditChallenge,
+} from "../signing";
 
 // Verify Wagmi/ Viem behaviour when hashing / signing EIP-712 typed data. The
 // reddit address pairing challenge messages use EIP-712, but have some quirks.
@@ -73,4 +80,84 @@ test("verify expected domain and message hash match full hash", () => {
     concat(["0x1901", expectedDomainHash, expectedMessageHash]),
   );
   expect(fullHash).toEqual(expectedFullHash);
+});
+
+describe("verifySignedRedditChallenge", () => {
+  let account1: PrivateKeyAccount;
+  let account2: PrivateKeyAccount;
+  let challengeFor1: NormalisedRedditEIP712Challenge;
+
+  beforeEach(() => {
+    const privateKey1 = generatePrivateKey();
+    const privateKey2 = generatePrivateKey();
+    account1 = privateKeyToAccount(privateKey1);
+    account2 = privateKeyToAccount(privateKey2);
+    challengeFor1 = normaliseRedditChallenge(
+      RedditEIP712Challenge.parse(exampleRedditChallenge().payload),
+    );
+    challengeFor1.message.address = account1.address;
+  });
+
+  test("accepts challenge signature from message address", async () => {
+    const signatureFrom1 = await account1.signTypedData(challengeFor1);
+    const result = await verifySignedRedditChallenge({
+      challenge: challengeFor1,
+      signature: signatureFrom1,
+    });
+    expect(result.isValid).toBeTruthy();
+    assert(result.isValid);
+    expect(result.hash).toEqual(hashTypedData(challengeFor1));
+  });
+
+  test("rejects challenge signature from other address", async () => {
+    const signatureFrom2 = await account2.signTypedData(challengeFor1);
+    const result = await verifySignedRedditChallenge({
+      challenge: challengeFor1,
+      signature: signatureFrom2,
+    });
+    expect(result.isValid).toBeFalsy();
+    assert(!result.isValid);
+    expect(result.reasonShort).toEqual("Message signature is not correct.");
+  });
+
+  test("rejects challenge signature of incorrect hash", async () => {
+    const modifiedChallenge = {
+      ...challengeFor1,
+      message: { ...challengeFor1.message, nonce: "abcd" },
+    };
+    const signatureOfModifiedFrom1 =
+      await account1.signTypedData(modifiedChallenge);
+    const result = await verifySignedRedditChallenge({
+      challenge: challengeFor1,
+      signature: signatureOfModifiedFrom1,
+    });
+    expect(result.isValid).toBeFalsy;
+    assert(!result.isValid);
+    expect(result.reasonShort).toEqual("Message signature is not correct.");
+  });
+});
+
+describe("isExpired", () => {
+  let challenge: NormalisedRedditEIP712Challenge;
+
+  beforeEach(() => {
+    jest.useFakeTimers();
+    challenge = normaliseRedditChallenge(
+      RedditEIP712Challenge.parse(exampleRedditChallenge().payload),
+    );
+  });
+
+  test("not expired before expiry", () => {
+    jest.setSystemTime(new Date("2023-02-04T11:14:36Z"));
+    expect(isExpired(challenge)).toBeFalsy();
+  });
+  test("is expired after expiry", () => {
+    jest.setSystemTime(new Date("2023-02-04T11:18:36Z"));
+    expect(isExpired(challenge)).toBeTruthy();
+  });
+
+  afterEach(() => {
+    jest.runOnlyPendingTimers();
+    jest.useRealTimers();
+  });
 });
