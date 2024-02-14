@@ -248,14 +248,14 @@ function PairingNarrative({
         But I’m not giving you my seed phrase, I’ve got my own Wallet…”
       </Dialogue>
       <Dialogue name="REDDIT">
-        “OK. But I need to be sure the new Address is yours. If you can sign a
-        message containing your Username and Address and send it back to me,
-        I’ll make it your Vault.”
+        “OK. But I need to be sure the new Address is yours. If you can sign my
+        Pairing Message containing your Username and Address and send it back to
+        me, I’ll make it your Vault.”
       </Dialogue>
       <Dialogue name="VAULTONOMY">
-        “I'm here to mediate between your Wallet and Reddit to get you a Vault
-        using your Wallet's Address. Follow these steps and we'll have your
-        Wallet paired as your Vault in no time!”
+        “I'm mediate between your Wallet and Reddit to get you a Vault using
+        your Wallet's Address. Follow these steps and we'll have your Wallet
+        paired as your Vault in no time!”
       </Dialogue>
       {/* <Dialogue name="VAULTONOMY">
         “The message Reddit needs you to sign is below. When you’re ready, hit{" "}
@@ -346,7 +346,7 @@ function PairingSteps({
               challenge={normalisedPairingMessage}
             />
 
-            <PairingStep num={4} name="Send Pairing Request" state="future">
+            <PairingStep num={4} name="Submit Pairing Message" state="future">
               {/* <StepAction state="pending">Message sent</StepAction>
               <StepAction state="pending">
                 Wallet paired as your Vault

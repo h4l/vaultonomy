@@ -1,15 +1,24 @@
-import { ReactNode, useRef } from "react";
+import { FormEvent, ReactNode, useRef } from "react";
 import { Address } from "viem";
 
 import { assert } from "../../assert";
 import { log } from "../../logging";
+import { RequiredNonNullable } from "../../types";
 import { Button } from "../Button";
 import { Heading } from "../Heading";
+import { IndeterminateProgressBar } from "../IndeterminateProgressBar";
 import { Link } from "../Link";
 import { InlineCheckBox } from "../forms/CheckBox";
-import { useCreateAddressOwnershipChallenge } from "../hooks/useCreateAddressOwnershipChallenge";
+import {
+  UseCreateAddressOwnershipChallengeResult,
+  useCreateAddressOwnershipChallenge,
+} from "../hooks/useCreateAddressOwnershipChallenge";
 import { UseRedditAccountActiveVaultResult } from "../hooks/useRedditAccountActiveVault";
-import { PairingChecklist, PairingId } from "../state/createVaultonomyStore";
+import {
+  FetchedPairingMessage,
+  PairingChecklist,
+  PairingId,
+} from "../state/createVaultonomyStore";
 import { usePairingState } from "../state/usePairingState";
 import { PairingStepsInlineHelp } from "./PairingStepsInlineHelp";
 import {
@@ -28,29 +37,31 @@ function ThisStep({
   children?: ReactNode;
 }) {
   return (
-    <PairingStep num={2} name="Prepare to Pair" state={state}>
+    // <PairingStep num={2} name="Prepare Pairing Message" state={state}>
+    <PairingStep num={2} name="Get Ready" state={state}>
       {children}
     </PairingStep>
   );
 }
+
+type FetchPairingMessageStepProps = {
+  pairingId: PairingId | undefined;
+  address: Address | undefined;
+  redditUserName: string | undefined;
+  activeVault: UseRedditAccountActiveVaultResult;
+};
 
 export function FetchPairingMessageStep({
   pairingId,
   address,
   redditUserName,
   activeVault,
-}: {
-  pairingId: PairingId | undefined;
-  address: Address | undefined;
-  redditUserName: string | undefined;
-  activeVault: UseRedditAccountActiveVaultResult;
-}): JSX.Element {
+}: FetchPairingMessageStepProps): JSX.Element {
   const { fetchedPairingMessage, startPairingAttemptsBlocked } =
     usePairingState(pairingId, ({ pairing }) => ({
       fetchedPairingMessage: pairing.fetchedPairingMessage,
       startPairingAttemptsBlocked: pairing.startPairingAttemptsBlocked,
     }));
-  const hasActiveVault = activeVault.data !== null;
 
   if (!pairingId || !redditUserName || !address) {
     // account & reddit errors handled by previous step
@@ -75,34 +86,75 @@ export function FetchPairingMessageStep({
 
   if (fetchedPairingMessage?.value) {
     return (
-      <ThisStep state="past">
-        <StepAction
-          state="done"
-          headline="Received pairing message from Reddit"
-        />
-      </ThisStep>
+      <>
+        <ThisStep state="past">
+          <CheckedVaultAction />
+          <StepAction
+            state="done"
+            headline="Received Pairing Message from Reddit"
+          />
+        </ThisStep>
+      </>
     );
   }
 
   return (
+    <FetchPairingMessage
+      activeVault={activeVault}
+      address={address}
+      fetchedPairingMessage={fetchedPairingMessage}
+      pairingId={pairingId}
+      redditUserName={redditUserName}
+      startPairingAttemptsBlocked={startPairingAttemptsBlocked}
+    />
+  );
+}
+
+function CheckedVaultAction() {
+  //TODO: should we include this confirmation? Seems unnecessary.
+  return (
+    <StepAction
+      state="done"
+      headline="Checked your Vault details"
+      // details={
+      //   hasActiveVault ?
+      //     "Your account has an active Vault"
+      //   : "Your account has no active Vault"
+      // }
+    />
+  );
+}
+
+type FetchPairingMessageProps =
+  RequiredNonNullable<FetchPairingMessageStepProps> & {
+    fetchedPairingMessage: FetchedPairingMessage | null;
+    startPairingAttemptsBlocked: number;
+  };
+
+function FetchPairingMessage({
+  pairingId,
+  address,
+  redditUserName,
+  activeVault,
+  fetchedPairingMessage,
+  startPairingAttemptsBlocked,
+}: FetchPairingMessageProps): JSX.Element {
+  const createAddressOwnershipChallenge = useCreateAddressOwnershipChallenge({
+    pairingId,
+    redditUserName,
+    address,
+  });
+  const hasActiveVault = activeVault.data !== null;
+
+  return (
     <ThisStep state="present">
-      {/* TODO: should we include this confirmation? Seems unnecessary. */}
-      <StepAction
-        state="done"
-        headline="Got your Vault details"
-        // details={
-        //   hasActiveVault ?
-        //     "Your account has an active Vault"
-        //   : "Your account has no active Vault"
-        // }
-      />
+      <CheckedVaultAction />
       <StepBody>
         <PairingStartPreamble hasActiveVault={hasActiveVault} />
         <StartPairingForm
+          createAddressOwnershipChallenge={createAddressOwnershipChallenge}
           pairingId={pairingId}
           hasActiveVault={hasActiveVault}
-          redditUserName={redditUserName}
-          address={address}
         />
       </StepBody>
 
@@ -117,6 +169,12 @@ export function FetchPairingMessageStep({
 
       {fetchedPairingMessage?.error ?
         <RedditErrorStepAction while="asking Reddit to start pairing your Wallet" />
+      : undefined}
+      {createAddressOwnershipChallenge.status === "pending" ?
+        <StepAction
+          state="pending"
+          headline="Asking Reddit to start pairing your Wallet…"
+        />
       : undefined}
     </ThisStep>
   );
@@ -167,8 +225,8 @@ function PairingStartPreamble({
   } else {
     return (
       <p className="mb-4">
-        Your Reddit account doesn’t currently have a Vault. To pair your Wallet
-        as your Reddit Vault, hit Start Pairing.
+        Your Reddit account doesn’t currently have a Vault. To begin pairing
+        your Wallet as your Reddit Vault, press <em>Start Pairing</em>.
       </p>
     );
   }
@@ -177,20 +235,12 @@ function PairingStartPreamble({
 function StartPairingForm({
   pairingId,
   hasActiveVault,
-  redditUserName,
-  address,
+  createAddressOwnershipChallenge,
 }: {
+  createAddressOwnershipChallenge: UseCreateAddressOwnershipChallengeResult;
   pairingId: PairingId;
   hasActiveVault: boolean;
-  redditUserName: string;
-  address: Address;
 }): JSX.Element {
-  const mutation = useCreateAddressOwnershipChallenge({
-    pairingId,
-    redditUserName,
-    address,
-  });
-
   const formRef = useRef<HTMLFormElement>(null);
 
   const {
@@ -225,30 +275,70 @@ function StartPairingForm({
       ?.focus();
   };
 
+  const submit = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (createAddressOwnershipChallenge.status !== "idle") {
+      log.error("ignored onSubmit() while not idle");
+      return;
+    }
+    if (isFormValid()) {
+      log.debug("form submit OK", e);
+
+      createAddressOwnershipChallenge.mutate();
+    } else {
+      log.debug("form submit blocked", startPairingAttemptsBlocked + 1);
+
+      updatePairingState({
+        startPairingAttemptsBlocked: startPairingAttemptsBlocked + 1,
+      });
+      focusFirstInvalidInput();
+    }
+  };
+
   return (
-    <form
-      ref={formRef}
-      noValidate={true}
-      onSubmit={(e) => {
-        e.preventDefault();
-        if (mutation.status !== "idle") {
-          log.error("ignored onSubmit() while not idle");
-          return;
-        }
-        if (isFormValid()) {
-          log.debug("form submit OK", e);
+    <form ref={formRef} noValidate={true} onSubmit={submit}>
+      {hasActiveVault ?
+        <PrePairingChecklist
+          startPairingChecklist={startPairingChecklist}
+          toggleChecklist={toggleChecklist}
+        />
+      : undefined}
+      <PairingStepsInlineHelp
+        iconOffsetTop="50%"
+        helpId="start-pairing-button"
+        helpText={() => (
+          <>
+            To un-pair your current Vault and pair your Wallet as your new
+            Reddit Vault, press <em>Start Pairing</em>.
+          </>
+        )}
+      >
+        <Button
+          disabled={createAddressOwnershipChallenge.status !== "idle"}
+          size="l"
+          className="relative block m-4"
+        >
+          Start Pairing
+          {createAddressOwnershipChallenge.status === "pending" ?
+            <div className="absolute bottom-0 left-0 w-full">
+              <IndeterminateProgressBar />
+            </div>
+          : undefined}
+        </Button>
+      </PairingStepsInlineHelp>
+    </form>
+  );
+}
 
-          mutation.mutate();
-        } else {
-          log.debug("form submit blocked", startPairingAttemptsBlocked + 1);
-
-          updatePairingState({
-            startPairingAttemptsBlocked: startPairingAttemptsBlocked + 1,
-          });
-          focusFirstInvalidInput();
-        }
-      }}
-    >
+function PrePairingChecklist({
+  startPairingChecklist,
+  toggleChecklist,
+}: {
+  startPairingChecklist: Record<PairingChecklist, boolean>;
+  toggleChecklist: (item: PairingChecklist) => void;
+}): JSX.Element {
+  return (
+    <>
       <Heading
         id="pre-pairing-checklist"
         level={4}
@@ -333,25 +423,7 @@ function StartPairingForm({
           </li>
         </ul>
       </fieldset>
-      <PairingStepsInlineHelp
-        iconOffsetTop="50%"
-        helpId="start-pairing-button"
-        helpText={() => (
-          <>
-            To un-pair your current Vault and pair your Wallet as your new
-            Reddit Vault, press <em>Start Pairing</em>.
-          </>
-        )}
-      >
-        <Button
-          disabled={mutation.status !== "idle"}
-          size="l"
-          className="block m-4"
-        >
-          Start Pairing
-        </Button>
-      </PairingStepsInlineHelp>
-    </form>
+    </>
   );
 }
 

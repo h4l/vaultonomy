@@ -4,11 +4,7 @@ import { log } from "../../logging";
 import { validateRedditChallenge } from "../../signing";
 import { PairingId } from "../state/createVaultonomyStore";
 import { usePairingState } from "../state/usePairingState";
-import {
-  RedditNotConnectedError,
-  assumeAvailable,
-  useRedditProvider,
-} from "./useRedditProvider";
+import { assumeAvailable, useRedditProvider } from "./useRedditProvider";
 
 type CreateAddressOwnershipChallengeOptions = {
   pairingId: PairingId;

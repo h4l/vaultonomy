@@ -29,7 +29,8 @@ function ThisStep({
   children?: ReactNode;
 }) {
   return (
-    <PairingStep num={3} name="Review & Sign Message" state={state}>
+    // <PairingStep num={3} name="Approve Pairing Message" state={state}>
+    <PairingStep num={3} name="Get Set" state={state}>
       {children}
     </PairingStep>
   );
@@ -91,7 +92,7 @@ function SignMessage({
   if (status === "success" || signedPairingMessage?.result === "ok") {
     return (
       <ThisStep state="past">
-        <StepAction state="done" headline="Message signed" />
+        <StepAction state="done" headline="Signed Pairing Message" />
       </ThisStep>
     );
   }
@@ -142,21 +143,29 @@ function SignMessage({
             </PairingStepsInlineHelp>
           </li>
         </ul>
-        <Button
-          size="l"
-          className="relative block m-4"
-          disabled={status === "pending"}
-          onClick={() => mutate()}
+        <PairingStepsInlineHelp
+          iconOffsetTop="50%"
+          helpId="sign-message-button"
+          helpText={() => (
+            <>Signing is free, it does not create an on-chain transaction.</>
+          )}
         >
-          Sign Message
-          {status === "pending" ?
-            <div className="absolute bottom-0 left-0 w-full">
-              <IndeterminateProgressBar />
-            </div>
-          : undefined}
-        </Button>
+          <Button
+            size="l"
+            className="relative block m-4"
+            disabled={status === "pending"}
+            onClick={() => mutate()}
+          >
+            Sign Message
+            {status === "pending" ?
+              <div className="absolute bottom-0 left-0 w-full">
+                <IndeterminateProgressBar />
+              </div>
+            : undefined}
+          </Button>
+        </PairingStepsInlineHelp>
       </StepBody>
-      {(status === "pending" || !signedPairingMessage) && (
+      {status === "pending" && (
         <StepAction
           state="pending"
           headline="Awaiting signature from your Wallet…"
