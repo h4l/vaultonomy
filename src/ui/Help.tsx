@@ -191,7 +191,8 @@ const HelpButton = forwardRef(function HelpButton(
                   ${help.helpEnabled ? "" : "hidden"}
                   ${isSelected ? "drop-shadow" : ""}
                   ${className || ""}`}
-      onClick={() => {
+      onClick={(e) => {
+        e.preventDefault();
         help.dispatch(
           isPinned ?
             { type: "help-item-deselected", mode: "pin", helpId }
