@@ -9,6 +9,7 @@ import {
 } from "../signing";
 import { Button } from "./Button";
 import { EthInput, VaultonomyCard } from "./Card";
+import { DonePairingStep } from "./DonePairingStep";
 import { Heading } from "./Heading";
 import { PositionProgressLine, ProgressLineContainer } from "./ProgressLine";
 import { SendMessageStep } from "./SendMessageStep";
@@ -352,64 +353,11 @@ function PairingSteps({
               challenge={normalisedPairingMessage}
             />
 
-            <PairingStep num={5} name="All done!" state="future">
-              <StepBody className="grid grid-cols-[1fr_auto] gap-x-4 mb-6">
-                <p className="mb-6 col-span-2">
-                  Nice job. To celebrate your{" "}
-                  <em className="">Vault's autonomy</em> you can mint a
-                  commemorative Vaultonomy Card for your Reddit username. A
-                  token of your appreciation.
-                </p>
-
-                <aside
-                  aria-label="Vaultonomy Card"
-                  className="flex flex-col gap-4 justify-between"
-                >
-                  <div>
-                    {/* <Heading level={4} className="mt-4">
-                    Vaultonomy Card
-                  </Heading> */}
-                    <ul className="list-disc ml-4 text-sm">
-                      <li className="my-2">
-                        Your card will be displayed on:
-                        <ul className="list-disc ml-4">
-                          <li>
-                            <a
-                              className="underline underline-offset-2 text-blue-500"
-                              target="_blank"
-                              href="https://vaultonomy.eth.link/cards"
-                            >
-                              https://vaultonomy.eth.link/cards
-                            </a>
-                          </li>
-                          <li>Your Wallet as an NFT (e.g. OpenSea)</li>
-                        </ul>
-                      </li>
-                      <li className="my-2">
-                        Pay what you like — your card's number is its rank by
-                        price, updated in real time. Proceeds go to Vaultonomy
-                        development.
-                      </li>
-                      {/* <li>A bespoke on-chain NFT</li>
-                    <li>
-                      This is <strong>not</strong> a Reddit Avatar.
-                    </li> */}
-                    </ul>
-                  </div>
-
-                  <div>
-                    <EthInput />
-                    <Button
-                      size="l"
-                      className="my-4 mb-[0.8rem] w-full justify-self-end"
-                    >
-                      Mint
-                    </Button>
-                  </div>
-                </aside>
-                <VaultonomyCard className="self-center" />
-              </StepBody>
-            </PairingStep>
+            <DonePairingStep
+              pairingId={pairingId}
+              wallet={wallet}
+              redditAccount={redditAccount}
+            />
           </div>
         </ProgressLineContainer>
       </main>

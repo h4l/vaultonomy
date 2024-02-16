@@ -1,25 +1,32 @@
 export function EthInput(): JSX.Element {
   return (
     <div>
-      <label
-        htmlFor="price"
-        className="block text-sm font-medium leading-6 text-gray-900"
-      >
+      <label htmlFor="price" className="block text-sm font-medium leading-6">
         Price
       </label>
       <div className="relative mt-2 rounded-md shadow-sm">
         <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-          <span className="text-gray-500 sm:text-sm">Ξ</span>
+          <span className="text-neutral-500 sm:text-sm">Ξ</span>
         </div>
         <input
           type="text"
           name="price"
           id="price"
-          className="block w-full rounded-md border-0 py-1.5 pl-7 pr-20 text-gray-900 ring-1 ring-inset ring-gray-300 placeholder:text-gray-400 focus:ring-2 focus:ring-inset focus:ring-indigo-600 sm:text-sm sm:leading-6"
+          className={[
+            "block w-full rounded-md",
+            "border-0 py-1.5 pl-7 pr-20",
+            // "text-gray-900 placeholder:text-gray-400",
+            "bg-neutral-50 dark:bg-neutral-900",
+            "placeholder:text-neutral-400 dark:placeholder:text-neutral-600",
+            "ring-1 ring-inset ring-neutral-300 dark:ring-neutral-700",
+            // "focus:ring-2 focus:ring-inset focus:ring-indigo-600",
+            "focus:ring-2 focus:ring-inset focus:ring-logo-background",
+            "text-base sm:text-sm sm:leading-6",
+          ].join(" ")}
           placeholder="0.00"
         />
         <div className="absolute inset-y-0 right-0 flex items-center">
-          <label htmlFor="price" className="pr-4 text-gray-500 sm:text-sm">
+          <label htmlFor="price" className="pr-4 text-neutral-500 sm:text-sm">
             ETH
           </label>
           {/* <select
