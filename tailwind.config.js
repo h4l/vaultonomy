@@ -1,4 +1,5 @@
 import typography from "@tailwindcss/typography";
+import defaultTheme from "tailwindcss/defaultTheme";
 
 const tailwindDefaultSansFontFamily =
   'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"';
@@ -9,6 +10,9 @@ export default {
   plugins: [typography],
   theme: {
     extend: {
+      screens: {
+        sm: "486px",
+      },
       fontFamily: {
         sans: `"Josefin Sans", ${tailwindDefaultSansFontFamily}`,
       },

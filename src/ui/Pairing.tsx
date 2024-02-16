@@ -193,7 +193,7 @@ function ExpandingNonModalDialog({
             else onExpand && onExpand();
           }}
         >
-          <div className="flex-grow ml-28">{heading}</div>
+          <div className="flex-grow md:ml-28 ml-8">{heading}</div>
           <ExpandMoreIcon40
             className={[
               "flex-shrink m-6 w-16 transition-transform duration-700",
@@ -223,7 +223,7 @@ function PairingNarrative({
   redditUserName: string | undefined;
   hasNoActiveVault: boolean | undefined;
 }): JSX.Element {
-  const redditUserName = (_redditUserName ?? "Unknown").toUpperCase();
+  const redditUserName = _redditUserName ?? "Unknown";
   const headingId = useId();
   return (
     <aside
@@ -239,8 +239,9 @@ function PairingNarrative({
       </div> */}
       <Setting>Somewhere on the Internet, present day.</Setting>
       <Stage>
-        {redditUserName}, a Reddit user, is talking to REDDIT with the help of
-        VAULTONOMY.
+        <ActorName>{redditUserName}</ActorName>, a Reddit user, is talking to{" "}
+        <ActorName>Reddit</ActorName> with the help of{" "}
+        <ActorName>Vaultonomy</ActorName>.
       </Stage>
       <Dialogue name={redditUserName}>
         “
@@ -249,15 +250,15 @@ function PairingNarrative({
         : <>I want to change my Vault Address.</>}{" "}
         But I’m not giving you my seed phrase, I’ve got my own Wallet…”
       </Dialogue>
-      <Dialogue name="REDDIT">
+      <Dialogue name="Reddit">
         “OK. But I need to be sure the new Address is yours. If you can sign my
         Pairing Message containing your Username and Address and send it back to
         me, I’ll make it your Vault.”
       </Dialogue>
-      <Dialogue name="VAULTONOMY">
-        “I'm mediate between your Wallet and Reddit to get you a Vault using
-        your Wallet's Address. Follow these steps and we'll have your Wallet
-        paired as your Vault in no time!”
+      <Dialogue name="Vaultonomy">
+        “I'm mediate between your Wallet and <ActorName>Reddit</ActorName> to
+        get you a Vault using your Wallet's Address. Follow these steps and
+        we'll have your Wallet paired as your Vault in no time!”
       </Dialogue>
       {/* <Dialogue name="VAULTONOMY">
         “The message Reddit needs you to sign is below. When you’re ready, hit{" "}
@@ -266,6 +267,14 @@ function PairingNarrative({
         Address too.”
       </Dialogue> */}
     </aside>
+  );
+}
+
+function ActorName({ children }: { children: ReactNode }) {
+  return (
+    <span className="font-semibold" style={{ fontVariant: "small-caps" }}>
+      {children}
+    </span>
   );
 }
 
@@ -294,7 +303,9 @@ function Dialogue({
 }): JSX.Element {
   return (
     <div className="col-span-2">
-      <div className="text-center font-medium">{name}</div>
+      <div className="text-center font-medium">
+        <ActorName>{name}</ActorName>
+      </div>
       <p className="prose">{children}</p>
     </div>
   );
@@ -418,7 +429,7 @@ function PairingMessage({
           </p>
         </div>
       </div>
-      <div className="flex flex-row flex-wrap justify-center gap-x-40 gap-y-20">
+      <div className="flex flex-row flex-wrap justify-center gap-x-40 gap-y-4 sm:gap-y-20">
         <PairingMessageSection
           name="Domain"
           explanation="The Domain is the recipient of the Message you’re signing. (Like the payee on a bank cheque.) It stops your message being used in a way you don't expect — it's only for Reddit."
@@ -488,16 +499,19 @@ function PairingMessageSection({
   return (
     <dl
       aria-labelledby={headingId}
-      className="grid grid-cols-[auto_1fr] gap-4 max-w-prose"
+      className={[
+        "mt-8 sm:mt-0",
+        "grid sm:grid-cols-[auto_1fr] sm:gap-4 max-w-prose",
+      ].join(" ")}
     >
-      <div className="col-start-2">
+      <div className="sm:col-start-2">
         <dt>
           <Heading id={headingId} level={4} className="my-2">
             {name}
           </Heading>
           {/* <h3 className="text-3xl font-semibold">{name}</h3> */}
         </dt>
-        <dd className="font-light text-sm">{explanation}</dd>
+        <dd className="font-light text-sm ml-8 sm:ml-0">{explanation}</dd>
       </div>
       {children}
     </dl>
@@ -560,10 +574,10 @@ function PairingMessageField({
 
   return (
     <>
-      <dt className="text-2xl font-semibold min-w-[4rem] justify-self-end">
+      <dt className="mt-4 sm:mt-0 text-2xl font-semibold min-w-[4rem] sm:justify-self-end">
         {name}
       </dt>
-      <dd className="">
+      <dd className="ml-8 sm:ml-0">
         {valueNode}
         <p role="note" className="font-light text-sm">
           {explanation}

@@ -162,7 +162,7 @@ function ConnectButton({
     <Button
       disabled={!isUsable}
       onClick={connect}
-      className={`relative w-full ${
+      className={`relative w-full sm:w-full ${
         isUsable ? "" : "opacity-50 grayscale-[60%]"
       }`}
       paddingClassName=""
