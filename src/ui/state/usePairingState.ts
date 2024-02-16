@@ -1,3 +1,4 @@
+import { usePinnedPairing } from "../hooks/usePinnedPairing";
 import {
   PairingId,
   PairingState,
@@ -49,7 +50,9 @@ export function usePairingState<T, ID extends PairingId | undefined>(
   const selector = selector_ || (defaultSelector as Selector<T>);
 
   return useVaultonomyStore((s) => {
-    let id: PairingId | undefined = id_ && getPairingId(id_);
+    const { pinnedPairingId } = usePinnedPairing();
+    let id: PairingId | undefined =
+      pinnedPairingId || (id_ && getPairingId(id_));
     const updatePairingState = id ? s.updatePairingState(id) : undefined;
     return {
       updatePairingState,

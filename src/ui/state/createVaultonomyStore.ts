@@ -50,6 +50,7 @@ export type VaultonomyStateActions = {
   setProvider(provider: VaultonomyBackgroundProvider | null): void;
   setRedditProvider(redditProvider: RedditProvider | null): void;
   updatePairingState(id: PairingId): UpdatePairingStateFunction;
+  setPinnedPairing(pinnedPairing: PairingId | null): void;
   setPairingInterest(userInterest: UserInterest): void;
   setCurrentUserId(currentUserId: string | null): void;
 };
@@ -79,11 +80,13 @@ export type VaultonomyStateData = {
   /** Determines whether the pairing UI is collapsed or expanded. */
   pairingInterest: UserInterest | null;
   pairings: Partial<Record<string, PairingState>>;
+  /** One of the pairings that has been signed and submitted to register the address. */
+  pinnedPairing: PairingId | null;
 };
 
 type PersistedVaultonomyStateData = Pick<
   VaultonomyStateData,
-  "currentUserId" | "pairings" | "pairingInterest"
+  "currentUserId" | "pairings" | "pairingInterest" | "pinnedPairing"
 >;
 
 export type VaultonomyState = VaultonomyStateData & VaultonomyStateActions;
@@ -119,6 +122,7 @@ export const createVaultonomyStore = (
           currentUserId: null,
           pairingInterest: null,
           pairings: {},
+          pinnedPairing: null,
           // actions
           setProvider(provider: VaultonomyBackgroundProvider | null): void {
             set((store) => {
@@ -156,6 +160,9 @@ export const createVaultonomyStore = (
               });
             };
           },
+          setPinnedPairing(pinnedPairing: PairingId | null): void {
+            set({ pinnedPairing });
+          },
           setCurrentUserId(currentUserId: string | null): void {
             set({ currentUserId });
           },
@@ -164,12 +171,13 @@ export const createVaultonomyStore = (
       },
       {
         name: "vaultonomy-ui-state",
-        version: 2,
+        version: 3,
         partialize(store): PersistedVaultonomyStateData {
           return {
             currentUserId: store.currentUserId,
             pairings: store.pairings,
             pairingInterest: store.pairingInterest,
+            pinnedPairing: store.pinnedPairing,
           };
         },
         storage:
