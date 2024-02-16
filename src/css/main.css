@@ -18,6 +18,11 @@
     @apply text-base font-sans;
   }
 
+  * {
+    /* We always want this, lines are too thick for our font by default. */
+    @apply decoration-from-font;
+  }
+
   /* Focus style is used in lots of places, and we want the same style for
      consistency, so seems worthwhile to do it once here. */
   *:focus {
