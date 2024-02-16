@@ -11,6 +11,11 @@ type CreateAddressOwnershipChallengeOptions = {
   redditUserName: string;
   address: `0x${string}`;
 };
+
+export type UseCreateAddressOwnershipChallengeResult = ReturnType<
+  typeof useCreateAddressOwnershipChallenge
+>;
+
 export function useCreateAddressOwnershipChallenge({
   pairingId,
   redditUserName,

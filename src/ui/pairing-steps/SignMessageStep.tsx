@@ -20,6 +20,7 @@ import {
   StepAction,
   StepBody,
 } from "./components";
+import { SignatureInvalidError } from "./steps";
 
 function ThisStep({
   state,
@@ -263,31 +264,7 @@ function SignMessageError({
       />
     );
   } else if (error === "signature-invalid") {
-    return (
-      <StepAction
-        state="error"
-        headline="The Message signature your Wallet provided is not correct"
-        details={
-          <>
-            The signature doesn't match Reddit's Message and your Wallet
-            address.
-            <ul className="list-outside list-disc ml-6">
-              <li>
-                Is your Wallet showing the same <code>0x...</code> address as
-                the <Link toId={WALLET}>Wallet</Link> section above? If not,
-                reconnect your Wallet and try again.
-              </li>
-              <li>
-                Did your Wallet show you the fields of{" "}
-                <Link toId={PAIRING_MESSAGE}>Reddit's Message</Link>? If not,
-                your Wallet may not support signing this type of structured
-                data.
-              </li>
-            </ul>
-          </>
-        }
-      />
-    );
+    return <SignatureInvalidError />;
   }
   assertUnreachable(error);
 }

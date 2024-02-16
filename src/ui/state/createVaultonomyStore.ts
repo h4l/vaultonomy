@@ -7,7 +7,6 @@ import { RedditEIP712Challenge } from "../../reddit/api-client";
 import { RedditProvider } from "../../reddit/reddit-interaction-client";
 import { HexString, RecursivePartial } from "../../types";
 import { browser } from "../../webextension";
-import { createVaultonomyBackgroundProvider } from "../hooks/createVaultonomyBackgroundProvider";
 import { VaultonomyBackgroundProvider } from "../rpc/VaultonomyBackgroundProvider";
 import { createExtensionStorage } from "./zustandExtensionStorage";
 
@@ -28,7 +27,10 @@ export type SignedPairingMessage = Result<
  * Whether we have received a successful response to a address registration
  * request. The string value is an identifier for the challenge pairing message.
  */
-type SentPairingMessage = Result<string>;
+export type SentPairingMessage = Result<
+  { messageHash: HexString },
+  "message-expired" | "signature-invalid" | "request-failed"
+>;
 
 export type PairingId = {
   userId: string;

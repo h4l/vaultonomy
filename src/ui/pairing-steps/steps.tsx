@@ -1,4 +1,5 @@
 import { Link } from "../Link";
+import { PAIRING_MESSAGE, WALLET } from "../ids";
 import { StepAction } from "./components";
 
 export function RedditErrorStepAction({
@@ -26,6 +27,32 @@ export function RedditErrorStepAction({
                 Vaultonomy's GitHub repository
               </Link>
               .
+            </li>
+          </ul>
+        </>
+      }
+    />
+  );
+}
+
+export function SignatureInvalidError() {
+  return (
+    <StepAction
+      state="error"
+      headline="The Message signature your Wallet provided is not correct"
+      details={
+        <>
+          The signature doesn't match Reddit's Message and your Wallet address.
+          <ul className="list-outside list-disc ml-6">
+            <li>
+              Is your Wallet showing the same <code>0x...</code> address as the{" "}
+              <Link toId={WALLET}>Wallet</Link> section above? If not, reconnect
+              your Wallet and try again.
+            </li>
+            <li>
+              Did your Wallet show you the fields of{" "}
+              <Link toId={PAIRING_MESSAGE}>Reddit's Message</Link>? If not, your
+              Wallet may not support signing this type of structured data.
             </li>
           </ul>
         </>

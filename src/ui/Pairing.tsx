@@ -11,6 +11,7 @@ import { Button } from "./Button";
 import { EthInput, VaultonomyCard } from "./Card";
 import { Heading } from "./Heading";
 import { PositionProgressLine, ProgressLineContainer } from "./ProgressLine";
+import { SendMessageStep } from "./SendMessageStep";
 import { useExpandCollapseElement } from "./hooks/useExpandCollapseElement";
 import { UseRedditAccountResult } from "./hooks/useRedditAccount";
 import { UseRedditAccountActiveVaultResult } from "./hooks/useRedditAccountActiveVault";
@@ -346,12 +347,10 @@ function PairingSteps({
               challenge={normalisedPairingMessage}
             />
 
-            <PairingStep num={4} name="Submit Pairing Message" state="future">
-              {/* <StepAction state="pending">Message sent</StepAction>
-              <StepAction state="pending">
-                Wallet paired as your Vault
-              </StepAction> */}
-            </PairingStep>
+            <SendMessageStep
+              pairingId={pairingId}
+              challenge={normalisedPairingMessage}
+            />
 
             <PairingStep num={5} name="All done!" state="future">
               <StepBody className="grid grid-cols-[1fr_auto] gap-x-4 mb-6">

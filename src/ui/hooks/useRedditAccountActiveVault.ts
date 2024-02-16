@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { QueryKey, useQuery } from "@tanstack/react-query";
 
 import { assert } from "../../assert";
 import { AccountVaultAddress } from "../../reddit/api-client";
@@ -8,6 +8,12 @@ function activeVaultAddress(
   vaultAddresses?: ReadonlyArray<AccountVaultAddress>,
 ): AccountVaultAddress | null {
   return vaultAddresses?.find((va) => va.isActive) ?? null;
+}
+
+export function getRedditAccountActiveVaultQueryKey(
+  userId: string | unknown,
+): QueryKey {
+  return ["RedditProvider", "AccountVaultAddresses", userId];
 }
 
 export type UseRedditAccountActiveVaultResult = ReturnType<
@@ -21,7 +27,7 @@ export function useRedditAccountActiveVault({
   const { isAvailable, redditProvider } = useRedditProvider();
   return {
     ...useQuery({
-      queryKey: ["RedditProvider", "AccountVaultAddresses", userId],
+      queryKey: getRedditAccountActiveVaultQueryKey(userId),
       queryFn: () => {
         assert(userId !== undefined);
         return assumeAvailable(redditProvider).getAccountVaultAddresses({
