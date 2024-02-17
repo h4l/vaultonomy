@@ -297,34 +297,14 @@ export function HelpModal(): JSX.Element {
   const hasPinnedHelpItem =
     getSelectedHelpItem(help, { mode: "pin" }) !== undefined;
   const selectedHelpItem = getSelectedHelpItem(help);
-  const reservedSpace = useRef<HTMLDivElement>(null);
   const ref = useRef<HTMLElement>(null);
-  const [reservedSpaceOnScreen, setReservedSpaceOnScreen] = useState(false);
   const [modalHeight, setModalHeight] = useState(0);
-  // const [state, setState] = useState(initialState);
   const [transitionState, setTransitionState] = useState<
     "at-end" | "at-start" | "started"
   >("at-end");
   const windowWidth = useWindowWidth();
 
-  // Track whether the space under fixed footer (to allow scrolling to the bottom)
-  // is on screen, so that we don't cause a jump by removing it when visible.
-  useEffect(() => {
-    if (!reservedSpace.current) {
-      setReservedSpaceOnScreen(false);
-      return;
-    }
-
-    const el = reservedSpace.current;
-    const observer = new IntersectionObserver((entries) => {
-      assert(entries.length === 1);
-      assert(entries[0].target === el);
-      setReservedSpaceOnScreen(entries[0].isIntersecting);
-    });
-    observer.observe(el);
-    return () => observer.unobserve(el);
-  }, [reservedSpace]);
-
+  // TODO: can use element size observer rather than window
   useEffect(
     () => {
       setModalHeight(ref.current?.offsetHeight ?? 0);
@@ -363,20 +343,10 @@ export function HelpModal(): JSX.Element {
   }, [help.helpEnabled, transitionState, modalHeight]);
 
   return (
-    // This outer div provides empty space under the modal footer so that the
-    // content can scroll all the way into view, above the modal footer.
-    // By transitioning height, the scroll bars don't jump when we add/remove
-    // the space.
-    <div
-      ref={reservedSpace}
-      className="h-0 transition-[height] duration-1000"
-      style={{
-        height:
-          help.helpEnabled || reservedSpaceOnScreen ?
-            `${modalHeight}px`
-          : undefined,
-      }}
-    >
+    <>
+      {/* Provide empty space under the modal footer so that the page content
+          can scroll all the way into view, above the modal footer. */}
+      <ReservedSpace required={help.helpEnabled} height={modalHeight} />
       <aside
         ref={ref}
         aria-label="help"
@@ -454,7 +424,7 @@ export function HelpModal(): JSX.Element {
           </p>
         </div>
       </aside>
-    </div>
+    </>
   );
 }
 
@@ -511,5 +481,64 @@ function HelpIconLarge({
         d="M484-247q16 0 27-11t11-27q0-16-11-27t-27-11q-16 0-27 11t-11 27q0 16 11 27t27 11Zm-35-146h59q0-26 6.5-47.5T555-490q31-26 44-51t13-55q0-53-34.5-85T486-713q-49 0-86.5 24.5T345-621l53 20q11-28 33-43.5t52-15.5q34 0 55 18.5t21 47.5q0 22-13 41.5T508-512q-30 26-44.5 51.5T449-393Zm31 313q-82 0-155-31.5t-127.5-86Q143-252 111.5-325T80-480q0-83 31.5-156t86-127Q252-817 325-848.5T480-880q83 0 156 31.5T763-763q54 54 85.5 127T880-480q0 82-31.5 155T763-197.5q-54 54.5-127 86T480-80Zm0-60q142 0 241-99.5T820-480q0-142-99-241t-241-99q-141 0-240.5 99T140-480q0 141 99.5 240.5T480-140Zm0-340Z"
       />
     </svg>
+  );
+}
+
+/**
+ * A vertical spacer that expands when a viewport-fixed footer is active, to
+ * allow the page content to scroll above the fixed footer.
+ *
+ * When the footer is closed, the space remains until the viewport scrolls away,
+ * so that the viewport doesn't jump as the footer closes. It also transitions
+ * height in an out, so that scroll bars don't jump.
+ */
+function ReservedSpace({
+  required,
+  height,
+}: {
+  required: boolean;
+  height: number;
+}): JSX.Element {
+  const elRef = useRef<HTMLDivElement>(null);
+  const [onScreen, setOnScreen] = useState(false);
+  const [finishedShrinking, setFinishedShrinking] = useState(true);
+  const isVisible = required || onScreen || !finishedShrinking;
+
+  // Track whether the space under fixed footer (to allow scrolling to the bottom)
+  // is on screen, so that we don't cause a jump by removing it when visible.
+  useEffect(() => {
+    const el = elRef.current;
+    assert(el);
+    const observer = new IntersectionObserver((entries) => {
+      assert(entries.length === 1);
+      assert(entries[0].target === el);
+      setOnScreen(entries[0].isIntersecting);
+    });
+    observer.observe(el);
+
+    return () => observer.unobserve(el);
+  }, []);
+
+  useEffect(() => {
+    if (required && onScreen) setFinishedShrinking(false);
+  }, [required, onScreen]);
+
+  return (
+    <div
+      ref={elRef}
+      className="h-0 transition-[height] duration-1000"
+      onTransitionEnd={() => {
+        if (!onScreen) setFinishedShrinking(true);
+      }}
+      style={{
+        display: isVisible ? undefined : "none",
+        height:
+          isVisible ?
+            required || onScreen ?
+              `${height}px`
+            : "0px"
+          : undefined,
+      }}
+    />
   );
 }
