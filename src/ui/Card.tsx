@@ -1,3 +1,5 @@
+import { pxNumbersAsRem } from "./utils/units";
+
 export function EthInput(): JSX.Element {
   return (
     <div>
@@ -54,7 +56,7 @@ export function VaultonomyCard({
   return (
     <svg
       className={className}
-      width={width ?? 203}
+      width={pxNumbersAsRem(width ?? 203)}
       viewBox="0 0 203 310"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"

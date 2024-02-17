@@ -3,6 +3,7 @@ import React, { useState } from "react";
 import { Heading } from "./Heading";
 import { WithInlineHelp } from "./Help";
 import { Link } from "./Link";
+import { pxNumbersAsRem } from "./utils/units";
 
 export function EthAccount({
   title,
@@ -287,7 +288,7 @@ function CopyIcon({
       className={className}
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 -960 960 960"
-      width={size}
+      width={size && pxNumbersAsRem(size)}
     >
       <title>Copy</title>
       <path
@@ -310,7 +311,7 @@ function DoneIcon({
     <svg
       aria-hidden="true"
       className={className}
-      width={size}
+      width={size && pxNumbersAsRem(size)}
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 -960 960 960"
     >
@@ -335,7 +336,7 @@ function ErrorIcon({
     <svg
       aria-hidden="true"
       className={className}
-      width={size}
+      width={size && pxNumbersAsRem(size)}
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 -960 960 960"
     >
@@ -360,7 +361,7 @@ function EtherscanIcon({
       aria-hidden="true"
       className={className}
       xmlns="http://www.w3.org/2000/svg"
-      width={size}
+      width={size && pxNumbersAsRem(size)}
       viewBox="0 0 30 30"
     >
       <title>Etherscan</title>
@@ -395,7 +396,7 @@ function OpenSeaIcon({
       aria-hidden="true"
       className={className}
       xmlns="http://www.w3.org/2000/svg"
-      width={size}
+      width={size && pxNumbersAsRem(size)}
       viewBox="0 0 30 30"
     >
       <title>OpenSea</title>

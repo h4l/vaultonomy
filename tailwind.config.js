@@ -6,7 +6,7 @@ const tailwindDefaultSansFontFamily =
 
 /** @type {import('tailwindcss').Config} */
 export default {
-  content: ["./src/**/*.{ts,tsx}", "./src/html/**/*.html"],
+  content: ["./src/**/*.{ts,tsx}", "./src/html/**/*.html", "./index.html"],
   plugins: [typography],
   theme: {
     extend: {

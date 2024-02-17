@@ -15,6 +15,7 @@ import { EthAccount } from "./EthAccount";
 import { WithInlineHelp } from "./Help";
 import { IndeterminateProgressBar } from "./IndeterminateProgressBar";
 import { useLazyConnectors } from "./hooks/wallet";
+import { pxNumbersAsRem } from "./utils/units";
 
 export function Wallet({
   wallet,
@@ -203,7 +204,7 @@ export function WalletConnectLogo({
       aria-hidden="true"
       className={className}
       xmlns="http://www.w3.org/2000/svg"
-      width={width}
+      width={pxNumbersAsRem(width)}
       viewBox="0 0 60 36"
       fill="none"
     >
@@ -228,7 +229,7 @@ export function CoinbaseLogo({
     <svg
       aria-hidden="true"
       className={className}
-      width={width}
+      width={pxNumbersAsRem(width)}
       viewBox="0 0 28 28"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
@@ -261,7 +262,7 @@ export function MetaMaskLogo({
       className={className}
       xmlns="http://www.w3.org/2000/svg"
       fill="none"
-      width={width}
+      width={pxNumbersAsRem(width)}
       viewBox="0 0 35.6 33"
     >
       <title>MetaMask</title>

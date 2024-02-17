@@ -1,6 +1,7 @@
 import { RedditUserProfile } from "../reddit/reddit-interaction-spec";
 import { WithInlineHelp } from "./Help";
 import { UserAvatar } from "./UserAvatar";
+import { pxNumbersAsRem } from "./utils/units";
 
 export function UserProfile({
   profile,
@@ -78,8 +79,7 @@ function RedditPremiumIcon({ className }: { className?: string }): JSX.Element {
       aria-hidden="true"
       className={className}
       xmlns="http://www.w3.org/2000/svg"
-      width="20"
-      height="21"
+      width={pxNumbersAsRem(20)}
       viewBox="0 0 20 21"
       fill="none"
     >
