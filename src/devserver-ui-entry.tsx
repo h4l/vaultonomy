@@ -12,7 +12,9 @@ const vaultonomyStore = createVaultonomyStore({ isOnDevServer: true });
 export function DevServerRoot(): JSX.Element {
   return (
     <AppContext vaultonomyStore={vaultonomyStore}>
-      <ReactQueryDevtools initialIsOpen={false} />
+      {import.meta.env.VITE_TANSTACK_QUERY_DEV_TOOLS ?
+        <ReactQueryDevtools initialIsOpen={false} />
+      : undefined}
       <AppUI />
     </AppContext>
   );
