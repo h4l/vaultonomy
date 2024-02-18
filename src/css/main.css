@@ -37,6 +37,14 @@
        way, so don't want a background. */
     background: none;
   }
+
+  /* Fully hide ScreenReader-only content when it's in an aria-hidden tree.
+     By default it remains in its weird semi-visible state, which causes
+     collapsed overflow:hidden areas to remain their full size. */
+  [aria-hidden="true"] .sr-only,
+  [aria-hidden="true"].sr-only {
+    display: none;
+  }
 }
 
 @tailwind components;
