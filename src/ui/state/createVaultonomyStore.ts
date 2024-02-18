@@ -3,6 +3,7 @@ import { createStore } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
 import { AssertionError, assert } from "../../assert";
+import { log } from "../../logging";
 import { RedditEIP712Challenge } from "../../reddit/api-client";
 import { RedditProvider } from "../../reddit/reddit-interaction-client";
 import { HexString, RecursivePartial } from "../../types";
@@ -49,8 +50,10 @@ export type VaultonomyStateActions = {
    * be set to null before setting a new one. This is to prevent accidentally
    * loosing a reference to a provider with an open Port connection.
    */
-  setProvider(provider: VaultonomyBackgroundProvider | null): void;
-  setRedditProvider(redditProvider: RedditProvider | null): void;
+  setProvider(provider: VaultonomyBackgroundProvider): void;
+  removeProvider(provider?: VaultonomyBackgroundProvider): void;
+  setRedditProvider(redditProvider: RedditProvider): void;
+  removeRedditProvider(redditProvider?: RedditProvider): void;
   updatePairingState(id: PairingId): UpdatePairingStateFunction;
   setPinnedPairing(pinnedPairing: PairingId | null): void;
   setPairingInterest(userInterest: UserInterest): void;
@@ -126,22 +129,60 @@ export const createVaultonomyStore = (
           pairings: {},
           pinnedPairing: null,
           // actions
-          setProvider(provider: VaultonomyBackgroundProvider | null): void {
+          setProvider(provider: VaultonomyBackgroundProvider): void {
             set((store) => {
-              assert(
-                !(provider && store.provider),
-                "attempted to replace an existing provider with a new provider",
-              );
+              if (store.provider) {
+                if (store.provider === provider) return store;
+                log.warn(
+                  "setProvider is replacing an existing provider",
+                  store.provider,
+                  provider,
+                );
+              }
               return { provider };
             });
           },
-          setRedditProvider(redditProvider: RedditProvider | null): void {
+          removeProvider(provider?: VaultonomyBackgroundProvider): void {
             set((store) => {
-              assert(
-                !(redditProvider && store.redditProvider),
-                "attempted to replace an existing redditProvider with a new redditProvider",
-              );
+              if (provider && store.provider && store.provider !== provider) {
+                log.warn(
+                  "removeProvider is not removing existing provider as it's not the expected value",
+                  store.provider,
+                  provider,
+                );
+                return store;
+              }
+              return { provider: null };
+            });
+          },
+          setRedditProvider(redditProvider: RedditProvider): void {
+            set((store) => {
+              if (store.redditProvider) {
+                if (store.redditProvider === redditProvider) return store;
+                log.warn(
+                  "setRedditProvider is replacing an existing redditProvider",
+                  store.redditProvider,
+                  redditProvider,
+                );
+              }
               return { redditProvider };
+            });
+          },
+          removeRedditProvider(redditProvider?: RedditProvider): void {
+            set((store) => {
+              if (
+                redditProvider &&
+                store.redditProvider &&
+                store.redditProvider !== redditProvider
+              ) {
+                log.warn(
+                  "removeRedditProvider is not removing existing redditProvider as it's not the expected value",
+                  store.redditProvider,
+                  redditProvider,
+                );
+                return store;
+              }
+              return { redditProvider: null };
             });
           },
           setPairingInterest(pairingInterest: UserInterest): void {

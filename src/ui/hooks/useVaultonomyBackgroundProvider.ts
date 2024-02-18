@@ -1,33 +1,25 @@
 import { useEffect } from "react";
 
 import { assert, assertUnreachable } from "../../assert";
+import { log } from "../../logging";
 import { useVaultonomyStore } from "../state/useVaultonomyStore";
 import { createVaultonomyBackgroundProvider } from "./createVaultonomyBackgroundProvider";
 
 export function useVaultonomyBackgroundConnection() {
   const [
     isOnDevServer,
-    provider,
-    redditProvider,
     setProvider,
+    removeProvider,
     setRedditProvider,
+    removeRedditProvider,
   ] = useVaultonomyStore((s) => [
     s.isOnDevServer,
-    s.provider,
-    s.redditProvider,
     s.setProvider,
+    s.removeProvider,
     s.setRedditProvider,
+    s.removeRedditProvider,
   ]);
   useEffect(() => {
-    assert(
-      provider === null,
-      "useVaultonomyBackgroundConnection() mounted with a provider already present",
-    );
-    assert(
-      redditProvider === null,
-      "useVaultonomyBackgroundConnection() mounted with a redditProvider already present",
-    );
-
     const createdProvider = createVaultonomyBackgroundProvider({
       isOnDevServer,
     });
@@ -43,7 +35,7 @@ export function useVaultonomyBackgroundConnection() {
         if (e.type === "redditTabBecameAvailable")
           setRedditProvider(createdProvider.redditProvider);
         else if (e.type === "redditTabBecameUnavailable")
-          setRedditProvider(null);
+          removeRedditProvider(createdProvider.redditProvider);
         else assertUnreachable(e);
       },
     );
@@ -51,8 +43,8 @@ export function useVaultonomyBackgroundConnection() {
     return () => {
       stopAvailabilityStatus();
       createdProvider.disconnect();
-      setProvider(null);
-      setRedditProvider(null);
+      removeProvider(createdProvider);
+      removeRedditProvider(createdProvider.redditProvider);
     };
   }, []);
 }
