@@ -13,7 +13,7 @@ import {
   UseCreateAddressOwnershipChallengeResult,
   useCreateAddressOwnershipChallenge,
 } from "../hooks/useCreateAddressOwnershipChallenge";
-import { UseRedditAccountActiveVaultResult } from "../hooks/useRedditAccountActiveVault";
+import { UseRedditAccountActiveVaultResult } from "../hooks/useRedditAccountVaults";
 import {
   FetchedPairingMessage,
   PairingChecklist,

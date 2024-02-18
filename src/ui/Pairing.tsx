@@ -15,7 +15,7 @@ import { PositionProgressLine, ProgressLineContainer } from "./ProgressLine";
 import { SendMessageStep } from "./SendMessageStep";
 import { useExpandCollapseElement } from "./hooks/useExpandCollapseElement";
 import { UseRedditAccountResult } from "./hooks/useRedditAccount";
-import { UseRedditAccountActiveVaultResult } from "./hooks/useRedditAccountActiveVault";
+import { UseRedditAccountActiveVaultResult } from "./hooks/useRedditAccountVaults";
 import { ExpandMoreIcon40 } from "./icons";
 import { PAIRING_MESSAGE } from "./ids";
 import { ConnectWalletStep } from "./pairing-steps/ConnectWalletStep";

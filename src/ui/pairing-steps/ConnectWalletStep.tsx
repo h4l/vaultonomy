@@ -6,7 +6,7 @@ import { RedditProviderError } from "../../reddit/reddit-interaction-client";
 import { ErrorCode } from "../../reddit/reddit-interaction-spec";
 import { Link } from "../Link";
 import { UseRedditAccountResult } from "../hooks/useRedditAccount";
-import { UseRedditAccountActiveVaultResult } from "../hooks/useRedditAccountActiveVault";
+import { UseRedditAccountActiveVaultResult } from "../hooks/useRedditAccountVaults";
 import { WALLET } from "../ids";
 import { PairingStep, PairingStepState, StepAction } from "./components";
 import { RedditErrorStepAction } from "./steps";

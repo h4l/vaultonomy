@@ -3,7 +3,7 @@ import { useEnsName } from "wagmi";
 import { EthAccount } from "./EthAccount";
 import { WithInlineHelp } from "./Help";
 import { RelativeTime } from "./RelativeTime";
-import { UseRedditAccountActiveVaultResult } from "./hooks/useRedditAccountActiveVault";
+import { UseRedditAccountActiveVaultResult } from "./hooks/useRedditAccountVaults";
 
 export function Vault({
   activeVault,
@@ -16,7 +16,6 @@ export function Vault({
       staleTime: 1000 * 60,
     },
   });
-
   return (
     <EthAccount
       title="Reddit Vault"

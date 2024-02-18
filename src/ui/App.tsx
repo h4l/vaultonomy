@@ -10,7 +10,7 @@ import { Vault } from "./Vault";
 import { VaultonomyLogo } from "./VaultonomyLogo";
 import { Wallet } from "./Wallet";
 import { useRedditAccount } from "./hooks/useRedditAccount";
-import { useRedditAccountActiveVault } from "./hooks/useRedditAccountActiveVault";
+import { useRedditAccountActiveVault } from "./hooks/useRedditAccountVaults";
 import { useVaultonomyBackgroundConnection } from "./hooks/useVaultonomyBackgroundProvider";
 import { VaultonomyContext } from "./state/VaultonomyContext";
 import {

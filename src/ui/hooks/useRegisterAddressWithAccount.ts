@@ -11,7 +11,7 @@ import {
 } from "../../signing";
 import { PairingId, SentPairingMessage } from "../state/createVaultonomyStore";
 import { usePairingState } from "../state/usePairingState";
-import { getRedditAccountActiveVaultQueryKey } from "./useRedditAccountActiveVault";
+import { getRedditAccountVaultsQueryKey } from "./useRedditAccountVaults";
 import { assumeAvailable, useRedditProvider } from "./useRedditProvider";
 
 type RegisterAddressWithAccountOptions = {
@@ -78,7 +78,7 @@ export function useRegisterAddressWithAccount({
 
       updatePairingState({ sentPairingMessage: value });
       queryClient.invalidateQueries({
-        queryKey: getRedditAccountActiveVaultQueryKey(pairingId.userId),
+        queryKey: getRedditAccountVaultsQueryKey(pairingId.userId),
       });
     },
     onError(error) {
