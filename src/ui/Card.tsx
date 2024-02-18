@@ -50,7 +50,7 @@ export function VaultonomyCard({
   width,
   className,
 }: {
-  width?: number;
+  width?: number | string;
   className?: string;
 }): JSX.Element {
   return (

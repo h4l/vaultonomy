@@ -61,8 +61,8 @@ export function DonePairingStep({
 
 export function DonePairing(): JSX.Element {
   return (
-    <StepBody className="grid grid-cols-[1fr_auto] gap-x-4 mb-6">
-      <p className="mb-6 col-span-2">
+    <StepBody className="grid md:grid-cols-[1fr_1fr] gap-y-6 _md:gap-y-0 md:gap-x-4 mb-6">
+      <p className="_mb-6 md:col-span-2">
         Nice job, Reddit longer has access to your seed phrase. To celebrate
         your <em className="">Vault's autonomy</em> you can mint a commemorative
         Vaultonomy Card for your Reddit username. Use your card to show you
@@ -83,7 +83,7 @@ export function DonePairing(): JSX.Element {
               <ul className="list-disc ml-4">
                 <li>
                   <Link href="https://vaultonomy.eth.link/cards">
-                    https://vaultonomy.eth.link/cards
+                    vaultonomy.eth/cards
                   </Link>
                 </li>
                 <li>Your Wallet as an NFT</li>
@@ -102,12 +102,21 @@ export function DonePairing(): JSX.Element {
 
         <div>
           <EthInput />
-          <Button size="l" className="my-4 mb-[0.8rem] w-full justify-self-end">
+          <Button
+            size="l"
+            className="my-4 mb-[0.8rem] sm:w-full justify-self-end"
+          >
             Mint
           </Button>
         </div>
       </aside>
-      <VaultonomyCard className="self-center" />
+      <VaultonomyCard
+        className={[
+          "self-center justify-self-center",
+          "row-start-2 md:row-start-auto",
+          "w-64 md:w-full",
+        ].join(" ")}
+      />
     </StepBody>
   );
 }
