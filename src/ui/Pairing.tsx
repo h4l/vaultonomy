@@ -7,8 +7,6 @@ import {
   NormalisedRedditEIP712Challenge,
   normaliseRedditChallenge,
 } from "../signing";
-import { Button } from "./Button";
-import { EthInput, VaultonomyCard } from "./Card";
 import { DonePairingStep } from "./DonePairingStep";
 import { Heading } from "./Heading";
 import { PositionProgressLine, ProgressLineContainer } from "./ProgressLine";
@@ -21,7 +19,6 @@ import { PAIRING_MESSAGE } from "./ids";
 import { ConnectWalletStep } from "./pairing-steps/ConnectWalletStep";
 import { FetchPairingMessageStep } from "./pairing-steps/FetchPairingMessageStep";
 import { SignMessageStep } from "./pairing-steps/SignMessageStep";
-import { PairingStep, StepBody } from "./pairing-steps/components";
 import { PairingId } from "./state/createVaultonomyStore";
 import { getPairingId, usePairingState } from "./state/usePairingState";
 import { useVaultonomyStore } from "./state/useVaultonomyStore";
@@ -251,14 +248,14 @@ function PairingNarrative({
         But I’m not giving you my seed phrase, I’ve got my own Wallet…”
       </Dialogue>
       <Dialogue name="Reddit">
-        “OK. But I need to be sure the new Address is yours. If you can sign my
-        Pairing Message containing your Username and Address and send it back to
-        me, I’ll make it your Vault.”
+        “OK. But I need you to prove to me that the Wallet’s Address is yours.
+        If you can sign my Pairing Message containing your Username and Address
+        and send it back to me, I’ll make it your Vault Address.”
       </Dialogue>
       <Dialogue name="Vaultonomy">
-        “I'm mediate between your Wallet and <ActorName>Reddit</ActorName> to
-        get you a Vault using your Wallet's Address. Follow these steps and
-        we'll have your Wallet paired as your Vault in no time!”
+        “I’ll mediate between your Wallet and <ActorName>Reddit</ActorName> to
+        get you a Vault using your Wallet’s Address. Follow these steps and
+        we’ll have your Wallet paired as your Vault in no time!”
       </Dialogue>
       {/* <Dialogue name="VAULTONOMY">
         “The message Reddit needs you to sign is below. When you’re ready, hit{" "}

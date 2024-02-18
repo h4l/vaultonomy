@@ -216,9 +216,9 @@ function PairingStartPreamble({
           </ul>
         )}
       >
-        <p className="mt-0 my-4">
+        <p className="my-4">
           Pairing your Wallet as your Reddit account’s Vault will un-pair your
-          current Vault’s address from your Reddit account.
+          current Vault’s Address from your Reddit account.
         </p>
       </PairingStepsInlineHelp>
     );
