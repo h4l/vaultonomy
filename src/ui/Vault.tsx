@@ -1,5 +1,3 @@
-import { useEnsName } from "wagmi";
-
 import { EthAccount } from "./EthAccount";
 import { WithInlineHelp } from "./Help";
 import { RelativeTime } from "./RelativeTime";
@@ -10,18 +8,11 @@ export function Vault({
 }: {
   activeVault: UseRedditAccountActiveVaultResult;
 }): JSX.Element {
-  const ensName = useEnsName({
-    address: activeVault?.data?.address,
-    query: {
-      staleTime: 1000 * 60,
-    },
-  });
   return (
     <EthAccount
       title="Reddit Vault"
       subtitle={!activeVault ? "No active Vault" : undefined}
       ethAddress={activeVault?.data?.address}
-      ensName={ensName.data ?? undefined}
       footer={
         activeVault?.data?.createdAt ?
           <WithInlineHelp helpText="The date when this Ethereum account was paired with your Reddit account to create this Vault.">

@@ -1,4 +1,6 @@
-import React, { useState } from "react";
+import React, { ReactNode, useState } from "react";
+import { Address } from "viem";
+import { useEnsName } from "wagmi";
 
 import { Heading } from "./Heading";
 import { WithInlineHelp } from "./Help";
@@ -9,17 +11,59 @@ export function EthAccount({
   title,
   subtitle,
   ethAddress: _ethAddress,
-  ensName,
   footer,
   children,
 }: {
   title: string;
   subtitle?: string;
-  ethAddress?: string;
-  ensName?: string;
+  ethAddress?: Address;
+  head?: React.ReactNode;
   footer?: React.ReactNode;
   children?: React.ReactNode;
 }): JSX.Element {
+  return (
+    <EthAccountDetails
+      title={title}
+      ethAddress={_ethAddress}
+      header={
+        <Heading
+          id={title.toLowerCase().replaceAll(/\s+/g, "-")}
+          className={`row-start-1 col-start-1 col-span-6 flex flex-row justify-center`}
+        >
+          {subtitle ?
+            <span className="relative">
+              {title}
+              <span
+                role="note"
+                className="inline-block absolute left-[0.625rem] -bottom-2 text-sm font-normal"
+              >
+                {subtitle}
+              </span>
+            </span>
+          : title}
+        </Heading>
+      }
+      footer={footer}
+    >
+      {children}
+    </EthAccountDetails>
+  );
+}
+
+export function EthAccountDetails({
+  title,
+  ethAddress: _ethAddress,
+  header,
+  footer,
+  children,
+}: {
+  title: string;
+  ethAddress?: Address;
+  header?: ReactNode;
+  footer?: React.ReactNode;
+  children?: React.ReactNode;
+}): JSX.Element {
+  const ensName = useEnsName({ address: _ethAddress });
   const ethAddress = _ethAddress ?? `0x${"0".repeat(40)}`;
   const isDisabled = _ethAddress === undefined;
   return (
@@ -27,30 +71,15 @@ export function EthAccount({
       aria-label={`${title} details`}
       className="w-80 grid gap-x-4 gap-y-[0.125rem] auto-rows-min grid-cols-[auto_auto_auto_auto_auto_1fr] items-end"
     >
-      <Heading
-        id={title.toLowerCase().replaceAll(/\s+/g, "-")}
-        className={`row-start-1 col-start-1 col-span-6 flex flex-row justify-center`}
-      >
-        {subtitle ?
-          <span className="relative">
-            {title}
-            <span
-              role="note"
-              className="inline-block absolute left-[0.625rem] -bottom-2 text-sm font-normal"
-            >
-              {subtitle}
-            </span>
-          </span>
-        : title}
-      </Heading>
-      {ensName ?
+      {header}
+      {ensName.data ?
         <WithInlineHelp
           className="row-start-2 col-start-2 col-span-5"
           helpText={`The primary ENS (Ethereum Name Service) name linked to this ${title}.`}
         >
           <p aria-label="ENS name" className="text-2xl">
             {/* TODO: should we link an ENS address to something? We could link to itself if it has a contenthash set. */}
-            {ensName}
+            {ensName.data}
           </p>
         </WithInlineHelp>
       : undefined}
@@ -87,7 +116,6 @@ export function EthAccount({
       : undefined}
     </section>
   );
-  const _test = <div className="row-start-8" />;
 }
 
 export function EthAddressHexPairs({
@@ -145,7 +173,7 @@ function EthAddressActions({
         helpText={`View this ${title} on Etherscan to see its past activity.`}
       >
         <Link
-          href={etherscanAddressDetailUrl(ethAddress)}
+          href={blockExplorerAddressDetailUrl(ethAddress)}
           className="inline-block"
         >
           <span className="sr-only">View this {title} on Etherscan</span>
@@ -184,8 +212,8 @@ export function FadeOut({ children }: { children: ReactNode }): JSX.Element {
   );
 }
 
-function etherscanAddressDetailUrl(ethAddress: string): string {
-  return `https://etherscan.io/address/${encodeURIComponent(ethAddress)}`;
+function blockExplorerAddressDetailUrl(ethAddress: string): string {
+  return `https://blockscan.com.io/address/${encodeURIComponent(ethAddress)}`;
 }
 function openseaAddressDetailUrl(ethAddress: string): string {
   return `https://opensea.io/${encodeURIComponent(ethAddress)}`;

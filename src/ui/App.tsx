@@ -5,6 +5,7 @@ import { WagmiProvider, useAccount } from "wagmi";
 import { wagmiConfig } from "../wagmi";
 import { HelpModal, HelpProvider } from "./Help";
 import { Pairing } from "./Pairing";
+import { PastVaults } from "./PastVaults";
 import { UserProfile } from "./UserProfile";
 import { Vault } from "./Vault";
 import { VaultonomyLogo } from "./VaultonomyLogo";
@@ -63,7 +64,7 @@ export function AppUI() {
       <header className="mt-32 mb-16 w-72 max-w-full mx-auto">
         <VaultonomyLogo className="" />
       </header>
-      <main>
+      <main className="flex flex-col gap-20">
         <UserProfile
           profile={
             redditAccount.isRedditAvailable ? redditAccount.data : undefined
@@ -78,7 +79,7 @@ export function AppUI() {
           //   }}
         />
 
-        <div className="m-10 flex flex-row flex-wrap justify-center gap-x-40 gap-y-20">
+        <div className="mx-10 flex flex-row flex-wrap justify-center gap-x-40 gap-y-20">
           <Vault activeVault={activeVault} />
           <Wallet wallet={wallet} />
         </div>
@@ -91,6 +92,8 @@ export function AppUI() {
 
         {/* <UserAvatar avatarUrl="https://i.redd.it/snoovatar/avatars/nftv2_bmZ0X2VpcDE1NToxMzdfOWQ4NTQyZWYxMjM3OTMzYmFkYmU4NjcyOTFmNmMwNDM0YjhkMzE1Y18yNzEz_rare_0411a65f-b673-43bf-ae65-b7cc7c9349a2.png" />
         <UserAvatar avatarUrl="https://i.redd.it/snoovatar/avatars/7d436c39-b6be-4e4b-8d42-5c51562e1095.png" /> */}
+
+        <PastVaults userId={userId} />
       </main>
 
       <HelpModal />

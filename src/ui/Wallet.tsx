@@ -1,11 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import {
-  UseAccountReturnType,
-  useAccount,
-  useConnect,
-  useDisconnect,
-  useEnsName,
-} from "wagmi";
+import { UseAccountReturnType, useConnect, useDisconnect } from "wagmi";
 
 import { assert } from "../assert";
 import { log } from "../logging";
@@ -22,7 +16,6 @@ export function Wallet({
 }: {
   wallet: UseAccountReturnType;
 }): JSX.Element {
-  const ensName = useEnsName({ address: wallet.address });
   const { disconnect } = useDisconnect();
 
   if (wallet.isConnected) {
@@ -31,7 +24,6 @@ export function Wallet({
         <EthAccount
           title="Wallet"
           ethAddress={wallet.address}
-          ensName={ensName.data ?? undefined}
           footer={
             <LinkButton onClick={() => disconnect()} className="italic text-sm">
               Disconnect wallet
