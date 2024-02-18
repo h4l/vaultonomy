@@ -1,9 +1,9 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ReactNode, useRef } from "react";
+import { ReactNode } from "react";
 import { WagmiProvider, useAccount } from "wagmi";
 
 import { wagmiConfig } from "../wagmi";
-import { HelpContext, HelpModal, useRootHelpState } from "./Help";
+import { HelpModal, HelpProvider } from "./Help";
 import { Pairing } from "./Pairing";
 import { UserProfile } from "./UserProfile";
 import { Vault } from "./Vault";
@@ -36,14 +36,14 @@ export function AppContext({
   vaultonomyStore: VaultonomyStore;
   children?: ReactNode;
 }) {
-  const help = useRootHelpState();
-  // const store = useRef(createVaultonomyStore({ isOnDevServer })).current;
-
   return (
-    <WagmiProvider config={wagmiConfig}>
+    // We need WagmiProvider at the root to make sure it doesn't get re-rendered
+    // as a result of app state changes. If it re-renders it triggers this bug:
+    // https://github.com/wevm/wagmi/issues/3611
+    <WagmiProvider config={wagmiConfig} reconnectOnMount={false}>
       <QueryClientProvider client={queryClient}>
         <VaultonomyContext.Provider value={vaultonomyStore}>
-          <HelpContext.Provider value={help}>{children}</HelpContext.Provider>
+          <HelpProvider>{children}</HelpProvider>
         </VaultonomyContext.Provider>
       </QueryClientProvider>
     </WagmiProvider>

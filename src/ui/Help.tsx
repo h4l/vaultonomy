@@ -78,6 +78,15 @@ export const HelpContext = createContext<HelpState>({
   helpEnabled: false,
 });
 
+export function HelpProvider({
+  children,
+}: {
+  children?: ReactNode;
+}): JSX.Element {
+  const help = useRootHelpState();
+  return <HelpContext.Provider value={help}>{children}</HelpContext.Provider>;
+}
+
 function helpReducer(help: HelpState, action: HelpAction): HelpState {
   switch (action.type) {
     case "help-enabled": {
