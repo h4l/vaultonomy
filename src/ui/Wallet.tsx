@@ -11,7 +11,7 @@ import { assert } from "../assert";
 import { log } from "../logging";
 import { WalletConnectorType } from "../wagmi";
 import { Button, LinkButton } from "./Button";
-import { EthAccount } from "./EthAccount";
+import { EthAccount, FadeOut } from "./EthAccount";
 import { WithInlineHelp } from "./Help";
 import { IndeterminateProgressBar } from "./IndeterminateProgressBar";
 import { useLazyConnectors } from "./hooks/wallet";
@@ -44,7 +44,7 @@ export function Wallet({
     return (
       <>
         <EthAccount title="Wallet" subtitle="Not connected">
-          <ConnectWallet className="relative z-10 -mt-32" />
+          <ConnectWallet />
         </EthAccount>
       </>
     );
@@ -92,39 +92,37 @@ function ConnectWallet({ className }: { className?: string }): JSX.Element {
   };
 
   return (
-    <section aria-label="Connect to Wallet" className={className}>
-      <div
-        className={[
-          "h-24 bg-gradient-to-t",
-          "from-neutral-50 via-neutral-50/80",
-          "dark:from-neutral-900 dark:via-neutral-900/80",
-          "via-50%",
-        ].join(" ")}
-      />
-      <WithInlineHelp
-        iconOffsetTop="0rem"
-        iconOffsetLeft="-0.5rem"
-        helpText="Connect your crypto Wallet to Vaultonomy. You can pair your Wallet with your Reddit account after connecting."
-      >
-        <div className="flex flex-col gap-2 bg-default">
-          <ConnectButton {...getButtonOptions(WalletConnectorType.MetaMask)} />
-          <ConnectButton {...getButtonOptions(WalletConnectorType.Coinbase)} />
-          <WithInlineHelp helpText="Wallets other than MetaMask and Coinbase can connect using WalletConnect.">
+    <FadeOut>
+      <section aria-label="Connect to Wallet" className={className}>
+        <WithInlineHelp
+          iconOffsetTop="0rem"
+          iconOffsetLeft="-0.5rem"
+          helpText="Connect your crypto Wallet to Vaultonomy. You can pair your Wallet with your Reddit account after connecting."
+        >
+          <div className="flex flex-col gap-2 bg-default">
             <ConnectButton
-              {...getButtonOptions(WalletConnectorType.WalletConnect)}
+              {...getButtonOptions(WalletConnectorType.MetaMask)}
             />
-          </WithInlineHelp>
+            <ConnectButton
+              {...getButtonOptions(WalletConnectorType.Coinbase)}
+            />
+            <WithInlineHelp helpText="Wallets other than MetaMask and Coinbase can connect using WalletConnect.">
+              <ConnectButton
+                {...getButtonOptions(WalletConnectorType.WalletConnect)}
+              />
+            </WithInlineHelp>
 
-          {/* TODO: check actual errors have reasonable message values */}
-          {status === "error" && error && !isErrorUserCancel ?
-            <div className="text-red-500">
-              The Wallet failed to connect.
-              {error.message && ` (${error.message})`}
-            </div>
-          : undefined}
-        </div>
-      </WithInlineHelp>
-    </section>
+            {/* TODO: check actual errors have reasonable message values */}
+            {status === "error" && error && !isErrorUserCancel ?
+              <div className="text-red-500">
+                The Wallet failed to connect.
+                {error.message && ` (${error.message})`}
+              </div>
+            : undefined}
+          </div>
+        </WithInlineHelp>
+      </section>
+    </FadeOut>
   );
 }
 

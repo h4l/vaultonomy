@@ -168,6 +168,22 @@ function EthAddressActions({
   );
 }
 
+export function FadeOut({ children }: { children: ReactNode }): JSX.Element {
+  return (
+    <div className="relative z-10 -mt-32">
+      <div
+        className={[
+          "h-24 bg-gradient-to-t",
+          "from-neutral-50 via-neutral-50/80",
+          "dark:from-neutral-900 dark:via-neutral-900/80",
+          "via-50%",
+        ].join(" ")}
+      />
+      <div className="bg-default">{children}</div>
+    </div>
+  );
+}
+
 function etherscanAddressDetailUrl(ethAddress: string): string {
   return `https://etherscan.io/address/${encodeURIComponent(ethAddress)}`;
 }
