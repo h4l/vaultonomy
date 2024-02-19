@@ -196,7 +196,7 @@ function EthAddressActions({
   );
 }
 
-export function FadeOut({ children }: { children: ReactNode }): JSX.Element {
+export function FadeOut({ children }: { children?: ReactNode }): JSX.Element {
   return (
     <div className="relative z-10 -mt-32">
       <div
@@ -207,7 +207,7 @@ export function FadeOut({ children }: { children: ReactNode }): JSX.Element {
           "via-50%",
         ].join(" ")}
       />
-      <div className="bg-default">{children}</div>
+      <div className="bg-default min-h-4">{children}</div>
     </div>
   );
 }

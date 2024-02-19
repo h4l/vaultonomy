@@ -4,8 +4,10 @@ import { UserAvatar } from "./UserAvatar";
 import { pxNumbersAsRem } from "./utils/units";
 
 export function UserProfile({
+  label = "Your",
   profile,
 }: {
+  label?: string;
   profile?: RedditUserProfile;
 }): JSX.Element {
   return (
@@ -22,7 +24,7 @@ export function UserProfile({
       <WithInlineHelp
         iconOffsetLeft="0.5rem"
         iconOffsetBottom="3.875rem"
-        helpText="Your Reddit account's avatar."
+        helpText={`${label} Reddit account's avatar.`}
       >
         <UserAvatar
           className="w-40"
@@ -32,7 +34,7 @@ export function UserProfile({
       {profile ?
         <WithInlineHelp
           iconOffsetTop="58%"
-          helpText="Your Reddit account's username."
+          helpText={`${label} Reddit account's username.`}
         >
           <Username
             username={profile.username}

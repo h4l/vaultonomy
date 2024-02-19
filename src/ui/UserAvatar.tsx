@@ -34,11 +34,9 @@ export function UserAvatar({
         />
       </mask>
       <g mask="url(#user_avatar_circle_mask)">
-        {avatarUrl ? (
+        {avatarUrl ?
           <UserAvatarImage url={avatarUrl} />
-        ) : (
-          <PlaceholderAvatarImage />
-        )}
+        : <PlaceholderAvatarImage />}
       </g>
     </svg>
   );

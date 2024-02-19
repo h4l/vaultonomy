@@ -1,13 +1,15 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ReactNode } from "react";
+import { ReactNode, useEffect } from "react";
 import { WagmiProvider, useAccount } from "wagmi";
 
+import { log } from "../logging";
 import { wagmiConfig } from "../wagmi";
 import { Footer } from "./Footer";
 import { HelpModal, HelpProvider } from "./Help";
 import { Pairing } from "./Pairing";
 import { PastVaults } from "./PastVaults";
 import { UserProfile } from "./UserProfile";
+import { UserSearch } from "./UserSearch";
 import { Vault } from "./Vault";
 import { VaultonomyLogo } from "./VaultonomyLogo";
 import { Wallet } from "./Wallet";
@@ -60,9 +62,21 @@ export function AppUI() {
   const activeVault = useRedditAccountActiveVault({ userId });
   const wallet = useAccount();
 
+  useEffect(() => {
+    const className = "snap-y";
+    document
+      .querySelector<HTMLHtmlElement>("html")
+      ?.classList.add(...className.split(" "));
+    history.scrollRestoration = "manual";
+    log.debug(window.screenTop);
+  }, []);
+
   return (
     <>
-      <header className="mt-32 mb-16 w-72 max-w-full mx-auto">
+      <hr aria-hidden="true" className="snap-start invisible border-none" />
+      <UserSearch />
+      <hr aria-hidden="true" className="snap-start invisible border-none" />
+      <header className="pt-32 pb-16 w-72 max-w-full mx-auto">
         <VaultonomyLogo className="" />
       </header>
       <main className="flex flex-col gap-20">
