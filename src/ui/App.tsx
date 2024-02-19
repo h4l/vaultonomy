@@ -6,6 +6,7 @@ import { log } from "../logging";
 import { wagmiConfig } from "../wagmi";
 import { Footer } from "./Footer";
 import { HelpModal, HelpProvider } from "./Help";
+import { NotConnectedStatus } from "./NotConnectedStatus";
 import { Pairing } from "./Pairing";
 import { PastVaults } from "./PastVaults";
 import { UserProfile } from "./UserProfile";
@@ -73,9 +74,16 @@ export function AppUI() {
 
   return (
     <>
-      <hr aria-hidden="true" className="snap-start invisible border-none" />
+      <hr
+        aria-hidden="true"
+        className="snap-start scroll-p-52 invisible border-none"
+      />
+      <NotConnectedStatus />
       <UserSearch />
-      <hr aria-hidden="true" className="snap-start invisible border-none" />
+      <hr
+        aria-hidden="true"
+        className="snap-start scroll-p-52 invisible border-none"
+      />
       <header className="pt-32 pb-16 w-72 max-w-full mx-auto">
         <VaultonomyLogo className="" />
       </header>

@@ -36,6 +36,8 @@ export default {
       },
       boxShadow: {
         "solid-bottomleft": "-1px 1px 0 black",
+        // Same as 2xl except 100% opacity
+        "2xl-heavy": "0 25px 50px -12px black",
       },
       fontWeight: {
         // thin: '100',
