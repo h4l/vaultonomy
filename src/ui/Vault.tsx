@@ -17,7 +17,9 @@ export function Vault({
         activeVault?.data?.createdAt ?
           <WithInlineHelp helpText="The date when this Ethereum account was paired with your Reddit account to create this Vault.">
             <span aria-label="Date paired" className="italic text-sm">
-              <span aria-hidden="true">Paired </span>
+              <span aria-hidden="true" className="pr-1">
+                Paired{" "}
+              </span>
               <RelativeTime when={activeVault.data.createdAt} />
             </span>
           </WithInlineHelp>

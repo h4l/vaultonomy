@@ -54,12 +54,30 @@ function PastVault({ vault }: { vault: AccountVaultAddress }): JSX.Element {
       title="Past Vault"
       ethAddress={vault.address}
       footer={
-        <WithInlineHelp helpText="The date when this Ethereum account was paired with your Reddit account to create this Vault.">
-          <span aria-label="Date paired" className="italic text-sm">
-            <span aria-hidden="true">Paired </span>
-            <RelativeTime when={vault.createdAt} />
-          </span>
-        </WithInlineHelp>
+        <>
+          <WithInlineHelp
+            helpText="The dates when this Vault's Ethereum account was paired with, and un-paired from your Reddit account."
+            iconOffsetBottom="0.75rem"
+            iconOffsetLeft="-1.5rem"
+          >
+            <div className="mt-2 -ml-5 grid grid-cols-[auto_1fr] gap-x-2 italic text-sm leading-snug">
+              <span aria-hidden="true" className="justify-self-end">
+                Paired
+              </span>
+              <span aria-label="Date paired" className="justify-self-start">
+                <RelativeTime when={vault.createdAt} />
+              </span>
+              <span aria-hidden="true" className="justify-self-end">
+                Un-paired
+              </span>
+              <span aria-label="Date un-paired" className="justify-self-start">
+                {vault.modifiedAt === null ?
+                  <em>unknown</em>
+                : <RelativeTime when={vault.modifiedAt} />}
+              </span>
+            </div>
+          </WithInlineHelp>
+        </>
       }
     />
   );

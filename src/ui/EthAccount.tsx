@@ -109,7 +109,7 @@ export function EthAccountDetails({
         undefined
       : <EthAddressActions title={title} ethAddress={ethAddress} />}
       {footer ?
-        <div className="row-start-7 col-start-2 col-span-5">{footer}</div>
+        <div className="mt-1 row-start-7 col-start-2 col-span-5">{footer}</div>
       : undefined}
       {children ?
         <div className="row-start-8 col-start-1 col-span-6">{children}</div>
