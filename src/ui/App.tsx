@@ -3,6 +3,7 @@ import { ReactNode } from "react";
 import { WagmiProvider, useAccount } from "wagmi";
 
 import { wagmiConfig } from "../wagmi";
+import { Footer } from "./Footer";
 import { HelpModal, HelpProvider } from "./Help";
 import { Pairing } from "./Pairing";
 import { PastVaults } from "./PastVaults";
@@ -95,6 +96,7 @@ export function AppUI() {
 
         <PastVaults userId={userId} />
       </main>
+      <Footer />
 
       <HelpModal />
     </>
