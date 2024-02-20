@@ -1,11 +1,20 @@
+import { ForwardedRef, forwardRef, useRef } from "react";
+
 import { EthAccountDetails, FadeOut } from "./EthAccount";
 import { WithInlineHelp } from "./Help";
 import { UserProfile } from "./UserProfile";
+import { useEnableScrollSnapWhileElementOnScreen } from "./hooks/useEnableScrollSnapWhileElementOnScreen";
 import { SearchIcon } from "./icons";
 
 export function UserSearch(): JSX.Element {
+  const ref = useRef<HTMLElement>(null);
+  useEnableScrollSnapWhileElementOnScreen(ref);
+
   return (
-    <section className="min-h-[500px] flex flex-col justify-center items-center">
+    <section
+      ref={ref}
+      className="min-h-[500px] flex flex-col justify-center items-center"
+    >
       <div className="my-16 _opacity-25">
         <UserProfile label="Searched" profile={undefined} />
       </div>

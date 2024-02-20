@@ -1,8 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ReactNode, useEffect } from "react";
+import { ReactNode } from "react";
 import { WagmiProvider, useAccount } from "wagmi";
 
-import { log } from "../logging";
 import { wagmiConfig } from "../wagmi";
 import { Footer } from "./Footer";
 import { HelpDialog, HelpProvider } from "./Help";
@@ -62,15 +61,6 @@ export function AppUI() {
   const userId = redditAccount.data?.userID;
   const activeVault = useRedditAccountActiveVault({ userId });
   const wallet = useAccount();
-
-  useEffect(() => {
-    const className = "snap-y";
-    document
-      .querySelector<HTMLHtmlElement>("html")
-      ?.classList.add(...className.split(" "));
-    history.scrollRestoration = "manual";
-    log.debug(window.screenTop);
-  }, []);
 
   return (
     <>
