@@ -305,7 +305,7 @@ function useWindowWidth(): number {
 export function HelpDialog(): JSX.Element {
   const help = useContext(HelpContext);
   const selectedHelpItem = getSelectedHelpItem(help);
-  const ref = useRef<HTMLElement>(null);
+  const ref = useRef<HTMLDivElement>(null);
   const [modalHeight, setModalHeight] = useState(0);
   const [transitionState, setTransitionState] = useState<
     "at-end" | "at-start" | "started"
@@ -355,16 +355,7 @@ export function HelpDialog(): JSX.Element {
       {/* Provide empty space under the modal footer so that the page content
           can scroll all the way into view, above the modal footer. */}
       <ReservedSpace required={help.helpEnabled} height={modalHeight} />
-      <aside
-        ref={ref}
-        aria-label="help"
-        className="fixed z-10 w-full left-0 min-h-[5rem]
-                   flex flex-row justify-center
-                   p-4 pl-24 pr-8 lg:px-24
-                  border-t-2 border-dashed border-neutral-400 dark:border-neutral-500 bg-white dark:bg-neutral-925
-                  transition-[top,bottom]"
-        onTransitionEnd={() => setTransitionState("at-end")}
-      >
+      <aside aria-label="help">
         <HelpToggleSwitch
           help={help}
           onClick={() => {
@@ -374,7 +365,17 @@ export function HelpDialog(): JSX.Element {
             setTransitionState("at-start");
           }}
         />
-        <HelpDisplay help={help} />
+        <div
+          ref={ref}
+          className="fixed z-10 w-full left-0 min-h-[5rem]
+                   flex flex-row justify-center
+                   p-4 pl-24 pr-8 lg:px-24
+                  border-t-2 border-dashed border-neutral-400 dark:border-neutral-500 bg-white dark:bg-neutral-925
+                  transition-[top,bottom]"
+          onTransitionEnd={() => setTransitionState("at-end")}
+        >
+          <HelpDisplay help={help} />
+        </div>
       </aside>
     </>
   );
@@ -398,7 +399,7 @@ function HelpToggleSwitch({
       role="switch"
       aria-checked={help.helpEnabled}
       aria-label="enable extra help"
-      className={`fixed left-2 bottom-2 group focus-visible:outline-offset-0
+      className={`fixed z-30 left-2 bottom-2 group focus-visible:outline-offset-0
   ${help.helpEnabled && selectedHelpItem ? "drop-shadow" : ""}`}
       onClick={onClick}
     >
