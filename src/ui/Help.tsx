@@ -304,8 +304,6 @@ function useWindowWidth(): number {
 
 export function HelpModal(): JSX.Element {
   const help = useContext(HelpContext);
-  const hasPinnedHelpItem =
-    getSelectedHelpItem(help, { mode: "pin" }) !== undefined;
   const selectedHelpItem = getSelectedHelpItem(help);
   const ref = useRef<HTMLElement>(null);
   const [modalHeight, setModalHeight] = useState(0);
@@ -367,40 +365,15 @@ export function HelpModal(): JSX.Element {
                   transition-[top,bottom]"
         onTransitionEnd={() => setTransitionState("at-end")}
       >
-        <button
-          role="switch"
-          aria-checked={help.helpEnabled}
-          aria-label="enable extra help"
-          className={`fixed left-2 bottom-2 group focus-visible:outline-offset-0
-          ${help.helpEnabled && selectedHelpItem ? "drop-shadow" : ""}`}
+        <HelpToggleSwitch
+          help={help}
           onClick={() => {
             help.dispatch({
               type: help.helpEnabled ? "help-disabled" : "help-enabled",
             });
             setTransitionState("at-start");
           }}
-        >
-          <div
-            className={`p-2 transition-all duration-300
-                        group-hover:scale-110 group-focus-visible:scale-110 group-active:scale-125
-            ${
-              help.helpEnabled && selectedHelpItem ?
-                "bg-green-700 text-neutral-100"
-              : "bg-neutral-50/75 dark:bg-neutral-900/75"
-            }
-            ${
-              (
-                hasPinnedHelpItem &&
-                selectedHelpItem?.helpId === help.pinnedHelpItem?.helpId
-              ) ?
-                "clip-circle-44"
-              : "clip-circle-37"
-            }
-            `}
-          >
-            <HelpIconLarge />
-          </div>
-        </button>
+        />
         <div className="max-w-prose flex flex-col justify-center">
           {help.helpEnabled ?
             <p className="sr-only">
@@ -435,6 +408,52 @@ export function HelpModal(): JSX.Element {
         </div>
       </aside>
     </>
+  );
+}
+
+type HelpToggleSwitchProps = { help: HelpState } & Pick<
+  JSX.IntrinsicElements["button"],
+  "onClick"
+>;
+
+function HelpToggleSwitch({
+  help,
+  onClick,
+}: HelpToggleSwitchProps): JSX.Element {
+  const selectedHelpItem = getSelectedHelpItem(help);
+  const hasPinnedHelpItem =
+    getSelectedHelpItem(help, { mode: "pin" }) !== undefined;
+
+  return (
+    <button
+      role="switch"
+      aria-checked={help.helpEnabled}
+      aria-label="enable extra help"
+      className={`fixed left-2 bottom-2 group focus-visible:outline-offset-0
+  ${help.helpEnabled && selectedHelpItem ? "drop-shadow" : ""}`}
+      onClick={onClick}
+    >
+      <div
+        className={`p-2 transition-all duration-300
+                group-hover:scale-110 group-focus-visible:scale-110 group-active:scale-125
+    ${
+      help.helpEnabled && selectedHelpItem ?
+        "bg-green-700 text-neutral-100"
+      : "bg-neutral-50/75 dark:bg-neutral-900/75"
+    }
+    ${
+      (
+        hasPinnedHelpItem &&
+        selectedHelpItem?.helpId === help.pinnedHelpItem?.helpId
+      ) ?
+        "clip-circle-44"
+      : "clip-circle-37"
+    }
+    `}
+      >
+        <HelpIconLarge />
+      </div>
+    </button>
   );
 }
 
