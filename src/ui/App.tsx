@@ -5,7 +5,7 @@ import { WagmiProvider, useAccount } from "wagmi";
 import { log } from "../logging";
 import { wagmiConfig } from "../wagmi";
 import { Footer } from "./Footer";
-import { HelpModal, HelpProvider } from "./Help";
+import { HelpDialog, HelpProvider } from "./Help";
 import { NotConnectedStatus } from "./NotConnectedStatus";
 import { Pairing } from "./Pairing";
 import { PastVaults } from "./PastVaults";
@@ -120,7 +120,7 @@ export function AppUI() {
       </main>
       <Footer />
 
-      <HelpModal />
+      <HelpDialog />
     </>
   );
 }

@@ -302,7 +302,7 @@ function useWindowWidth(): number {
   return width;
 }
 
-export function HelpModal(): JSX.Element {
+export function HelpDialog(): JSX.Element {
   const help = useContext(HelpContext);
   const selectedHelpItem = getSelectedHelpItem(help);
   const ref = useRef<HTMLElement>(null);
