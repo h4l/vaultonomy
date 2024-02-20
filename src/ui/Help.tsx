@@ -326,6 +326,8 @@ export function HelpDialog(): JSX.Element {
   // starting values are set before the ending values are.
   useEffect(() => {
     assert(ref.current);
+    // Need to offset a bit more at the bottom to move the drop shadow off screen
+    const hiddenShadowOffset = 30;
 
     // Position from the top when closed and bottom when open so that changes to
     // screen width that affect element height cause it to remain entirely
@@ -341,7 +343,7 @@ export function HelpDialog(): JSX.Element {
       setTransitionState("started");
     } else {
       if (!help.helpEnabled) {
-        ref.current.style.top = "100%";
+        ref.current.style.top = `calc(100% + ${hiddenShadowOffset}px)`;
         ref.current.style.bottom = "";
       } else {
         ref.current.style.top = "";
@@ -367,14 +369,28 @@ export function HelpDialog(): JSX.Element {
         />
         <div
           ref={ref}
-          className="fixed z-10 w-full left-0 min-h-[5rem]
-                   flex flex-row justify-center
-                   p-4 pl-24 pr-8 lg:px-24
-                  border-t-2 border-dashed border-neutral-400 dark:border-neutral-500 bg-white dark:bg-neutral-925
-                  transition-[top,bottom]"
+          className="fixed z-10 -inset-x-8 transition-[top,bottom]"
           onTransitionEnd={() => setTransitionState("at-end")}
         >
-          <HelpDisplay help={help} />
+          <div
+            className={[
+              "pl-12 pr-12 pt-2 pb-4 min-h-[6rem] origin-top-left translate-y-4 -rotate-[0.25deg]",
+              "bg-gradient-to-b via-25% from-neutral-25 to-neutral-100",
+              "dark:from-neutral-800 dark:via-neutral-875 dark:to-neutral-875",
+              "shadow-[0_-13px_50px_-12px_rgb(0_0_0_/_0.25)] dark:shadow-[0_-13px_50px_-12px_black]",
+            ].join(" ")}
+          >
+            <div className="border-t border-neutral-200 dark:border-neutral-750">
+              <div
+                className={[
+                  "flex flex-row justify-center",
+                  "p-4 pl-24 pr-8 lg:px-24",
+                ].join(" ")}
+              >
+                <HelpDisplay help={help} />
+              </div>
+            </div>
+          </div>
         </div>
       </aside>
     </>
