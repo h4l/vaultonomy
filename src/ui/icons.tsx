@@ -211,3 +211,91 @@ export function GitHubLogo({
     </svg>
   );
 }
+
+export function VaultonomyExtensionIcon({
+  className,
+}: {
+  className?: string;
+}): JSX.Element {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="32"
+      viewBox="0 0 32 32"
+      fill="none"
+      className={className}
+    >
+      <path
+        d="M0 2H30V32H4.5C5.5 29.5 5.91542 28.2745 4.5 24.5C3.08458 20.7255 2 19 0 13V2Z"
+        fill="#536979"
+      />
+      <mask
+        id="mask0_153_1017"
+        style={{ maskType: "alpha" }}
+        maskUnits="userSpaceOnUse"
+        x="0"
+        y="0"
+        width="32"
+        height="32"
+      >
+        <rect width="32" height="32" fill="#548FB9" />
+      </mask>
+      <g mask="url(#mask0_153_1017)">
+        <g filter="url(#filter0_d_153_1017)">
+          <path
+            d="M2 4L8.86455 21.7962L7.44809 21L14 4H16L8 24L0 4H2Z"
+            fill="#E1EAF2"
+          />
+          <path
+            d="M8 32L15 14L22 32H20L14.4435 16.6719L15.6077 16.6476L10 32H8ZM11 26H19V28H10L11 26Z"
+            fill="#E1EAF2"
+          />
+          <path
+            d="M20 15.1651C20.0254 17.3288 20.7167 17.99 22 18C23.2833 18.01 23.993 17.2699 24 15.1651V12H26V15.1651C26.0176 19.0262 24 20 22 20C20 20 17.9738 18.8933 18 15.2412V4H20V15.1651Z"
+            fill="#E1EAF2"
+          />
+          <path d="M24 4L26 4L26 8H28V10H24L24 4Z" fill="#E1EAF2" />
+          <path d="M0 0L32 0V32H30V2H0V0Z" fill="#E1EAF2" />
+        </g>
+      </g>
+      <path d="M31 1H32V32H31V1Z" fill="#D1D5D7" />
+      <path d="M0 0H32V1H0V0Z" fill="#D1D5D7" />
+      <defs>
+        <filter
+          id="filter0_d_153_1017"
+          x="0"
+          y="0"
+          width="32"
+          height="33"
+          filterUnits="userSpaceOnUse"
+          colorInterpolationFilters="sRGB"
+        >
+          <feFlood floodOpacity="0" result="BackgroundImageFix" />
+          <feColorMatrix
+            in="SourceAlpha"
+            type="matrix"
+            values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"
+            result="hardAlpha"
+          />
+          <feOffset dy="1" />
+          <feComposite in2="hardAlpha" operator="out" />
+          <feColorMatrix
+            type="matrix"
+            values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.45 0"
+          />
+          <feBlend
+            mode="normal"
+            in2="BackgroundImageFix"
+            result="effect1_dropShadow_153_1017"
+          />
+          <feBlend
+            mode="normal"
+            in="SourceGraphic"
+            in2="effect1_dropShadow_153_1017"
+            result="shape"
+          />
+        </filter>
+      </defs>
+    </svg>
+  );
+}
