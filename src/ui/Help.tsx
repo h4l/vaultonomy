@@ -456,7 +456,7 @@ function HelpDisplay({ help }: { help: HelpState }): JSX.Element {
         </p>
       : <p className="sr-only">Extra help is currently disabled.</p>}
 
-      <p
+      <div
         // Using role="status" could make sense here. We're not doing that
         // because it causes the SR to read the contents of this element
         // when it changes, and that's repetitive because we include help
@@ -475,7 +475,7 @@ function HelpDisplay({ help }: { help: HelpState }): JSX.Element {
             <HelpIcon className="inline" /> to show more information here.
           </i>
         }
-      </p>
+      </div>
     </div>
   );
 }
