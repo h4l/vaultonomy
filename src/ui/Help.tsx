@@ -374,38 +374,7 @@ export function HelpDialog(): JSX.Element {
             setTransitionState("at-start");
           }}
         />
-        <div className="max-w-prose flex flex-col justify-center">
-          {help.helpEnabled ?
-            <p className="sr-only">
-              Extra help is currently enabled. Screen readers can find the help
-              alongside the items in the page. If an item&apos;s help is pinned
-              it will appear here.
-            </p>
-          : <p className="sr-only">Extra help is currently disabled.</p>}
-
-          <p
-            // Using role="status" could make sense here. We're not doing that
-            // because it causes the SR to read the contents of this element
-            // when it changes, and that's repetitive because we include help
-            // inline as a note.
-            role="note"
-            aria-hidden={help.helpEnabled ? undefined : "true"}
-            aria-label={
-              selectedHelpItem ? "pinned help" : (
-                "pinned help with nothing pinned"
-              )
-            }
-            aria-disabled={selectedHelpItem ? undefined : "true"}
-          >
-            {selectedHelpItem ?
-              renderHelpText(selectedHelpItem.helpText)
-            : <i className="italic">
-                Press a <span className="sr-only">pin help button</span>
-                <HelpIcon className="inline" /> to show more information here.
-              </i>
-            }
-          </p>
-        </div>
+        <HelpDisplay help={help} />
       </aside>
     </>
   );
@@ -454,6 +423,43 @@ function HelpToggleSwitch({
         <HelpIconLarge />
       </div>
     </button>
+  );
+}
+
+function HelpDisplay({ help }: { help: HelpState }): JSX.Element {
+  const selectedHelpItem = getSelectedHelpItem(help);
+
+  return (
+    <div className="max-w-prose flex flex-col justify-center">
+      {help.helpEnabled ?
+        <p className="sr-only">
+          Extra help is currently enabled. Screen readers can find the help
+          alongside the items in the page. If an item&apos;s help is pinned it
+          will appear here.
+        </p>
+      : <p className="sr-only">Extra help is currently disabled.</p>}
+
+      <p
+        // Using role="status" could make sense here. We're not doing that
+        // because it causes the SR to read the contents of this element
+        // when it changes, and that's repetitive because we include help
+        // inline as a note.
+        role="note"
+        aria-hidden={help.helpEnabled ? undefined : "true"}
+        aria-label={
+          selectedHelpItem ? "pinned help" : "pinned help with nothing pinned"
+        }
+        aria-disabled={selectedHelpItem ? undefined : "true"}
+      >
+        {selectedHelpItem ?
+          renderHelpText(selectedHelpItem.helpText)
+        : <i className="italic">
+            Press a <span className="sr-only">pin help button</span>
+            <HelpIcon className="inline" /> to show more information here.
+          </i>
+        }
+      </p>
+    </div>
   );
 }
 
