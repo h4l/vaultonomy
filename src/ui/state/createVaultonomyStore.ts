@@ -2,7 +2,6 @@ import { Address } from "viem";
 import { createStore } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 
-import { AssertionError, assert } from "../../assert";
 import { log } from "../../logging";
 import { RedditEIP712Challenge } from "../../reddit/api-client";
 import { RedditProvider } from "../../reddit/reddit-interaction-client";
@@ -54,6 +53,8 @@ export type VaultonomyStateActions = {
   removeProvider(provider?: VaultonomyBackgroundProvider): void;
   setRedditProvider(redditProvider: RedditProvider): void;
   removeRedditProvider(redditProvider?: RedditProvider): void;
+  onRedditLoggedOut(): void;
+  onRedditNotLoggedOut(): void;
   updatePairingState(id: PairingId): UpdatePairingStateFunction;
   setPinnedPairing(pinnedPairing: PairingId | null): void;
   setPairingInterest(userInterest: UserInterest): void;
@@ -76,10 +77,13 @@ export type PairingState = {
 
 export type PartialPairingState = RecursivePartial<PairingState>;
 
+export type RedditProviderProblem = "not-connected" | "not-logged-in";
+
 export type VaultonomyStateData = {
   isOnDevServer: boolean;
   provider: VaultonomyBackgroundProvider | null;
   redditProvider: RedditProvider | null;
+  redditWasLoggedOut: boolean | null;
   /** The userId of the most recently seen Reddit user profile. */
   currentUserId: string | null;
   /** Determines whether the pairing UI is collapsed or expanded. */
@@ -124,6 +128,7 @@ export const createVaultonomyStore = (
           isOnDevServer,
           provider: provider ?? null,
           redditProvider: null,
+          redditWasLoggedOut: null,
           currentUserId: null,
           pairingInterest: null,
           pairings: {},
@@ -184,6 +189,12 @@ export const createVaultonomyStore = (
               }
               return { redditProvider: null };
             });
+          },
+          onRedditLoggedOut() {
+            set({ redditWasLoggedOut: true });
+          },
+          onRedditNotLoggedOut() {
+            set({ redditWasLoggedOut: false });
           },
           setPairingInterest(pairingInterest: UserInterest): void {
             set((store) => ({ ...store, pairingInterest }));

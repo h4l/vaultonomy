@@ -34,6 +34,9 @@ export interface RedditProviderEvents {
   disconnected: EmptyCallback;
   /** Fired to disconnect ourself from the other end. */
   disconnectSelf: EmptyCallback;
+
+  requestFailed: (error: AnyRedditProviderError) => void;
+  requestSucceeded: () => void;
 }
 
 export abstract class AnyRedditProviderError extends VaultonomyError {
@@ -104,34 +107,64 @@ export class RedditProvider {
   }
 
   readonly emitter: Emitter<RedditProviderEvents> = createNanoEvents();
+  private _mostRecentError: AnyRedditProviderError | undefined;
 
   constructor(options: { redditInteractionClient: JSONRPCClient }) {
     const client = options.redditInteractionClient;
-    this._getUserProfile = createRCPMethodCaller({
-      method: RedditGetUserProfile,
-      client,
-      mapError: AnyRedditProviderError.from,
-    });
-    this.createAddressOwnershipChallenge = createRCPMethodCaller({
-      method: RedditCreateAddressOwnershipChallenge,
-      client,
-      mapError: AnyRedditProviderError.from,
-    });
-    this.registerAddressWithAccount = createRCPMethodCaller({
-      method: RedditRegisterAddressWithAccount,
-      client,
-      mapError: AnyRedditProviderError.from,
-    });
-    this.getUserVaultAddress = createRCPMethodCaller({
-      method: RedditGetUserVaultAddress,
-      client,
-      mapError: AnyRedditProviderError.from,
-    });
-    this.getAccountVaultAddresses = createRCPMethodCaller({
-      method: RedditGetAccountVaultAddresses,
-      client,
-      mapError: AnyRedditProviderError.from,
-    });
+
+    const trackErrors = <A extends any[], R>(
+      f: (...args: A) => Promise<R>,
+    ): ((...args: A) => Promise<R>) => {
+      return async (...args) => {
+        try {
+          const response = await f(...args);
+          this.emitter.emit("requestSucceeded");
+          return response;
+        } catch (e) {
+          if (e instanceof AnyRedditProviderError) {
+            this._mostRecentError = e;
+            this.emitter.emit("requestFailed", e);
+          }
+          throw e;
+        }
+      };
+    };
+
+    this._getUserProfile = trackErrors(
+      createRCPMethodCaller({
+        method: RedditGetUserProfile,
+        client,
+        mapError: AnyRedditProviderError.from,
+      }),
+    );
+    this.createAddressOwnershipChallenge = trackErrors(
+      createRCPMethodCaller({
+        method: RedditCreateAddressOwnershipChallenge,
+        client,
+        mapError: AnyRedditProviderError.from,
+      }),
+    );
+    this.registerAddressWithAccount = trackErrors(
+      createRCPMethodCaller({
+        method: RedditRegisterAddressWithAccount,
+        client,
+        mapError: AnyRedditProviderError.from,
+      }),
+    );
+    this.getUserVaultAddress = trackErrors(
+      createRCPMethodCaller({
+        method: RedditGetUserVaultAddress,
+        client,
+        mapError: AnyRedditProviderError.from,
+      }),
+    );
+    this.getAccountVaultAddresses = trackErrors(
+      createRCPMethodCaller({
+        method: RedditGetAccountVaultAddresses,
+        client,
+        mapError: AnyRedditProviderError.from,
+      }),
+    );
   }
 
   // This is required because params is optional with default null, but
@@ -159,4 +192,9 @@ export class RedditProvider {
   getAccountVaultAddresses: (
     params: RedditGetAccountVaultAddressesParams,
   ) => Promise<Array<AccountVaultAddress>>;
+
+  // TODO: do we actually need this?
+  get mostRecentError(): AnyRedditProviderError | undefined {
+    return this._mostRecentError;
+  }
 }

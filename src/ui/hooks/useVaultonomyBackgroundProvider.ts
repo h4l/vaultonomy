@@ -2,6 +2,7 @@ import { useEffect } from "react";
 
 import { assert, assertUnreachable } from "../../assert";
 import { log } from "../../logging";
+import { ErrorCode } from "../../reddit/reddit-interaction-spec";
 import { useVaultonomyStore } from "../state/useVaultonomyStore";
 import { createVaultonomyBackgroundProvider } from "./createVaultonomyBackgroundProvider";
 
@@ -12,12 +13,16 @@ export function useVaultonomyBackgroundConnection() {
     removeProvider,
     setRedditProvider,
     removeRedditProvider,
+    onRedditLoggedOut,
+    onRedditNotLoggedOut,
   ] = useVaultonomyStore((s) => [
     s.isOnDevServer,
     s.setProvider,
     s.removeProvider,
     s.setRedditProvider,
     s.removeRedditProvider,
+    s.onRedditLoggedOut,
+    s.onRedditNotLoggedOut,
   ]);
   useEffect(() => {
     const createdProvider = createVaultonomyBackgroundProvider({
@@ -40,8 +45,25 @@ export function useVaultonomyBackgroundConnection() {
       },
     );
 
+    const stopRequestFailed = createdProvider.redditProvider.emitter.on(
+      "requestFailed",
+      (e) => {
+        if (e.type === ErrorCode.USER_NOT_LOGGED_IN) {
+          onRedditLoggedOut();
+        } else {
+          onRedditNotLoggedOut();
+        }
+      },
+    );
+    const stopRequestSucceeded = createdProvider.redditProvider.emitter.on(
+      "requestSucceeded",
+      () => onRedditNotLoggedOut(),
+    );
+
     return () => {
       stopAvailabilityStatus();
+      stopRequestFailed();
+      stopRequestSucceeded();
       createdProvider.disconnect();
       removeProvider(createdProvider);
       removeRedditProvider(createdProvider.redditProvider);
