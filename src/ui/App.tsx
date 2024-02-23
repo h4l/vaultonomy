@@ -5,9 +5,9 @@ import { WagmiProvider, useAccount } from "wagmi";
 import { wagmiConfig } from "../wagmi";
 import { Footer } from "./Footer";
 import { HelpDialog, HelpProvider } from "./Help";
-import { NotConnectedStatus } from "./NotConnectedStatus";
 import { Pairing } from "./Pairing";
 import { PastVaults } from "./PastVaults";
+import { TopBanner } from "./TopBanner";
 import { UserProfile } from "./UserProfile";
 import { UserSearch } from "./UserSearch";
 import { Vault } from "./Vault";
@@ -68,7 +68,7 @@ export function AppUI() {
         aria-hidden="true"
         className="snap-start scroll-p-52 invisible border-none"
       />
-      <NotConnectedStatus />
+      <TopBanner />
       <UserSearch />
       <hr
         aria-hidden="true"
