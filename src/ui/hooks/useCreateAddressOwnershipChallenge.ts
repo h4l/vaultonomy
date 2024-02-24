@@ -36,7 +36,7 @@ export function useCreateAddressOwnershipChallenge({
       const challenge = await assumeAvailable(
         redditProvider,
       ).createAddressOwnershipChallenge({
-        userId: pairingId.userId,
+        session: { userId: pairingId.userId },
         address,
       });
 

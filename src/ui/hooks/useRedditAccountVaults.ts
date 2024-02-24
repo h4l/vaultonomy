@@ -55,7 +55,7 @@ function getRedditAccountVaultsQuery(
     queryFn: () => {
       assert(userId !== undefined);
       return assumeAvailable(redditProvider).getAccountVaultAddresses({
-        userId,
+        session: { userId },
       });
     },
     enabled: redditProvider !== null && userId !== undefined,

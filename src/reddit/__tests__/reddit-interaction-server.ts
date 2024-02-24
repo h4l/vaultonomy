@@ -79,7 +79,7 @@ describe("createServerSession()", () => {
   });
 
   describe("reddit_getUserProfile", () => {
-    test.each([null, { userId: null }, { userId: "t2_abc" }])(
+    test.each([null, { session: null }, { userId: "t2_abc" }])(
       "responds with profile of logged-in user",
       async (params) => {
         const response = await client.request("reddit_getUserProfile", params);
@@ -93,7 +93,7 @@ describe("createServerSession()", () => {
 
     test("responds with error if logged-in user does not match userId param", async () => {
       const response = client.request("reddit_getUserProfile", {
-        userId: "t2_other",
+        session: { userId: "t2_other" },
       });
 
       await expect(response).rejects.toEqual(
@@ -121,7 +121,7 @@ describe("createServerSession()", () => {
     test("responds with challenge data", async () => {
       const response = await client.request(
         "reddit_createAddressOwnershipChallenge",
-        { userId: "t2_abc", address: "0x" + "0".repeat(40) },
+        { session: { userId: "t2_abc" }, address: "0x" + "0".repeat(40) },
       );
 
       expect(RedditEIP712Challenge.safeParse(response).success).toBeTruthy();
@@ -132,7 +132,7 @@ describe("createServerSession()", () => {
     test("responds with error if logged-in user does not match userId param", async () => {
       const response = client.request(
         "reddit_createAddressOwnershipChallenge",
-        { userId: "t2_other", address: "0x" + "0".repeat(40) },
+        { session: { userId: "t2_other" }, address: "0x" + "0".repeat(40) },
       );
 
       await expect(response).rejects.toEqual(
@@ -154,7 +154,7 @@ describe("createServerSession()", () => {
         );
 
       const resp = client.request("reddit_createAddressOwnershipChallenge", {
-        userId: "t2_abc",
+        session: { userId: "t2_abc" },
         address: "0x" + "0".repeat(40),
       });
       await expect(resp).rejects.toEqual(
@@ -165,7 +165,7 @@ describe("createServerSession()", () => {
 
   describe("reddit_registerAddressWithAccount", () => {
     const params = (userId: string = "t2_abc") => ({
-      userId,
+      session: { userId },
       address: "0x" + "0".repeat(40),
       challengeSignature: "0x" + "0".repeat(130),
     });
@@ -263,7 +263,7 @@ describe("createServerSession()", () => {
         .mockResolvedValue(addresses());
 
       const resp = client.request("reddit_getAccountVaultAddresses", {
-        userId: "t2_abc",
+        session: { userId: "t2_abc" },
       });
 
       await expect(resp).resolves.toEqual(addresses());
@@ -275,7 +275,7 @@ describe("createServerSession()", () => {
 
     test("responds with error if logged-in user does not match userId param", async () => {
       const response = client.request("reddit_getAccountVaultAddresses", {
-        userId: "t2_other",
+        session: { userId: "t2_other" },
       });
 
       await expect(response).rejects.toEqual(
@@ -297,7 +297,7 @@ describe("createServerSession()", () => {
         );
 
       const resp = client.request("reddit_getAccountVaultAddresses", {
-        userId: "t2_abc",
+        session: { userId: "t2_abc" },
       });
       await expect(resp).rejects.toEqual(
         new JSONRPCErrorException("getRedditAccountVaultAddresses failed", 0),

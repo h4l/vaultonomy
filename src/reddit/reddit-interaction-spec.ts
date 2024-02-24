@@ -31,8 +31,11 @@ export function isErrorCode(num: number): num is ErrorCode {
   );
 }
 
+export const Session = z.object({ userId: z.string() });
+export type Session = z.infer<typeof Session>;
+
 export const RedditGetUserProfileParams = z.object({
-  userId: z.string().nullish(),
+  session: Session.nullish(),
 });
 export type RedditGetUserProfileParams = z.infer<
   typeof RedditGetUserProfileParams
@@ -54,7 +57,7 @@ export const RedditGetUserProfile = defineMethod({
 });
 
 export const RedditCreateAddressOwnershipChallengeParams = z.object({
-  userId: z.string(),
+  session: Session,
   address: EthAddress,
 });
 export type RedditCreateAddressOwnershipChallengeParams = z.infer<
@@ -68,7 +71,7 @@ export const RedditCreateAddressOwnershipChallenge = defineMethod({
 });
 
 export const RedditRegisterAddressWithAccountParams = z.object({
-  userId: z.string(),
+  session: Session,
   address: EthAddress,
   challengeSignature: EthHexSignature,
 });
@@ -96,7 +99,7 @@ export const RedditGetUserVaultAddress = defineMethod({
 });
 
 export const RedditGetAccountVaultAddressesParams = z.object({
-  userId: z.string(),
+  session: Session,
 });
 export type RedditGetAccountVaultAddressesParams = z.infer<
   typeof RedditGetAccountVaultAddressesParams

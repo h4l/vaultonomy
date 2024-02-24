@@ -66,7 +66,7 @@ export function useRegisterAddressWithAccount({
       await assumeAvailable(redditProvider).registerAddressWithAccount({
         address: challenge.message.address,
         challengeSignature,
-        userId: pairingId.userId,
+        session: { userId: pairingId.userId },
       });
 
       return { result: "ok", value: { messageHash: verification.hash } };

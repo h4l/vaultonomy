@@ -44,16 +44,16 @@ export function useRedditAccount() {
         enabled: isAvailable && !!currentUserId,
         queryFn: () =>
           assumeAvailable(redditProvider).getUserProfile({
-            userId: currentUserId,
+            session: currentUserId ? { userId: currentUserId } : null,
           }),
         retry: canRetry,
       },
       {
         queryKey: ["RedditProvider", "UserProfile:current"],
         enabled: isAvailable,
-        // by providing userId: null we always revalidate
+        // by providing session: null we always revalidate
         queryFn: () =>
-          assumeAvailable(redditProvider).getUserProfile({ userId: null }),
+          assumeAvailable(redditProvider).getUserProfile({ session: null }),
         retry: canRetry,
       },
     ],

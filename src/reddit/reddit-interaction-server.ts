@@ -80,7 +80,7 @@ export function createServerSession<
     RedditGetUserProfile.signature.implement(async (params) => {
       const session = await getUserSession(
         sessionManager,
-        params?.userId ?? null,
+        params?.session?.userId ?? null,
       );
       return session.user;
     }),
@@ -89,7 +89,10 @@ export function createServerSession<
     RedditCreateAddressOwnershipChallenge.name,
     RedditCreateAddressOwnershipChallenge.signature.implement(
       async (params) => {
-        const session = await getUserSession(sessionManager, params.userId);
+        const session = await getUserSession(
+          sessionManager,
+          params.session.userId,
+        );
         return await createAddressOwnershipChallenge({
           authToken: session.auth.token,
           address: params.address,
@@ -100,7 +103,10 @@ export function createServerSession<
   service.addMethod(
     RedditRegisterAddressWithAccount.name,
     RedditRegisterAddressWithAccount.signature.implement(async (params) => {
-      const session = await getUserSession(sessionManager, params.userId);
+      const session = await getUserSession(
+        sessionManager,
+        params.session.userId,
+      );
       await registerAddressWithAccount({
         authToken: session.auth.token,
         address: params.address,
@@ -125,7 +131,10 @@ export function createServerSession<
   service.addMethod(
     RedditGetAccountVaultAddresses.name,
     RedditGetAccountVaultAddresses.signature.implement(async (params) => {
-      const session = await getUserSession(sessionManager, params.userId);
+      const session = await getUserSession(
+        sessionManager,
+        params.session.userId,
+      );
       return await getRedditAccountVaultAddresses({
         authToken: session.auth.token,
       });
