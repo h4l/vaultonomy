@@ -4,10 +4,12 @@ import { assert } from "../../assert";
 import { HTTPResponseError } from "../../errors/http";
 import {
   AccountVaultAddress,
+  GetRedditUserVaultOptions,
+  RedditUserVault,
   createAddressOwnershipChallenge,
   getRedditAccountVaultAddresses,
   getRedditUserProfile,
-  getRedditUserVaultAddress,
+  getRedditUserVault,
   registerAddressWithAccount,
 } from "../api-client";
 import {
@@ -122,107 +124,184 @@ describe("registerAddressWithAccount()", () => {
   });
 });
 
-describe("getRedditUserVaultAddress()", () => {
-  const responseBody = () => ({
+describe("getRedditUserVault()", () => {
+  type Query = GetRedditUserVaultOptions["query"];
+  const expectedResponseBody = () => ({
     contacts: {
       exampleUserId: [
         {
           active: true,
-          address: "0x0000000000000000000000000000000000000000",
+          address: "0x67F63690530782B716477733a085ce7A8310bc4C",
           provider: "ethereum",
           userId: "exampleUserId",
-          username: "exampleusername",
+          username: "exampleUserName",
         },
       ],
     },
   });
 
-  test("handles successful request for account with an address", async () => {
-    const fetch = jest.spyOn(globalThis, "fetch").mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      json: async () => responseBody(),
-    } as Response);
-
-    await expect(
-      getRedditUserVaultAddress({
-        username: "exampleusername",
+  test.each<Query>([
+    { type: "username", value: "exampleusername" },
+    { type: "username", value: "EXAMPLEUSERNAME" },
+    { type: "address", value: "0x67f63690530782b716477733a085ce7a8310bc4c" },
+    { type: "address", value: "0x67F63690530782B716477733a085ce7A8310bc4C" },
+  ])(
+    "handles successful request for account with an address",
+    async (query) => {
+      const fetch = jest.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => expectedResponseBody(),
+      } as Response);
+      const params: GetRedditUserVaultOptions = {
+        query,
         authToken: "secret",
-      }),
-    ).resolves.toEqual("0x0000000000000000000000000000000000000000");
+      };
 
-    expect(fetch).toHaveBeenCalledTimes(1);
-    const [fetchUrl, fetchOptions] = fetch.mock.calls[0];
-    const fetchHeaders = fetchOptions?.headers as Partial<
-      Record<string, string>
-    >;
-    expect(fetchUrl).toEqual(
-      "https://meta-api.reddit.com/crypto-contacts?usernames=exampleusername",
-    );
-    expect(fetchHeaders?.authorization).toEqual("Bearer secret");
-    expect(fetchHeaders?.["content-type"]).toEqual("application/json");
-  });
+      const expected: RedditUserVault = {
+        address: "0x67F63690530782B716477733a085ce7A8310bc4C",
+        userId: "exampleUserId",
+        username: "exampleUserName",
+        isActive: true,
+      };
+      await expect(getRedditUserVault(params)).resolves.toEqual(expected);
 
-  test("returns address for requested username if response contains multiple results", async () => {
-    const fetch = jest.spyOn(globalThis, "fetch").mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      json: async () => ({
-        contacts: {
-          exampleUserId1: [
-            {
-              active: true,
-              address: "0x0000000000000000000000000000000000000001",
-              provider: "ethereum",
-              userId: "exampleUserId1",
-              username: "exampleusername1",
-            },
-          ],
-          exampleUserId2: [
-            {
-              active: false,
-              address: "0x0000000000000000000000000000000000000001",
-              provider: "ethereum",
-              userId: "exampleUserId2",
-              username: "exampleusername2",
-            },
-            {
-              active: true,
-              address: "0x0000000000000000000000000000000000000002",
-              provider: "ethereum",
-              userId: "exampleUserId2",
-              username: "exampleusername2",
-            },
-          ],
+      expect(fetch).toHaveBeenCalledTimes(1);
+      const [fetchUrl, fetchOptions] = fetch.mock.calls[0];
+      const fetchHeaders = fetchOptions?.headers as Partial<
+        Record<string, string>
+      >;
+      if (query.type === "username") {
+        expect(fetchUrl).toEqual(
+          "https://meta-api.reddit.com/crypto-contacts?usernames=exampleusername",
+        );
+      } else {
+        expect(fetchUrl).toEqual(
+          "https://meta-api.reddit.com/crypto-contacts?addresses=0x67F63690530782B716477733a085ce7A8310bc4C",
+        );
+      }
+      expect(fetchHeaders?.authorization).toEqual("Bearer secret");
+      expect(fetchHeaders?.["content-type"]).toEqual("application/json");
+    },
+  );
+
+  test.each<{ query: Query; expected: "A" | "B" | "C" }>([
+    {
+      query: {
+        type: "address",
+        value: "0x0000000000000000000000000000000000000004",
+      },
+      expected: "A",
+    },
+    { query: { type: "username", value: "exampleusername2" }, expected: "B" },
+    { query: { type: "username", value: "exampleusername3" }, expected: "C" },
+  ])(
+    "returns address for requested username if response contains edge case results",
+    async ({ query, expected }) => {
+      const expectedValues: Record<"A" | "B" | "C", RedditUserVault> = {
+        A: {
+          address: "0x0000000000000000000000000000000000000004",
+          userId: "exampleUserId2",
+          username: "exampleUserName2",
+          isActive: false,
         },
-      }),
-    } as Response);
+        B: {
+          address: "0x0000000000000000000000000000000000000005",
+          userId: "exampleUserId2",
+          username: "exampleUserName2",
+          isActive: true,
+        },
+        C: {
+          address: "0x0000000000000000000000000000000000000006",
+          userId: "exampleUserId3",
+          username: "exampleusername3",
+          isActive: false,
+        },
+      };
+      const expectedValue = expectedValues[expected];
+      assert(expectedValue);
 
-    await expect(
-      getRedditUserVaultAddress({
-        username: "exampleusername2",
+      jest.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          contacts: {
+            exampleUserId1: [
+              // This user has an address matching the other user but on a
+              // different provider. (Possible in theory with contract wallets
+              // not associated with a private key.)
+              {
+                active: true,
+                address: "0x0000000000000000000000000000000000000004",
+                provider: "randochain",
+                userId: "exampleUserId1",
+                username: "exampleusername1",
+              },
+              {
+                active: true,
+                address: "0x0000000000000000000000000000000000000001",
+                provider: "ethereum",
+                userId: "exampleUserId1",
+                username: "exampleusername1",
+              },
+            ],
+            exampleUserId2: [
+              // We ignore non-ethereum provider vaults and prefer active over
+              // inactive. However direct queries for inactive addresses return
+              // the inactive vault. (In reality a query for an inactive vault
+              // address does not also return the active vault in the same
+              // response.)
+              {
+                active: false,
+                address: "0x0000000000000000000000000000000000000002",
+                provider: "ethereum",
+                userId: "exampleUserId2",
+                username: "exampleUserName2",
+              },
+              {
+                active: true,
+                address: "0x0000000000000000000000000000000000000003",
+                provider: "randochain",
+                userId: "exampleUserId2",
+                username: "exampleUserName2",
+              },
+              {
+                active: false,
+                address: "0x0000000000000000000000000000000000000004",
+                provider: "ethereum",
+                userId: "exampleUserId2",
+                username: "exampleUserName2",
+              },
+              {
+                active: true,
+                address: "0x0000000000000000000000000000000000000005",
+                provider: "ethereum",
+                userId: "exampleUserId2",
+                username: "exampleUserName2",
+              },
+            ],
+            exampleUserId3: [
+              // User with only an inactive vault.
+              {
+                active: false,
+                address: "0x0000000000000000000000000000000000000006",
+                provider: "ethereum",
+                userId: "exampleUserId3",
+                username: "exampleusername3",
+              },
+            ],
+          },
+        }),
+      } as Response);
+
+      const resp = getRedditUserVault({
+        query,
         authToken: "secret",
-      }),
-    ).resolves.toEqual("0x0000000000000000000000000000000000000002");
+      } as GetRedditUserVaultOptions);
 
-    expect(fetch).toHaveBeenCalledTimes(1);
-  });
-
-  test("handles successful request for account without an address", async () => {
-    const fetch = jest.spyOn(globalThis, "fetch").mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      json: async () => ({}),
-    } as Response);
-
-    await expect(
-      getRedditUserVaultAddress({
-        username: "exampleusername",
-        authToken: "secret",
-      }),
-    ).resolves.toBeUndefined();
-    expect(fetch).toHaveBeenCalledTimes(1);
-  });
+      await expect(resp).resolves.toEqual(expectedValues[expected]);
+    },
+  );
 
   test("handles unsuccessful response", async () => {
     const fetch = jest.spyOn(globalThis, "fetch").mockResolvedValueOnce({
@@ -232,8 +311,8 @@ describe("getRedditUserVaultAddress()", () => {
     } as Response);
 
     const [result] = await Promise.allSettled([
-      getRedditUserVaultAddress({
-        username: "exampleusername",
+      getRedditUserVault({
+        query: { type: "username", value: "exampleusername" },
         authToken: "secret",
       }),
     ]);

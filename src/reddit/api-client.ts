@@ -2,6 +2,7 @@
  * This module provides client operations for the parts of Reddit's (internal)
  * API we need to use.
  */
+import { Address, getAddress } from "viem";
 import { z } from "zod";
 
 import { HTTPResponseError } from "../errors/http";
@@ -151,37 +152,57 @@ export async function registerAddressWithAccount(
   }
 }
 
-const GetRedditUserVaultAddressOptions = APIOptions.extend({
-  username: z.string(),
-});
-export type GetRedditUserVaultAddressOptions = z.infer<
-  typeof GetRedditUserVaultAddressOptions
+export const GetRedditUserVaultQueryOptions = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("username"), value: z.string() }),
+  z.object({ type: z.literal("address"), value: EthAddress }),
+]);
+export type GetRedditUserVaultQueryOptions = z.infer<
+  typeof GetRedditUserVaultQueryOptions
 >;
 
+export const GetRedditUserVaultOptions = APIOptions.extend({
+  query: GetRedditUserVaultQueryOptions,
+});
+export type GetRedditUserVaultOptions = z.infer<
+  typeof GetRedditUserVaultOptions
+>;
+
+const RawVault = z.object({
+  active: z.boolean(),
+  address: EthAddress,
+  provider: z.string(),
+  userId: z.string(),
+  username: z.string(),
+});
+type RawVault = z.infer<typeof RawVault>;
 const CryptoContactsResponse = z.object({
-  contacts: z
-    .record(
-      z.string(),
-      z
-        .object({
-          active: z.boolean(),
-          address: EthAddress,
-          provider: z.string(),
-          userId: z.string(),
-          username: z.string(),
-        })
-        .array(),
-    )
-    .optional(),
+  contacts: z.record(z.string(), RawVault.array()).optional(),
 });
 
-export async function getRedditUserVaultAddress(
-  options: GetRedditUserVaultAddressOptions,
-): Promise<string | undefined> {
-  const { username, authToken } =
-    GetRedditUserVaultAddressOptions.parse(options);
+export const RedditUserVault = z.object({
+  address: EthAddress,
+  userId: z.string(),
+  username: z.string(),
+  isActive: z.boolean().nullish(),
+});
+export type RedditUserVault = z.infer<typeof RedditUserVault>;
+
+export async function getRedditUserVault(
+  options: GetRedditUserVaultOptions,
+): Promise<RedditUserVault | undefined> {
+  const {
+    authToken,
+    query: { type, value },
+  } = GetRedditUserVaultOptions.parse(options);
+
+  const matchValue = value.toLowerCase();
+  const queryValue = type === "address" ? getAddress(value) : matchValue;
+
+  // The API supports multiple values separated by , as well as querying by
+  // username and address simultaneously. However we don't need this, so I'm
+  // only exposing single value queries.
   const params = new URLSearchParams({
-    usernames: username,
+    [type === "address" ? "addresses" : "usernames"]: queryValue,
   });
   const response = await fetch(
     `https://meta-api.reddit.com/crypto-contacts?${params}`,
@@ -200,14 +221,38 @@ export async function getRedditUserVaultAddress(
     );
   }
   const body = CryptoContactsResponse.parse(await response.json());
-  for (const accountRecords of Object.values(body.contacts ?? {})) {
-    for (const accountRecord of accountRecords) {
-      if (accountRecord.username === username && accountRecord.active) {
-        return accountRecord.address;
+
+  let matchingVault: RawVault | undefined;
+  // This is a little more involved than is probably necessary, but worth being
+  // cautious given the undocumented nature of this API. Generally there'll be
+  // a single vault value in the response for the way we search with a single
+  // query value.
+  for (const rawVaults of Object.values(body.contacts ?? {})) {
+    for (const rawVault of rawVaults) {
+      if (
+        !(
+          (type === "username" &&
+            matchValue === rawVault.username.toLowerCase()) ||
+          (type === "address" && matchValue == rawVault.address.toLowerCase())
+        )
+      )
+        continue;
+      if (rawVault.provider !== "ethereum") continue;
+      if (rawVault.active) {
+        matchingVault = rawVault;
+        break;
       }
+      matchingVault = rawVault;
+      // continue searching in case there's an active vault
     }
   }
-  return undefined;
+  if (!matchingVault) return undefined;
+  return {
+    address: matchingVault.address,
+    userId: matchingVault.userId,
+    username: matchingVault.username,
+    isActive: matchingVault.active,
+  };
 }
 
 const AccountVaultAddressesResponse = z.object({
