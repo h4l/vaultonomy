@@ -6,15 +6,14 @@ import {
   createContext,
   forwardRef,
   useContext,
-  useEffect,
   useReducer,
   useRef,
-  useState,
 } from "react";
 
 import { assert } from "../assert";
 import { ReservedSpace } from "./ReservedSpace";
 import { ScreenReaderOnly } from "./a11y";
+import { useAnimateOnOffScreen } from "./hooks/useAnimateOnOffScreen";
 import { pxNumbersAsRem } from "./utils/units";
 
 type SelectionMode = "preview" | "pin";
@@ -290,73 +289,22 @@ export function WithInlineHelp({
   );
 }
 
-function useWindowWidth(): number {
-  const [width, setWidth] = useState(window.innerWidth);
-  useEffect(() => {
-    const listener = () => {
-      setWidth(window.innerWidth);
-    };
-    addEventListener("resize", listener);
-    return () => removeEventListener("resize", listener);
-  }, []);
-  return width;
-}
-
 export function HelpDialog(): JSX.Element {
   const help = useContext(HelpContext);
-  const selectedHelpItem = getSelectedHelpItem(help);
   const ref = useRef<HTMLDivElement>(null);
-  const [modalHeight, setModalHeight] = useState(0);
-  const [transitionState, setTransitionState] = useState<
-    "at-end" | "at-start" | "started"
-  >("at-end");
-  const windowWidth = useWindowWidth();
-
-  // TODO: can use element size observer rather than window
-  useEffect(
-    () => {
-      setModalHeight(ref.current?.offsetHeight ?? 0);
-    },
-    // Include width & text as a dependency to recalculate on resize.
-    [ref, windowWidth, selectedHelpItem],
-  );
-
-  // Apply styles for the slide in/out CSS transitions. For the transitions to
-  // animate correctly, these need to be applied as side-effects to ensure the
-  // starting values are set before the ending values are.
-  useEffect(() => {
-    assert(ref.current);
-    // Need to offset a bit more at the bottom to move the drop shadow off screen
-    const hiddenShadowOffset = 30;
-
-    // Position from the top when closed and bottom when open so that changes to
-    // screen width that affect element height cause it to remain entirely
-    // off/on screen when closed/open.
-    if (transitionState === "at-start") {
-      if (!help.helpEnabled) {
-        ref.current.style.top = `calc(100% - ${ref.current.offsetHeight}px)`;
-        ref.current.style.bottom = "";
-      } else {
-        ref.current.style.top = "";
-        ref.current.style.bottom = `-${ref.current.offsetHeight}px`;
-      }
-      setTransitionState("started");
-    } else {
-      if (!help.helpEnabled) {
-        ref.current.style.top = `calc(100% + ${hiddenShadowOffset}px)`;
-        ref.current.style.bottom = "";
-      } else {
-        ref.current.style.top = "";
-        ref.current.style.bottom = "0px";
-      }
-    }
-  }, [help.helpEnabled, transitionState, modalHeight]);
+  const { height: modalHeight } = useAnimateOnOffScreen({
+    elRef: ref,
+    edge: "bottom",
+    initialVisibility: help.helpEnabled ? "open" : "closed",
+    visibility: help.helpEnabled ? "open" : "closed",
+    closedOffset: "2rem",
+  });
 
   return (
     <>
       {/* Provide empty space under the modal footer so that the page content
           can scroll all the way into view, above the modal footer. */}
-      <ReservedSpace required={help.helpEnabled} height={modalHeight} />
+      <ReservedSpace required={help.helpEnabled} height={modalHeight ?? 0} />
       <aside aria-label="help">
         <HelpToggleSwitch
           help={help}
@@ -364,13 +312,11 @@ export function HelpDialog(): JSX.Element {
             help.dispatch({
               type: help.helpEnabled ? "help-disabled" : "help-enabled",
             });
-            setTransitionState("at-start");
           }}
         />
         <div
           ref={ref}
-          className="fixed z-10 -inset-x-8 transition-[top,bottom]"
-          onTransitionEnd={() => setTransitionState("at-end")}
+          className="fixed z-10 -inset-x-8 transition-[top] duration-500"
         >
           <div
             className={[
