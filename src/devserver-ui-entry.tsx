@@ -4,8 +4,11 @@ import { createRoot } from "react-dom/client";
 
 import "./css/main.css";
 import { applyPolyfills } from "./polyfills";
+import { customiseTanstackQueryFocusManager } from "./tanstack-query";
 import { AppContext, AppUI } from "./ui/App";
 import { createVaultonomyStore } from "./ui/state/createVaultonomyStore";
+
+customiseTanstackQueryFocusManager();
 
 const vaultonomyStore = createVaultonomyStore({ isOnDevServer: true });
 

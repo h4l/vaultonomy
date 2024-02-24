@@ -5,8 +5,12 @@ import "./css/main.css";
 import { eip6963AnnounceCrossExtensionMetaMaskProvider } from "./ethereum/eip6963AnnounceCrossExtensionMetaMaskProvider";
 import { log } from "./logging";
 import { applyPolyfills } from "./polyfills";
+import { customiseTanstackQueryFocusManager } from "./tanstack-query";
 import { App, AppContext } from "./ui/App";
 import { createVaultonomyStore } from "./ui/state/createVaultonomyStore";
+
+// TODO: check if we actually benefit from this outside the dev server.
+customiseTanstackQueryFocusManager();
 
 eip6963AnnounceCrossExtensionMetaMaskProvider()
   .then((result) =>
