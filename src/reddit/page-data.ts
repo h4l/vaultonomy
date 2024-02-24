@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { HTTPResponseError } from "../errors/http";
+import { RedditUserProfile } from "./types";
 
 // Every page seems to contain a script#data element containing the session data
 // we need. But some pages are bigger than others. /premium doesn't have much
@@ -35,18 +36,9 @@ export const RedditUserAPICredentials = z.object({
 });
 export type RedditUserAPICredentials = z.infer<typeof RedditUserAPICredentials>;
 
-const RedditUser = z.object({
-  userID: z.string(),
-  username: z.string(),
-  hasPremium: z.boolean(),
-  accountIconURL: z.string().url(),
-  accountIconFullBodyURL: z.string().nullable(),
-});
-type RedditUser = z.infer<typeof RedditUser>;
-
 export const UserPageData = z.object({
   loggedIn: z.literal(true),
-  user: RedditUser,
+  user: RedditUserProfile,
   auth: RedditUserAPICredentials,
 });
 export type UserPageData = z.infer<typeof UserPageData>;

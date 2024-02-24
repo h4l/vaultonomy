@@ -6,13 +6,16 @@ import {
   AccountVaultAddress,
   createAddressOwnershipChallenge,
   getRedditAccountVaultAddresses,
+  getRedditUserProfile,
   getRedditUserVaultAddress,
   registerAddressWithAccount,
 } from "../api-client";
 import {
   MetaApiMeAddressResponses,
+  oauthRedditUserAboutResponse,
   redditEIP712Challenge,
 } from "./api-client.fixtures";
+import { userProfile } from "./page-data.fixtures";
 
 const exampleChallenge = redditEIP712Challenge;
 
@@ -306,5 +309,53 @@ describe("getRedditAccountVaultAddresses()", () => {
         isActive: true,
       },
     ]);
+  });
+});
+
+describe("getRedditUserProfile()", () => {
+  test("handles successful request for user profile", async () => {
+    const fetch = jest.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => oauthRedditUserAboutResponse(),
+    } as Response);
+
+    await expect(
+      getRedditUserProfile({
+        username: "carbonatedcamel",
+        authToken: "secret",
+      }),
+    ).resolves.toEqual(userProfile());
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    const [fetchUrl, fetchOptions] = fetch.mock.calls[0];
+    const fetchHeaders = fetchOptions?.headers as Partial<
+      Record<string, string>
+    >;
+    expect(fetchUrl).toEqual(
+      "https://oauth.reddit.com/user/carbonatedcamel/about.json",
+    );
+    expect(fetchHeaders?.authorization).toEqual("Bearer secret");
+    expect(fetchHeaders?.["content-type"]).toEqual("application/json");
+  });
+
+  test("handles unsuccessful response", async () => {
+    const fetch = jest.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      json: async () => ({ error: "something is not right" }),
+    } as Response);
+
+    const [result] = await Promise.allSettled([
+      getRedditUserProfile({
+        username: "exampleusername",
+        authToken: "secret",
+      }),
+    ]);
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    assert(result.status === "rejected");
+    assert(result.reason instanceof HTTPResponseError);
+    expect(result.reason.response.status).toEqual(500);
   });
 });

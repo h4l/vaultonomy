@@ -4,6 +4,9 @@ import { PortName } from "../PortName";
 import { defineMethod } from "../rpc/typing";
 import { EthAddress, EthHexSignature } from "../types";
 import { AccountVaultAddress, RedditEIP712Challenge } from "./api-client";
+import { RedditUserProfile } from "./types";
+
+export { RedditUserProfile } from "./types";
 
 // This RPC protocol is connection-oriented — a connection implies a single
 // session context, in which one reddit account is the subject of the
@@ -36,19 +39,11 @@ export type Session = z.infer<typeof Session>;
 
 export const RedditGetUserProfileParams = z.object({
   session: Session.nullish(),
+  username: z.string().nullish(),
 });
 export type RedditGetUserProfileParams = z.infer<
   typeof RedditGetUserProfileParams
 >;
-
-export const RedditUserProfile = z.object({
-  userID: z.string(),
-  username: z.string(),
-  hasPremium: z.boolean(),
-  accountIconURL: z.string().url(),
-  accountIconFullBodyURL: z.string().url().nullable(),
-});
-export type RedditUserProfile = z.infer<typeof RedditUserProfile>;
 
 export const RedditGetUserProfile = defineMethod({
   name: "reddit_getUserProfile",

@@ -8,6 +8,7 @@ import { SessionManager, createCachedSessionManager } from "./SessionManager";
 import {
   createAddressOwnershipChallenge,
   getRedditAccountVaultAddresses,
+  getRedditUserProfile,
   getRedditUserVaultAddress,
   registerAddressWithAccount,
 } from "./api-client";
@@ -82,7 +83,13 @@ export function createServerSession<
         sessionManager,
         params?.session?.userId ?? null,
       );
-      return session.user;
+      const username = params?.username ?? null;
+      if (username === null) return session.user;
+
+      return await getRedditUserProfile({
+        username,
+        authToken: session.auth.token,
+      });
     }),
   );
   service.addMethod(

@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import { HTTPResponseError } from "../errors/http";
 import { EthAddress, EthHexSignature, RawEthAddress } from "../types";
+import { RedditUserProfile } from "./types";
 
 // TODO: review how strictly we validate the challenge structure.
 // We need to be sure that we're presenting a challenge for Reddit, so it
@@ -275,4 +276,55 @@ export async function getRedditAccountVaultAddresses(
     });
   }
   return addresses;
+}
+
+const GetRedditUserProfileOptions = APIOptions.extend({
+  username: z.string(),
+});
+export type GetRedditUserProfileOptions = z.infer<
+  typeof GetRedditUserProfileOptions
+>;
+
+const UserProfileResponse = z.object({
+  data: z.object({
+    id: z.string(),
+    name: z.string(),
+    is_gold: z.boolean(),
+    icon_img: z.string().url(),
+    snoovatar_img: z.string().url().nullable(),
+  }),
+});
+type UserProfileResponse = z.infer<typeof UserProfileResponse>;
+
+/**
+ * Get the profile of a user other than the session's user.
+ */
+export async function getRedditUserProfile(
+  options: GetRedditUserProfileOptions,
+): Promise<RedditUserProfile> {
+  const { username, authToken } = GetRedditUserProfileOptions.parse(options);
+  const response = await fetch(
+    `https://oauth.reddit.com/user/${encodeURIComponent(username)}/about.json`,
+    {
+      method: "GET",
+      headers: {
+        authorization: `Bearer ${authToken}`,
+        "content-type": "application/json",
+      },
+    },
+  );
+  if (!response.ok) {
+    throw new HTTPResponseError(
+      `HTTP request to get reddit user profile failed`,
+      { response },
+    );
+  }
+  const { data } = UserProfileResponse.parse(await response.json());
+  return {
+    userID: `t2_${data.id}`,
+    username: data.name,
+    hasPremium: data.is_gold,
+    accountIconURL: data.icon_img,
+    accountIconFullBodyURL: data.snoovatar_img,
+  };
 }

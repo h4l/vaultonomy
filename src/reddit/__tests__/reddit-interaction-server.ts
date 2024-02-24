@@ -9,9 +9,10 @@ import {
 import { HTTPResponseError } from "../../errors/http";
 import type { SessionManager } from "../SessionManager";
 import { AccountVaultAddress, RedditEIP712Challenge } from "../api-client";
-import { ErrorCode, RedditUserProfile } from "../reddit-interaction-spec";
+import { ErrorCode } from "../reddit-interaction-spec";
+import { RedditUserProfile } from "../types";
 import { redditEIP712Challenge } from "./api-client.fixtures";
-import { anonUser, loggedInUser } from "./page-data.fixtures";
+import { anonUser, loggedInUser, userProfile } from "./page-data.fixtures";
 
 jest.useFakeTimers();
 
@@ -39,6 +40,7 @@ jest.unstable_mockModule<typeof originalApiclient>(
         jest.fn<APIClientMod["getRedditUserVaultAddress"]>(),
       getRedditAccountVaultAddresses:
         jest.fn<APIClientMod["getRedditAccountVaultAddresses"]>(),
+      getRedditUserProfile: jest.fn<APIClientMod["getRedditUserProfile"]>(),
     };
   },
 );
@@ -50,6 +52,7 @@ const {
   registerAddressWithAccount,
   getRedditUserVaultAddress,
   getRedditAccountVaultAddresses,
+  getRedditUserProfile,
 } = await import("../api-client");
 
 describe("createServerSession()", () => {
@@ -69,6 +72,7 @@ describe("createServerSession()", () => {
       .mocked(getRedditUserVaultAddress)
       .mockResolvedValueOnce("0x" + "0".repeat(40));
     jest.mocked(getRedditAccountVaultAddresses).mockResolvedValue([]);
+    jest.mocked(getRedditUserProfile).mockRejectedValue("not mocked");
 
     jest.setSystemTime(new Date("2023-01-01T00:00:00Z"));
     server = createServerSession();
@@ -114,6 +118,43 @@ describe("createServerSession()", () => {
           ErrorCode.USER_NOT_LOGGED_IN,
         ),
       );
+    });
+
+    describe("when a username param is provided", () => {
+      test("responds with the profile of another user", async () => {
+        jest.mocked(getRedditUserProfile).mockResolvedValueOnce(userProfile());
+
+        const response = await client.request("reddit_getUserProfile", {
+          session: { userId: "t2_abc" },
+          username: "carbonatedcamel",
+        });
+
+        expect(RedditUserProfile.safeParse(response).success).toBeTruthy();
+        expect(response).toEqual(userProfile());
+
+        expect(sessionManager.getPageData).toBeCalledTimes(1);
+        expect(getRedditUserProfile).toBeCalledTimes(1);
+      });
+
+      test("responds with an error the API call to get the profile fails", async () => {
+        jest
+          .mocked(getRedditUserProfile)
+          .mockReset()
+          .mockRejectedValue(
+            new HTTPResponseError("getRedditUserProfile failed", {
+              response: undefined as unknown as Response,
+            }),
+          );
+
+        const response = client.request("reddit_getUserProfile", {
+          session: { userId: "t2_abc" },
+          username: "carbonatedcamel",
+        });
+
+        await expect(response).rejects.toEqual(
+          new JSONRPCErrorException("getRedditUserProfile failed", 0),
+        );
+      });
     });
   });
 
