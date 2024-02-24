@@ -3,6 +3,8 @@ import { ReactNode, useEffect, useRef, useState } from "react";
 import { HelpMessageProps, WithInlineHelp } from "./Help";
 import { ReservedSpace } from "./ReservedSpace";
 import { AriaLiveAlert } from "./a11y";
+import { useAnimateOnOffScreen } from "./hooks/useAnimateOnOffScreen";
+import { useHtmlElementHeight } from "./hooks/useHtmlElementHeight";
 import { ErrorIcon, GitHubLogo, VaultonomyExtensionIcon } from "./icons";
 import { useVaultonomyStore } from "./state/useVaultonomyStore";
 
@@ -25,13 +27,14 @@ export function TopBanner(): JSX.Element {
     : loggedOut ? "reddit-logged-out"
     : null;
   const [latestAlert, setLatestAlert] = useState(alertType);
-  useEffect(() => setLatestAlert(alertType), [alertType]);
+  useEffect(() => {
+    if (alertType) setLatestAlert(alertType);
+  }, [alertType]);
 
   useEffect(() => {
     const startup = setTimeout(() => setStartupDelayElapsed(true), 500);
     return () => clearTimeout(startup);
   }, []);
-
   // if(!startupDelayElapsed) return <></>
 
   return (
@@ -88,7 +91,7 @@ function AlertMessage({
       >
         <h2
           className={[
-            "relative mt-14 text-2xl font-bold",
+            "relative mt-12 text-2xl font-bold",
             "underline underline-offset-[0.4rem] decoration-wavy decoration-red-500",
           ].join(" ")}
         >
@@ -108,12 +111,23 @@ export function AlertBanner({
   active: boolean;
   children: ReactNode;
 }): JSX.Element {
+  const ref = useRef<HTMLDivElement>(null);
+  useAnimateOnOffScreen({
+    elRef: ref,
+    initialVisibility: active ? "open" : "closed",
+    visibility: active ? "open" : "closed",
+    edge: "top",
+    openOffset: "-2rem",
+    closedOffset: "4rem",
+  });
+
   return (
     <>
-      <ReservedSpace required={true} height={200} />
       <div
+        ref={ref}
         className={[
-          "fixed z-20 -top-8 -inset-x-8 px-12 py-4 -rotate-1",
+          "transition-[top] duration-500",
+          "fixed z-20 _-top-8 -inset-x-8 px-12 py-4 -rotate-1",
           "bg-gradient-to-t via-25% from-neutral-25 to-neutral-100",
           "dark:from-neutral-800 dark:to-neutral-875",
           "shadow-2xl dark:shadow-2xl-heavy",
