@@ -27,16 +27,16 @@ export { RedditUserProfile } from "./types";
 export const REDDIT_INTERACTION_PORT_NAME = new PortName("reddit-interaction");
 
 export enum ErrorCode {
-  USER_NOT_LOGGED_IN = 0,
-  REDDIT_TAB_DISCONNECTED = 1,
-  WRONG_USER = 2,
+  USER_NOT_LOGGED_IN = 1,
+  REDDIT_TAB_DISCONNECTED = 2,
+  WRONG_USER = 3,
 }
+const errorCodeValues: Set<string | ErrorCode> = new Set(
+  Object.values(ErrorCode),
+);
 
 export function isErrorCode(num: number): num is ErrorCode {
-  return (
-    num === ErrorCode.USER_NOT_LOGGED_IN ||
-    num == ErrorCode.REDDIT_TAB_DISCONNECTED
-  );
+  return errorCodeValues.has(num);
 }
 
 export const Session = z.object({ userId: z.string() });
