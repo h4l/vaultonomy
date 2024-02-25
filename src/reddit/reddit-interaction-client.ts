@@ -9,7 +9,11 @@ import {
   createPortSendRequestFn,
 } from "../rpc/webextension-port-json-rpc";
 import { retroactivePortDisconnection } from "../webextensions/retroactivePortDisconnection";
-import { AccountVaultAddress, RedditEIP712Challenge } from "./api-client";
+import {
+  AccountVaultAddress,
+  RedditEIP712Challenge,
+  RedditUserVault,
+} from "./api-client";
 import {
   ErrorCode,
   RedditCreateAddressOwnershipChallenge,
@@ -18,8 +22,8 @@ import {
   RedditGetAccountVaultAddressesParams,
   RedditGetUserProfile,
   RedditGetUserProfileParams,
-  RedditGetUserVaultAddress,
-  RedditGetUserVaultAddressParams,
+  RedditGetUserVault,
+  RedditGetUserVaultParams,
   RedditRegisterAddressWithAccount,
   RedditRegisterAddressWithAccountParams,
   RedditUserProfile,
@@ -151,9 +155,9 @@ export class RedditProvider {
         mapError: AnyRedditProviderError.from,
       }),
     );
-    this.getUserVaultAddress = trackErrors(
+    this.getUserVault = trackErrors(
       createRCPMethodCaller({
-        method: RedditGetUserVaultAddress,
+        method: RedditGetUserVault,
         client,
         mapError: AnyRedditProviderError.from,
       }),
@@ -186,9 +190,9 @@ export class RedditProvider {
   registerAddressWithAccount: (
     params: RedditRegisterAddressWithAccountParams,
   ) => Promise<null>;
-  getUserVaultAddress: (
-    params: RedditGetUserVaultAddressParams,
-  ) => Promise<Address | null>;
+  getUserVault: (
+    params: RedditGetUserVaultParams,
+  ) => Promise<RedditUserVault | null>;
   getAccountVaultAddresses: (
     params: RedditGetAccountVaultAddressesParams,
   ) => Promise<Array<AccountVaultAddress>>;

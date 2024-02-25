@@ -3,7 +3,12 @@ import { string, z } from "zod";
 import { PortName } from "../PortName";
 import { defineMethod } from "../rpc/typing";
 import { EthAddress, EthHexSignature } from "../types";
-import { AccountVaultAddress, RedditEIP712Challenge } from "./api-client";
+import {
+  AccountVaultAddress,
+  GetRedditUserVaultQueryOptions,
+  RedditEIP712Challenge,
+  RedditUserVault,
+} from "./api-client";
 import { RedditUserProfile } from "./types";
 
 export { RedditUserProfile } from "./types";
@@ -80,17 +85,15 @@ export const RedditRegisterAddressWithAccount = defineMethod({
   returns: z.null(),
 });
 
-export const RedditGetUserVaultAddressParams = z.object({
-  username: z.string(),
+export const RedditGetUserVaultParams = z.object({
+  query: GetRedditUserVaultQueryOptions,
 });
-export type RedditGetUserVaultAddressParams = z.infer<
-  typeof RedditGetUserVaultAddressParams
->;
+export type RedditGetUserVaultParams = z.infer<typeof RedditGetUserVaultParams>;
 
-export const RedditGetUserVaultAddress = defineMethod({
-  name: "reddit_getUserVaultAddress",
-  params: RedditGetUserVaultAddressParams,
-  returns: EthAddress.nullable(),
+export const RedditGetUserVault = defineMethod({
+  name: "reddit_getUserVault",
+  params: RedditGetUserVaultParams,
+  returns: RedditUserVault.nullable(),
 });
 
 export const RedditGetAccountVaultAddressesParams = z.object({

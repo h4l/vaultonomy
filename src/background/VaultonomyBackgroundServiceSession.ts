@@ -12,7 +12,7 @@ import {
   RedditCreateAddressOwnershipChallenge,
   RedditGetAccountVaultAddresses,
   RedditGetUserProfile,
-  RedditGetUserVaultAddress,
+  RedditGetUserVault,
   RedditRegisterAddressWithAccount,
 } from "../reddit/reddit-interaction-spec";
 import { createRCPMethodCaller } from "../rpc/typing";
@@ -155,12 +155,12 @@ export class VaultonomyBackgroundServiceSession {
       }),
     );
     server.addMethod(
-      RedditGetUserVaultAddress.name,
-      RedditGetUserVaultAddress.signature.implement(async (params) => {
+      RedditGetUserVault.name,
+      RedditGetUserVault.signature.implement(async (params) => {
         if (!this.redditProvider) {
-          throw redditDisconnectedError(RedditGetUserVaultAddress.name, params);
+          throw redditDisconnectedError(RedditGetUserVault.name, params);
         }
-        return await this.redditProvider.getUserVaultAddress(params);
+        return await this.redditProvider.getUserVault(params);
       }),
     );
     server.addMethod(

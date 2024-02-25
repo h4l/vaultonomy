@@ -9,7 +9,7 @@ import {
   createAddressOwnershipChallenge,
   getRedditAccountVaultAddresses,
   getRedditUserProfile,
-  getRedditUserVaultAddress,
+  getRedditUserVault,
   registerAddressWithAccount,
 } from "./api-client";
 import { UserPageData } from "./page-data";
@@ -18,7 +18,7 @@ import {
   RedditCreateAddressOwnershipChallenge,
   RedditGetAccountVaultAddresses,
   RedditGetUserProfile,
-  RedditGetUserVaultAddress,
+  RedditGetUserVault,
   RedditRegisterAddressWithAccount,
 } from "./reddit-interaction-spec";
 
@@ -123,14 +123,14 @@ export function createServerSession<
     }),
   );
   service.addMethod(
-    RedditGetUserVaultAddress.name,
-    RedditGetUserVaultAddress.signature.implement(async (params) => {
+    RedditGetUserVault.name,
+    RedditGetUserVault.signature.implement(async ({ query }) => {
       // This method does not depend on the logged-in user identity
       const session = await getUserSession(sessionManager, null);
       return (
-        (await getRedditUserVaultAddress({
+        (await getRedditUserVault({
           authToken: session.auth.token,
-          username: params.username,
+          query,
         })) ?? null
       );
     }),

@@ -4,8 +4,9 @@ import { createJSONRPCSuccessResponse } from "json-rpc-2.0";
 import { MockPort } from "../../__tests__/webextension.mock";
 
 import { sleep } from "../../__tests__/testing.utils";
-import { AccountVaultAddress } from "../api-client";
+import { AccountVaultAddress, RedditUserVault } from "../api-client";
 import { RedditProvider } from "../reddit-interaction-client";
+import { RedditGetUserVaultParams } from "../reddit-interaction-spec";
 import { redditEIP712Challenge } from "./api-client.fixtures";
 import { loggedInUser } from "./page-data.fixtures";
 
@@ -84,12 +85,39 @@ describe("RedditProvider()", () => {
       await expect(resp).resolves.toBeNull();
     });
 
-    test("getAccountVaultAddress()", async () => {
-      const resp = reddit.getUserVaultAddress({ username: "example" });
-      port.receiveMessage(
-        createJSONRPCSuccessResponse(1, `0x${"0".repeat(40)}`),
-      );
-      await expect(resp).resolves.toEqual(`0x${"0".repeat(40)}`);
+    describe("getUserVault()", () => {
+      const vault = (): RedditUserVault => ({
+        address: "0x67F63690530782B716477733a085ce7A8310bc4C",
+        userId: "exampleUserId",
+        username: "exampleUserName",
+        isActive: true,
+      });
+
+      test.each<RedditGetUserVaultParams["query"]>([
+        { type: "username", value: "example" },
+        {
+          type: "address",
+          value: "0x67F63690530782B716477733a085ce7A8310bc4C",
+        },
+      ])("handles vault response", async (query) => {
+        const resp = reddit.getUserVault({
+          session: { userId: "t2_abc" },
+          query,
+        });
+        port.receiveMessage(createJSONRPCSuccessResponse(1, vault()));
+        await expect(resp).resolves.toEqual(vault());
+      });
+
+      test.each<RedditGetUserVaultParams["query"]>([
+        { type: "username", value: "example" },
+      ])("handles no-vault response", async (query) => {
+        const resp = reddit.getUserVault({
+          session: { userId: "t2_abc" },
+          query,
+        });
+        port.receiveMessage(createJSONRPCSuccessResponse(1, null));
+        await expect(resp).resolves.toBeNull();
+      });
     });
 
     test("getAccountVaultAddresses()", async () => {
