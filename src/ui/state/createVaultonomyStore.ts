@@ -7,6 +7,7 @@ import { RedditEIP712Challenge } from "../../reddit/api-client";
 import { RedditProvider } from "../../reddit/reddit-interaction-client";
 import { HexString, RecursivePartial } from "../../types";
 import { browser } from "../../webextension";
+import type { SearchForUserResult } from "../hooks/useSearchForUser";
 import { VaultonomyBackgroundProvider } from "../rpc/VaultonomyBackgroundProvider";
 import { createExtensionStorage } from "./zustandExtensionStorage";
 
@@ -59,6 +60,11 @@ export type VaultonomyStateActions = {
   setPinnedPairing(pinnedPairing: PairingId | null): void;
   setPairingInterest(userInterest: UserInterest): void;
   setCurrentUserId(currentUserId: string | null): void;
+  setSearchForUserQuery(options: { queryKey: string; rawQuery: string }): void;
+  setSearchForUserResult(options: {
+    queryKey: string;
+    result: SearchForUserResult;
+  }): void;
 };
 
 export enum PairingChecklist {
@@ -91,11 +97,18 @@ export type VaultonomyStateData = {
   pairings: Partial<Record<string, PairingState>>;
   /** One of the pairings that has been signed and submitted to register the address. */
   pinnedPairing: PairingId | null;
+  searchForUserQuery: { queryKey: string; rawQuery: string } | null;
+  searchForUserResult: SearchForUserResult | null;
 };
 
 type PersistedVaultonomyStateData = Pick<
   VaultonomyStateData,
-  "currentUserId" | "pairings" | "pairingInterest" | "pinnedPairing"
+  | "currentUserId"
+  | "pairings"
+  | "pairingInterest"
+  | "pinnedPairing"
+  | "searchForUserQuery"
+  | "searchForUserResult"
 >;
 
 export type VaultonomyState = VaultonomyStateData & VaultonomyStateActions;
@@ -133,6 +146,8 @@ export const createVaultonomyStore = (
           pairingInterest: null,
           pairings: {},
           pinnedPairing: null,
+          searchForUserQuery: null,
+          searchForUserResult: null,
           // actions
           setProvider(provider: VaultonomyBackgroundProvider): void {
             set((store) => {
@@ -220,18 +235,46 @@ export const createVaultonomyStore = (
           setCurrentUserId(currentUserId: string | null): void {
             set({ currentUserId });
           },
+          setSearchForUserQuery({
+            queryKey,
+            rawQuery,
+          }: {
+            queryKey: string;
+            rawQuery: string;
+          }): void {
+            set({ searchForUserQuery: { queryKey, rawQuery } });
+          },
+          setSearchForUserResult({
+            queryKey,
+            result,
+          }: {
+            queryKey: string;
+            result: SearchForUserResult;
+          }): void {
+            set((store) => {
+              if (store.searchForUserQuery?.queryKey !== queryKey) {
+                log.debug(
+                  "Ignored setSearchForUserResult() for non-current result",
+                );
+                return store;
+              }
+              return { searchForUserResult: result };
+            });
+          },
         };
         return state;
       },
       {
         name: "vaultonomy-ui-state",
-        version: 3,
+        version: 4,
         partialize(store): PersistedVaultonomyStateData {
           return {
             currentUserId: store.currentUserId,
             pairings: store.pairings,
             pairingInterest: store.pairingInterest,
             pinnedPairing: store.pinnedPairing,
+            searchForUserQuery: store.searchForUserQuery,
+            searchForUserResult: store.searchForUserResult,
           };
         },
         storage:

@@ -16,7 +16,7 @@ export function useRedditProvider(): UseRedditProviderResult {
 }
 
 export function assumeAvailable(
-  redditProvider: RedditProvider | null,
+  redditProvider: RedditProvider | null | undefined,
 ): RedditProvider {
   if (!redditProvider) throw new RedditNotConnectedError();
   return redditProvider;
