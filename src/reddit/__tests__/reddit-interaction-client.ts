@@ -64,9 +64,15 @@ describe("RedditProvider()", () => {
   describe("RPC methods", () => {
     let port: MockPort;
     let reddit: RedditProvider;
+    let messages: any[] = [];
     beforeEach(() => {
       port = MockPort.createAndRegisterRetroactiveDisconnection();
       reddit = RedditProvider.from(port);
+
+      messages = [];
+      jest.mocked(port.postMessage).mockImplementation((message) => {
+        messages.push(message);
+      });
     });
 
     describe("getUserProfile()", () => {
@@ -76,6 +82,24 @@ describe("RedditProvider()", () => {
           createJSONRPCSuccessResponse(1, loggedInUser().user),
         );
         await expect(resp).resolves.toEqual(loggedInUser().user);
+        expect(messages.length).toBe(1);
+        expect(messages[0].params).toBeNull();
+      });
+      test.each<RedditGetUserProfileParams>([
+        { session: { userId: "t2_abc" }, username: "h4l" },
+        { session: { userId: "t2_abc" } },
+        { session: { userId: "t2_abc" }, username: null },
+        { username: null },
+        { username: "h4l" },
+        {},
+      ])("can session and username arguments", async (params) => {
+        const resp = reddit.getUserProfile(params);
+        port.receiveMessage(
+          createJSONRPCSuccessResponse(1, loggedInUser().user),
+        );
+        await expect(resp).resolves.toEqual(loggedInUser().user);
+        expect(messages.length).toBe(1);
+        expect(messages[0].params).toEqual(params);
       });
       test("handles NOT_FOUND error", async () => {
         const resp = reddit.getUserProfile();
@@ -126,10 +150,7 @@ describe("RedditProvider()", () => {
           value: "0x67F63690530782B716477733a085ce7A8310bc4C",
         },
       ])("handles vault response", async (query) => {
-        const resp = reddit.getUserVault({
-          session: { userId: "t2_abc" },
-          query,
-        });
+        const resp = reddit.getUserVault({ query });
         port.receiveMessage(createJSONRPCSuccessResponse(1, vault()));
         await expect(resp).resolves.toEqual(vault());
       });
@@ -137,10 +158,7 @@ describe("RedditProvider()", () => {
       test.each<RedditGetUserVaultParams["query"]>([
         { type: "username", value: "example" },
       ])("handles no-vault response", async (query) => {
-        const resp = reddit.getUserVault({
-          session: { userId: "t2_abc" },
-          query,
-        });
+        const resp = reddit.getUserVault({ query });
         port.receiveMessage(createJSONRPCSuccessResponse(1, null));
         await expect(resp).resolves.toBeNull();
       });

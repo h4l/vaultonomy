@@ -55,17 +55,4 @@ describe("createRCPMethodCaller()", () => {
       "Expected string, received boolean",
     );
   });
-
-  test("accepts no args when param type is null", async () => {
-    jest.spyOn(JSONRPCClient.prototype, "request").mockResolvedValue("example");
-    const method = defineMethod({
-      name: "noParams",
-      params: z.null(),
-      returns: z.string(),
-    });
-    const foo = createRCPMethodCaller({ method, client });
-    await expect(foo()).resolves.toEqual("example");
-    // implementation receives null still
-    expect(JSONRPCClient.prototype.request).toBeCalledWith("noParams", null);
-  });
 });

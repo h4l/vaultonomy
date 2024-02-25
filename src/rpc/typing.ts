@@ -32,8 +32,8 @@ export function defineMethod<
 export type RCPMethodCaller<
   Params extends z.ZodTypeAny,
   Returns extends z.ZodTypeAny,
-> = Params extends z.ZodNull
-  ? () => z.infer<Returns>
+> =
+  Params extends z.ZodNull ? () => z.infer<Returns>
   : (params: z.infer<Params>) => z.infer<Returns>;
 
 export type RPCErrorMapper<E = Error> = (error: JSONRPCErrorException) => E;
@@ -57,10 +57,5 @@ export function createRCPMethodCaller<
     }
   });
 
-  // Use 0-arg signature for null params
-  if (options.method.signature.parameters().safeParse([null]).success) {
-    type _Params = Parameters<typeof method>[0];
-    return (() => method(null as _Params)) as RCPMethodCaller<Params, Returns>;
-  }
   return method as RCPMethodCaller<Params, Returns>;
 }
