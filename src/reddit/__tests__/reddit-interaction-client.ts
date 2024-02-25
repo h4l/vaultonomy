@@ -1,12 +1,23 @@
 import { expect, jest } from "@jest/globals";
-import { createJSONRPCSuccessResponse } from "json-rpc-2.0";
+import {
+  createJSONRPCErrorResponse,
+  createJSONRPCSuccessResponse,
+} from "json-rpc-2.0";
 
 import { MockPort } from "../../__tests__/webextension.mock";
 
 import { sleep } from "../../__tests__/testing.utils";
+import { assert } from "../../assert";
 import { AccountVaultAddress, RedditUserVault } from "../api-client";
-import { RedditProvider } from "../reddit-interaction-client";
-import { RedditGetUserVaultParams } from "../reddit-interaction-spec";
+import {
+  RedditProvider,
+  RedditProviderError,
+} from "../reddit-interaction-client";
+import {
+  ErrorCode,
+  RedditGetUserProfileParams,
+  RedditGetUserVaultParams,
+} from "../reddit-interaction-spec";
 import { redditEIP712Challenge } from "./api-client.fixtures";
 import { loggedInUser } from "./page-data.fixtures";
 
@@ -58,10 +69,25 @@ describe("RedditProvider()", () => {
       reddit = RedditProvider.from(port);
     });
 
-    test("getUserProfile()", async () => {
-      const resp = reddit.getUserProfile();
-      port.receiveMessage(createJSONRPCSuccessResponse(1, loggedInUser().user));
-      await expect(resp).resolves.toEqual(loggedInUser().user);
+    describe("getUserProfile()", () => {
+      test("can accept no arguments", async () => {
+        const resp = reddit.getUserProfile();
+        port.receiveMessage(
+          createJSONRPCSuccessResponse(1, loggedInUser().user),
+        );
+        await expect(resp).resolves.toEqual(loggedInUser().user);
+      });
+      test("handles NOT_FOUND error", async () => {
+        const resp = reddit.getUserProfile();
+        port.receiveMessage(
+          createJSONRPCErrorResponse(1, ErrorCode.NOT_FOUND, "I tried 🤷"),
+        );
+        const [resolved] = await Promise.allSettled([resp]);
+        assert(resolved.status === "rejected");
+        assert(resolved.reason instanceof RedditProviderError);
+        expect(resolved.reason.type).toEqual(ErrorCode.NOT_FOUND);
+        expect(resolved.reason.message).toEqual("I tried 🤷");
+      });
     });
 
     test("createAddressOwnershipChallenge()", async () => {

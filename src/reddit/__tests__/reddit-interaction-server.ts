@@ -52,6 +52,10 @@ jest.unstable_mockModule<typeof originalApiclient>(
   },
 );
 
+function mockResponse(status: number = 500): Response {
+  return { status } satisfies Partial<Response> as Response;
+}
+
 const { createCachedSessionManager } = await import("../SessionManager");
 const { createServerSession } = await import("../reddit-interaction-server");
 const {
@@ -125,6 +129,27 @@ describe("createServerSession()", () => {
       );
     });
 
+    test("responds with ErrorCode.NOT_FOUND if username request 404s", async () => {
+      jest
+        .mocked(getRedditUserProfile)
+        .mockReset()
+        .mockRejectedValue(
+          new HTTPResponseError("Not Found", {
+            response: mockResponse(404),
+          }),
+        );
+
+      const resp = client.request("reddit_getUserProfile", {
+        username: "missing",
+      });
+      await expect(resp).rejects.toEqual(
+        new JSONRPCErrorException(
+          "Reddit API responded with 404",
+          ErrorCode.NOT_FOUND,
+        ),
+      );
+    });
+
     describe("when a username param is provided", () => {
       test("responds with the profile of another user", async () => {
         jest.mocked(getRedditUserProfile).mockResolvedValueOnce(userProfile());
@@ -147,7 +172,7 @@ describe("createServerSession()", () => {
           .mockReset()
           .mockRejectedValue(
             new HTTPResponseError("getRedditUserProfile failed", {
-              response: undefined as unknown as Response,
+              response: mockResponse(),
             }),
           );
 
@@ -195,7 +220,7 @@ describe("createServerSession()", () => {
         .mockReset()
         .mockRejectedValue(
           new HTTPResponseError("createAddressOwnershipChallenge failed", {
-            response: undefined as unknown as Response,
+            response: mockResponse(),
           }),
         );
 
@@ -245,7 +270,7 @@ describe("createServerSession()", () => {
         .mockReset()
         .mockRejectedValue(
           new HTTPResponseError("registerAddressWithAccount failed", {
-            response: undefined as unknown as Response,
+            response: mockResponse(),
           }),
         );
 
@@ -293,7 +318,7 @@ describe("createServerSession()", () => {
         .mockReset()
         .mockRejectedValue(
           new HTTPResponseError("getRedditUserVault failed", {
-            response: undefined as unknown as Response,
+            response: mockResponse(),
           }),
         );
 
@@ -352,7 +377,7 @@ describe("createServerSession()", () => {
         .mockReset()
         .mockRejectedValue(
           new HTTPResponseError("getRedditAccountVaultAddresses failed", {
-            response: undefined as unknown as Response,
+            response: mockResponse(),
           }),
         );
 

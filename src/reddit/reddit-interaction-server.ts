@@ -2,8 +2,15 @@
  * This is the server side of our reddit interaction RPC protocol. It's a client
  * of Reddit, but a server from the point of view of our application!
  */
-import { JSONRPCErrorException, JSONRPCServer } from "json-rpc-2.0";
+import {
+  JSONRPCErrorException,
+  JSONRPCErrorResponse,
+  JSONRPCID,
+  JSONRPCServer,
+  createJSONRPCErrorResponse,
+} from "json-rpc-2.0";
 
+import { HTTPResponseError } from "../errors/http";
 import { SessionManager, createCachedSessionManager } from "./SessionManager";
 import {
   createAddressOwnershipChallenge,
@@ -73,6 +80,23 @@ export function createServerSession<
   const service = new JSONRPCServer<ServerParams>({
     errorListener: () => undefined,
   });
+  const defaultMapErrorToJSONRPCErrorResponse =
+    service.mapErrorToJSONRPCErrorResponse;
+  service.mapErrorToJSONRPCErrorResponse = (
+    id: JSONRPCID,
+    error: any,
+  ): JSONRPCErrorResponse => {
+    if (error instanceof HTTPResponseError) {
+      if (error.response.status === 404) {
+        return createJSONRPCErrorResponse(
+          id,
+          ErrorCode.NOT_FOUND,
+          "Reddit API responded with 404",
+        );
+      }
+    }
+    return defaultMapErrorToJSONRPCErrorResponse(id, error);
+  };
 
   const sessionManager = createCachedSessionManager();
 

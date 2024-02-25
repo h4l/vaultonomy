@@ -30,6 +30,7 @@ export enum ErrorCode {
   USER_NOT_LOGGED_IN = 1,
   REDDIT_TAB_DISCONNECTED = 2,
   WRONG_USER = 3,
+  NOT_FOUND = 4,
 }
 const errorCodeValues: Set<string | ErrorCode> = new Set(
   Object.values(ErrorCode),
