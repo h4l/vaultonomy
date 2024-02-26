@@ -41,7 +41,7 @@ export function UserProfile({
             hasPremium={profile.hasPremium}
           />
         </WithInlineHelp>
-      : undefined}
+      : <Username username="" hasPremium={false} />}
     </section>
   );
 }
@@ -53,14 +53,17 @@ function Username({
   username: string;
   hasPremium: boolean;
 }): JSX.Element {
+  const isDisabled = !username;
   return (
-    <p className="text-lg mt-2 text-center relative">
+    <p
+      className={`text-lg mt-2 text-center relative ${isDisabled ? "opacity-30" : ""}`}
+    >
       <span aria-hidden="true">
         <span className="text-sm font-medium">u</span>/
       </span>
-      {username ?
+      {!isDisabled ?
         <span aria-label="username">{username}</span>
-      : <span aria-hidden="true">???</span>}
+      : <span aria-hidden="true">…</span>}
       {hasPremium ?
         // Icon sits to the right of username without affecting the username's
         // central position. So we use absolute positioning.
