@@ -83,4 +83,11 @@
     --tw-ring-shadow: 0 0 transparent;
     --tw-ring-offset-shadow: 0 0 transparent;
   }
+
+  .direction-reverse {
+    animation-direction: reverse;
+  }
+  .direction-alternate-reverse {
+    animation-direction: alternate-reverse;
+  }
 }
