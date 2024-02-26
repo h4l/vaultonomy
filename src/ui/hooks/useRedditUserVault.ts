@@ -1,6 +1,9 @@
 import { queryOptions, useQuery } from "@tanstack/react-query";
 
-import type { GetRedditUserVaultQueryOptions as RpcQueryOptions } from "../../reddit/api-client";
+import type {
+  RedditUserVault,
+  GetRedditUserVaultQueryOptions as RpcQueryOptions,
+} from "../../reddit/api-client";
 import { RedditProvider } from "../../reddit/reddit-interaction-client";
 import { RequiredNonNullable } from "../../types";
 import { useVaultonomyStore } from "../state/useVaultonomyStore";
@@ -24,7 +27,7 @@ export function getRedditUserVaultQueryOptions(
 ) {
   return queryOptions({
     queryKey: ["RedditProvider", "UserVault", options.query],
-    async queryFn() {
+    async queryFn(): Promise<RedditUserVault | null> {
       if (!isEnabled(options)) throw new Error("not enabled");
       const { redditProvider, query } = options;
       return await redditProvider.getUserVault({ query });

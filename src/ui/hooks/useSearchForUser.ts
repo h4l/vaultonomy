@@ -1,16 +1,15 @@
 import {
   QueryClient,
   queryOptions,
-  useMutation,
+  useQuery,
   useQueryClient,
 } from "@tanstack/react-query";
 import { Address, getAddress, isAddress } from "viem";
 import { normalize } from "viem/ens";
-import { Config, useConfig, useEnsText } from "wagmi";
+import { Config, useConfig } from "wagmi";
 import { getEnsAddressQueryOptions, getEnsTextQueryOptions } from "wagmi/query";
 
 import { assert, assertUnreachable } from "../../assert";
-import { log } from "../../logging";
 import {
   RedditProvider,
   RedditProviderError,
@@ -23,16 +22,16 @@ import { useRedditProvider } from "./useRedditProvider";
 import { getRedditUserProfileQueryOptions } from "./useRedditUserProfile";
 import { getRedditUserVaultQueryOptions } from "./useRedditUserVault";
 
-export type SearchForUserVariables = {
-  rawQuery: string;
+export type UseSearchForUserOptions = {
+  query: ValidParsedQuery | undefined;
 };
 
-type UsernameQuery = { type: "username"; username: string };
-type AddressQuery = { type: "address"; address: Address };
-type EnsNameQuery = { type: "ensName"; ensName: string };
+type UsernameQuery = { type: "username"; value: string };
+type AddressQuery = { type: "address"; value: Address };
+type EnsNameQuery = { type: "ens-name"; value: string };
 
-type ValidParsedQuery = UsernameQuery | AddressQuery | EnsNameQuery;
-type InvalidParsedQuery = {
+export type ValidParsedQuery = UsernameQuery | AddressQuery | EnsNameQuery;
+export type InvalidParsedQuery = {
   type: "invalid-query";
   reason:
     | "address-checksum"
@@ -45,24 +44,18 @@ type InvalidParsedQuery = {
 };
 export type ParsedQuery = ValidParsedQuery | InvalidParsedQuery;
 
-type SearchForUserError =
-  | InvalidParsedQuery
-  | { type: "not-found"; query: ValidParsedQuery }
-  | { type: "internal-error" };
+type SearchForUserError = { type: "not-found"; query: ValidParsedQuery };
 type SearchForUser = { username: string };
 export type SearchForUserResult = Result<SearchForUser, SearchForUserError>;
 
-type GetSearchForUserQueryOptions = {
-  rawQuery: string;
+type GetSearchForUserQueryOptions = UseSearchForUserOptions & {
   session: { userId: string } | undefined;
   redditProvider: RedditProvider | null | undefined;
   queryClient: QueryClient;
   wagmiConfig: Config;
 };
 
-type SearchForUserOptions = RequiredNonNullable<
-  Omit<GetSearchForUserQueryOptions, "rawQuery">
->;
+type SearchForUserOptions = RequiredNonNullable<GetSearchForUserQueryOptions>;
 
 export function parseQuery(rawQuery: string): ParsedQuery {
   const query = rawQuery.trim();
@@ -75,8 +68,7 @@ export function parseQuery(rawQuery: string): ParsedQuery {
   // Address-like strings <= 20 chars are valid usernames, so require at least
   // 21 chars before considering it an address.
   if (query.length > 20 && /^0[xX]/.test(query)) {
-    if (isAddress(query))
-      return { type: "address", address: getAddress(query) };
+    if (isAddress(query)) return { type: "address", value: getAddress(query) };
     if (isAddress(query.toLowerCase())) {
       return { type: "invalid-query", reason: "address-checksum" };
     }
@@ -88,7 +80,7 @@ export function parseQuery(rawQuery: string): ParsedQuery {
   if (/^[\S]+\.[\S]+$/.test(query)) {
     // normalize throws when the ENS name is invalid
     try {
-      return { type: "ensName", ensName: normalize(query) };
+      return { type: "ens-name", value: normalize(query) };
     } catch (e) {
       return { type: "invalid-query", reason: "ens-name" };
     }
@@ -98,36 +90,20 @@ export function parseQuery(rawQuery: string): ParsedQuery {
     if (query.length > 20) {
       return { type: "invalid-query", reason: "username-length" };
     }
-    return { type: "username", username: query.toLowerCase() };
+    return { type: "username", value: query.toLowerCase() };
   }
 
   return { type: "invalid-query", reason: "username" };
 }
 
 function getParsedQueryKey(parsedQuery: ParsedQuery): string {
-  switch (parsedQuery.type) {
-    case "address": {
-      return `address:${parsedQuery.address}`;
-    }
-    case "ensName": {
-      return `ensName:${parsedQuery.ensName}`;
-    }
-    case "username": {
-      return `username:${parsedQuery.username}`;
-    }
-    case "invalid-query": {
-      return `invalid-query:${parsedQuery.reason}:${parsedQuery.query}`;
-    }
-  }
+  return `${parsedQuery.type}:${parsedQuery.type === "invalid-query" ? parsedQuery.reason : parsedQuery.type}`;
 }
 
 async function searchForUser({
-  rawQuery,
+  query,
   ...options
-}: { rawQuery: string } & SearchForUserOptions): Promise<SearchForUserResult> {
-  const query = parseQuery(rawQuery);
-  if (query.type === "invalid-query") return { result: "error", error: query };
-
+}: SearchForUserOptions): Promise<SearchForUserResult> {
   switch (query.type) {
     case "username": {
       return await searchForUserByUsername({ query, ...options });
@@ -135,7 +111,7 @@ async function searchForUser({
     case "address": {
       return await searchForUserByVaultAddress({ query, ...options });
     }
-    case "ensName": {
+    case "ens-name": {
       return await searchForUserByEnsName({ query, ...options });
     }
   }
@@ -143,6 +119,7 @@ async function searchForUser({
 }
 
 // TODO: normalise username in ENS text, e.g. allow u/foo or https://reddit.com/u/foo
+// maybe in query parser too?
 
 async function searchForUserByUsername({
   query,
@@ -155,21 +132,15 @@ async function searchForUserByUsername({
   SearchForUserOptions,
   "session" | "redditProvider" | "queryClient"
 >): Promise<SearchForUserResult> {
-  try {
-    const result = await queryClient.fetchQuery(
-      getRedditUserProfileQueryOptions({
-        redditProvider,
-        session,
-        username: query.username,
-      }),
-    );
-    return { result: "ok", value: { username: result.username } };
-  } catch (e) {
-    if (e instanceof RedditProviderError && e.type === ErrorCode.NOT_FOUND) {
-      return { result: "error", error: { type: "not-found", query } };
-    }
-    throw e;
-  }
+  const result = await queryClient.fetchQuery(
+    getRedditUserProfileQueryOptions({
+      redditProvider,
+      session,
+      username: query.value,
+    }),
+  );
+  if (!result) return { result: "error", error: { type: "not-found", query } };
+  return { result: "ok", value: { username: result.username } };
 }
 
 async function searchForUserByVaultAddress({
@@ -185,7 +156,7 @@ async function searchForUserByVaultAddress({
   const result = await queryClient.fetchQuery(
     getRedditUserVaultQueryOptions({
       redditProvider,
-      query: { type: "address", value: query.address },
+      query: { type: "address", value: query.value },
     }),
   );
   if (!result) return { result: "error", error: { type: "not-found", query } };
@@ -220,12 +191,12 @@ async function searchForUserByEnsNameAddress({
 } & SearchForUserOptions): Promise<SearchForUserResult> {
   const address = await queryClient.fetchQuery(
     getEnsAddressQueryOptions(wagmiConfig, {
-      name: normalize(query.ensName),
+      name: normalize(query.value),
     }),
   );
   if (!address) return { result: "error", error: { type: "not-found", query } };
   return await searchForUserByVaultAddress({
-    query: { type: "address", address },
+    query: { type: "address", value: address },
     queryClient,
     ...options,
   });
@@ -242,7 +213,7 @@ async function searchForUserByEnsNameTxtRecord({
 } & SearchForUserOptions): Promise<SearchForUserResult> {
   const result = await queryClient.fetchQuery(
     getEnsTextQueryOptions(wagmiConfig, {
-      name: normalize(query.ensName),
+      name: normalize(query.value),
       key: "com.reddit",
     }),
   );
@@ -270,7 +241,7 @@ export function getSearchForUserQueryOptions(
   return queryOptions({
     // use the parsed query in the key to normalise the query so that we serve
     // equivalent queries from the cache.
-    queryKey: ["SearchForUser", parseQuery(options.rawQuery)],
+    queryKey: ["SearchForUser", options.query],
     async queryFn() {
       if (!isEnabled(options)) throw new Error("not enabled");
       return await searchForUser(options);
@@ -279,64 +250,18 @@ export function getSearchForUserQueryOptions(
   });
 }
 
-export function useDoSearchForUser() {
+export function useSearchForUser({ query }: UseSearchForUserOptions) {
   const queryClient = useQueryClient();
   const wagmiConfig = useConfig();
-  const [currentUserId, setSearchForUserQuery, setSearchForUserResult] =
-    useVaultonomyStore((s) => [
-      s.currentUserId,
-      s.setSearchForUserQuery,
-      s.setSearchForUserResult,
-    ]);
+  const currentUserId = useVaultonomyStore((s) => s.currentUserId);
   const { redditProvider } = useRedditProvider();
 
-  const baseQueryOptions: GetSearchForUserQueryOptions = {
-    rawQuery: "",
+  const options: GetSearchForUserQueryOptions = {
+    query,
     queryClient,
     redditProvider,
     session: currentUserId ? { userId: currentUserId } : undefined,
     wagmiConfig,
   };
-  const _isEnabled = isEnabled(baseQueryOptions);
-  return {
-    isEnabled: _isEnabled,
-    ...useMutation({
-      mutationFn: async ({ rawQuery }: SearchForUserVariables) => {
-        if (!_isEnabled) throw new Error("mutate called while !isEnabled");
-
-        const queryKey = getParsedQueryKey(parseQuery(rawQuery));
-        setSearchForUserQuery({ queryKey, rawQuery });
-
-        const queryOptions = getSearchForUserQueryOptions({
-          ...baseQueryOptions,
-          rawQuery,
-        });
-
-        return { queryKey, result: await queryClient.fetchQuery(queryOptions) };
-      },
-
-      onSuccess: ({ queryKey, result }) => {
-        setSearchForUserResult({ queryKey, result });
-      },
-
-      onError: (error: unknown, { rawQuery }) => {
-        log.error(
-          "SearchForUser failed; rawQuery:",
-          rawQuery,
-          ", error:",
-          error,
-        );
-
-        const queryKey = getParsedQueryKey(parseQuery(rawQuery));
-
-        setSearchForUserResult({
-          queryKey,
-          result: {
-            result: "error",
-            error: { type: "internal-error" },
-          },
-        });
-      },
-    }),
-  };
+  return useQuery(getSearchForUserQueryOptions(options));
 }

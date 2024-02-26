@@ -1,6 +1,13 @@
 import { queryOptions, useQuery } from "@tanstack/react-query";
 
-import { RedditProvider } from "../../reddit/reddit-interaction-client";
+import {
+  RedditProvider,
+  RedditProviderError,
+} from "../../reddit/reddit-interaction-client";
+import {
+  ErrorCode,
+  RedditUserProfile,
+} from "../../reddit/reddit-interaction-spec";
 import { RequiredNonNullable } from "../../types";
 import { useVaultonomyStore } from "../state/useVaultonomyStore";
 import { useRedditProvider } from "./useRedditProvider";
@@ -26,14 +33,25 @@ export function getRedditUserProfileQueryOptions(
 ) {
   return queryOptions({
     queryKey: ["RedditProvider", "UserProfile", options.username],
-    async queryFn() {
+    async queryFn(): Promise<RedditUserProfile | null> {
       if (!isEnabled(options)) throw new Error("not enabled");
       const { redditProvider, session, username } = options;
-      return await redditProvider.getUserProfile({
-        session,
-        username,
-      });
+      try {
+        return await redditProvider.getUserProfile({
+          session,
+          username,
+        });
+      } catch (error) {
+        if (
+          error instanceof RedditProviderError &&
+          error.type === ErrorCode.NOT_FOUND
+        ) {
+          return null;
+        }
+        throw error;
+      }
     },
+    staleTime: 1000 * 30,
     enabled: isEnabled(options),
   });
 }
