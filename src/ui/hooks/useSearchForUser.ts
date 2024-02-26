@@ -34,8 +34,14 @@ type EnsNameQuery = { type: "ensName"; ensName: string };
 type ValidParsedQuery = UsernameQuery | AddressQuery | EnsNameQuery;
 type InvalidParsedQuery = {
   type: "invalid-query";
-  query: string;
-  reason: "address-checksum" | "address" | "other";
+  reason:
+    | "address-checksum"
+    | "address"
+    | "empty"
+    | "multiple"
+    | "username"
+    | "username-length"
+    | "ens-name";
 };
 export type ParsedQuery = ValidParsedQuery | InvalidParsedQuery;
 
@@ -60,20 +66,42 @@ type SearchForUserOptions = RequiredNonNullable<
 
 export function parseQuery(rawQuery: string): ParsedQuery {
   const query = rawQuery.trim();
-  if (/^[\w-]+$/.test(query))
-    return { type: "username", username: query.toLowerCase() };
-  if (/^0[xX]$/.test(query)) {
+  if (!query) {
+    return { type: "invalid-query", reason: "empty" };
+  }
+  if (/\s/.test(query)) {
+    return { type: "invalid-query", reason: "multiple" };
+  }
+  // Address-like strings <= 20 chars are valid usernames, so require at least
+  // 21 chars before considering it an address.
+  if (query.length > 20 && /^0[xX]/.test(query)) {
     if (isAddress(query))
       return { type: "address", address: getAddress(query) };
     if (isAddress(query.toLowerCase())) {
-      return { type: "invalid-query", query, reason: "address-checksum" };
+      return { type: "invalid-query", reason: "address-checksum" };
     }
-    return { type: "invalid-query", query, reason: "address" };
+    return { type: "invalid-query", reason: "address" };
   }
-  // ENS names don't have to be .ens subdomains, so allow anything with at least
-  // one x.y component.
-  if (/^[\S]+\.[\S]+$/) return { type: "ensName", ensName: normalize(query) };
-  return { type: "invalid-query", query, reason: "other" };
+
+  // Usernames can't contain ".". Treat anything like x.y as an ENS name — ENS
+  // names don't have to be .ens subdomains.
+  if (/^[\S]+\.[\S]+$/.test(query)) {
+    // normalize throws when the ENS name is invalid
+    try {
+      return { type: "ensName", ensName: normalize(query) };
+    } catch (e) {
+      return { type: "invalid-query", reason: "ens-name" };
+    }
+  }
+
+  if (/^[\w-]+$/.test(query)) {
+    if (query.length > 20) {
+      return { type: "invalid-query", reason: "username-length" };
+    }
+    return { type: "username", username: query.toLowerCase() };
+  }
+
+  return { type: "invalid-query", reason: "username" };
 }
 
 function getParsedQueryKey(parsedQuery: ParsedQuery): string {
