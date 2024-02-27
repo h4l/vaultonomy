@@ -3,6 +3,17 @@
 @tailwind base;
 
 @layer base {
+  :root {
+    --background-color: theme("colors.neutral.50");
+    --text-color: theme("colors.neutral.900");
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --background-color: theme("colors.neutral.900");
+      --text-color: theme("colors.neutral.100");
+    }
+  }
+
   /* Webkit shows a light blue background when tapping elements on touch
      devices. Looks janky. */
   html {
@@ -44,6 +55,20 @@
   [aria-hidden="true"] .sr-only,
   [aria-hidden="true"].sr-only {
     display: none;
+  }
+
+  /* Hackily-reset Chrome's autofill styles. Chrome sets a non-overridable
+     background color on input elements, and screws with the text color.
+     Changing color and background don't work. We can hack around by putting a
+     box shadow over the background to hide the background color, and setting
+     -webkit-text-fill-color works to change color. 💀 */
+  /* https://css-tricks.com/snippets/css/change-autocomplete-styles-webkit-browsers/ */
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus {
+    -webkit-text-fill-color: var(--text-color);
+    -webkit-box-shadow: 0 0 0px 1000px var(--background-color) inset;
+    caret-color: var(--text-color);
   }
 }
 
