@@ -11,6 +11,10 @@ describe("parseQuery()", () => {
     // Usernames
     ["h4l", { type: "username", value: 'h4l' }],
     [" H4l ", { type: "username", value: 'h4l' }],
+    [" u/H4l ", { type: "username", value: 'h4l' }],
+    [" https://reddit.com/u/H4l ", { type: "username", value: 'h4l' }],
+    [" https://reddit.com/user/H4l ", { type: "username", value: 'h4l' }],
+    [" https://aNy.rEddIt.com/user/H4l ", { type: "username", value: 'h4l' }],
     ["H😧l", { type: "invalid-query", reason: 'username' }],
     ["aaaaaBBBBBcccccDDDDD", { type: "username", value: 'aaaaabbbbbcccccddddd' }],
     ["aaaaaBBBBBcccccDDDDDe", { type: "invalid-query", reason: 'username-length' }],

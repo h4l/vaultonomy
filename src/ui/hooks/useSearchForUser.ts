@@ -65,6 +65,15 @@ export function parseQuery(rawQuery: string): ParsedQuery {
   if (/\s/.test(query)) {
     return { type: "invalid-query", reason: "multiple" };
   }
+
+  const prefixedUsername =
+    /^(https?:\/\/([\w-]+\.)?reddit.com\/)?u(ser)?\/(?<name>.+)$/i.exec(query);
+  if (prefixedUsername) {
+    const name = prefixedUsername.groups!.name;
+    assert(name);
+    return parseUsername(name);
+  }
+
   // Address-like strings <= 20 chars are valid usernames, so require at least
   // 21 chars before considering it an address.
   if (query.length > 20 && /^0[xX]/.test(query)) {
@@ -86,6 +95,10 @@ export function parseQuery(rawQuery: string): ParsedQuery {
     }
   }
 
+  return parseUsername(query);
+}
+
+function parseUsername(query: string): UsernameQuery | InvalidParsedQuery {
   if (/^[\w-]+$/.test(query)) {
     if (query.length > 20) {
       return { type: "invalid-query", reason: "username-length" };
@@ -232,7 +245,7 @@ async function searchForUserByEnsNameTxtRecord({
 function isEnabled(
   options: GetSearchForUserQueryOptions,
 ): options is RequiredNonNullable<GetSearchForUserQueryOptions> {
-  return !!(options.redditProvider && options.session && options.session);
+  return !!(options.redditProvider && options.session && options.query);
 }
 
 export function getSearchForUserQueryOptions(
