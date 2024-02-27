@@ -1,5 +1,6 @@
 import { ForwardedRef, forwardRef, useEffect, useRef, useState } from "react";
 
+import { assert } from "../assert";
 import { log } from "../logging";
 import { EthAccountDetails, FadeOut } from "./EthAccount";
 import { WithInlineHelp } from "./Help";
@@ -15,7 +16,7 @@ import {
   parseQuery,
   useSearchForUser,
 } from "./hooks/useSearchForUser";
-import { SearchIcon } from "./icons";
+import { CloseIcon, SearchIcon } from "./icons";
 import { useVaultonomyStore } from "./state/useVaultonomyStore";
 
 export function UserSearch(): JSX.Element {
@@ -93,6 +94,7 @@ function SearchForm({
   onQuery: (query: ValidParsedQuery | undefined) => void;
   activity: Activity;
 }): JSX.Element {
+  const inputEl = useRef<HTMLInputElement>(null);
   // const [
   //   searchForUserQuery,
   //   searchForUserResult,
@@ -107,10 +109,29 @@ function SearchForm({
 
   // TODO: use persistent store state
   // searchForUserQuery?.rawQuery ?? "",
-  const [rawQuery, setRawQuery] = useState<string>("");
+  const [rawQuery, setRawQueryValue] = useState<string>("");
   const [parsedQuery, setParsedQuery] = useState<ParsedQuery>();
   // useSearchForUser({query: })
 
+  const setRawQuery = (value: string) => {
+    const input = inputEl.current;
+    assert(input);
+
+    setRawQueryValue(value);
+    const parsedQuery = parseQuery(value);
+    setParsedQuery(parsedQuery);
+    if (
+      parsedQuery.type === "invalid-query" &&
+      parsedQuery.reason !== "empty"
+    ) {
+      log.debug("reported invalid");
+      input.setCustomValidity(getInvalidQueryMessage(parsedQuery));
+    } else {
+      log.debug("reported valid");
+      input.setCustomValidity("");
+    }
+    input.reportValidity();
+  };
   // TODO: persist to store on currentQuery change?
   // useEffect(() => {}, [currentQuery]);
 
@@ -135,30 +156,41 @@ function SearchForm({
           );
         }}
       >
-        <div className="relative rounded-md shadow-[0_0_1.25rem_0.125rem_rgb(0_0_0_/_0.05)] overflow-clip">
-          <div className="absolute inset-y-0 left-0 flex items-center pl-4">
+        <div
+          className={[
+            "relative rounded-md shadow-[0_0_1.25rem_0.125rem_rgb(0_0_0_/_0.05)]",
+            "overflow-clip",
+            // "border border-neutral-300 dark:border-neutral-700",
+            "ring-1 _ring-inset ring-neutral-300 dark:ring-neutral-700",
+            "has-[:focus]:ring-2 _focus:ring-inset has-[:focus]:ring-logo-background",
+            "has-[:autofill]:ring-yellow-500 has-[:autofill:focus]:ring-yellow-500",
+            // " has-[:autofill]:border-blue-500",
+          ].join(" ")}
+        >
+          <div className="z-20 absolute inset-y-0 left-0 flex items-center pl-4">
             <SearchIcon className="w-8 text-neutral-500" />
           </div>
+          {rawQuery ?
+            <button
+              type="button"
+              className={[
+                "z-20 absolute inset-y-0 right-0 flex items-center pr-2",
+                "cursor-pointer",
+              ].join(" ")}
+              onClick={() => {
+                setRawQuery("");
+                inputEl.current?.focus();
+              }}
+            >
+              <CloseIcon title="Clear" className="w-6 text-neutral-500" />
+            </button>
+          : undefined}
           <input
+            ref={inputEl}
             value={rawQuery}
             onChange={(ev) => {
               const value = ev.currentTarget.value;
               setRawQuery(value);
-              const parsedQuery = parseQuery(value);
-              setParsedQuery(parsedQuery);
-              if (
-                parsedQuery.type === "invalid-query" &&
-                parsedQuery.reason !== "empty"
-              ) {
-                log.debug("reported invalid");
-                ev.currentTarget.setCustomValidity(
-                  getInvalidQueryMessage(parsedQuery),
-                );
-              } else {
-                log.debug("reported valid");
-                ev.currentTarget.setCustomValidity("");
-              }
-              ev.currentTarget.reportValidity();
             }}
             onInvalid={(ev) => {
               // prevent the browser showing a default invalid tooltip
@@ -170,23 +202,24 @@ function SearchForm({
             name="user-vault"
             id="search-user-vault"
             className={[
-              "relative z-10 bg-transparent bg-none", // render border over the progress bar
-              "block h-16 w-80 rounded-md",
+              "relative _z-10 bg-transparent bg-none", // render border over the progress bar
+              "block h-16 w-80 _rounded-md",
               "border-0 pt-1.5 pb-[0.125rem] pl-14",
               // "text-gray-900 placeholder:text-gray-400",
               // "bg-neutral-50 dark:bg-neutral-900",
               "placeholder:text-neutral-400 dark:placeholder:text-neutral-600",
-              "ring-1 ring-inset ring-neutral-300 dark:ring-neutral-700",
-              "focus:ring-2 focus:ring-inset focus:ring-logo-background",
+              // "ring-1 ring-inset ring-neutral-300 dark:ring-neutral-700",
+              // "focus:ring-2 focus:ring-inset focus:ring-logo-background",
               // "text-base sm:text-sm sm:leading-6",
               "invalid:underline invalid:decoration-wavy invalid:decoration-red-500 invalid:ring-red-500 invalid:focus:ring-red-500",
               "text-lg",
+              // "autofill:shadow-[inset_0_0_0px_100px_rgb(255_255_0_/_0.5)]",
             ].join(" ")}
             placeholder="Username, 0x… or .eth address"
           />
 
-          {activity !== "idle" ?
-            <div className="absolute bottom-[1px] inset-x-0">
+          {true || activity !== "idle" ?
+            <div className="absolute bottom-0 inset-x-0">
               <IndeterminateProgressBar
                 className={
                   (
