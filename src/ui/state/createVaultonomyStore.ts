@@ -7,7 +7,6 @@ import { RedditEIP712Challenge } from "../../reddit/api-client";
 import { RedditProvider } from "../../reddit/reddit-interaction-client";
 import { HexString, RecursivePartial } from "../../types";
 import { browser } from "../../webextension";
-import type { SearchForUserResult } from "../hooks/useSearchForUser";
 import { VaultonomyBackgroundProvider } from "../rpc/VaultonomyBackgroundProvider";
 import { createExtensionStorage } from "./zustandExtensionStorage";
 

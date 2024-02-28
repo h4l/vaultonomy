@@ -1,10 +1,11 @@
-import { ForwardedRef, forwardRef, useEffect, useRef, useState } from "react";
+import { ReactNode, useId, useRef, useState } from "react";
 
 import { assert } from "../assert";
 import { log } from "../logging";
 import { EthAccountDetails, FadeOut } from "./EthAccount";
 import { WithInlineHelp } from "./Help";
 import { IndeterminateProgressBar } from "./IndeterminateProgressBar";
+import { Link } from "./Link";
 import { UserProfile } from "./UserProfile";
 import { useEnableScrollSnapWhileElementOnScreen } from "./hooks/useEnableScrollSnapWhileElementOnScreen";
 import { useRedditUserProfile } from "./hooks/useRedditUserProfile";
@@ -16,10 +17,11 @@ import {
   parseQuery,
   useSearchForUser,
 } from "./hooks/useSearchForUser";
-import { CloseIcon, SearchIcon } from "./icons";
+import { ErrorIcon, SearchIcon } from "./icons";
 import { useVaultonomyStore } from "./state/useVaultonomyStore";
 
 export function UserSearch(): JSX.Element {
+  const headingId = useId();
   const ref = useRef<HTMLElement>(null);
   useEnableScrollSnapWhileElementOnScreen(ref);
 
@@ -41,6 +43,16 @@ export function UserSearch(): JSX.Element {
   const hasVault =
     resultUserVault.isFetched ? !!resultUserVault.data?.address : undefined;
 
+  const errors: string[] = [
+    search.isError ? "Vaultonomy hit an error while searching" : undefined,
+    resultUserProfile.isError ?
+      "Vaultonomy hit an error while loading the user’s profile"
+    : undefined,
+    resultUserVault.isError ?
+      "Vaultonomy hit an error while loading the user’s Vault"
+    : undefined,
+  ].filter((x): x is string => !!x);
+
   const activity: Activity =
     search.isLoading ? "search-loading"
     : resultUserProfile.isLoading || resultUserVault.isLoading ? "data-loading"
@@ -51,12 +63,16 @@ export function UserSearch(): JSX.Element {
 
   return (
     <section
+      aria-labelledby={headingId}
       ref={ref}
       className="min-h-[500px] flex flex-col justify-center items-center"
     >
+      <h2 id={headingId} className="sr-only">
+        Find User
+      </h2>
       <div className="my-16 _opacity-25">
         <UserProfile
-          label="Searched"
+          label="Found"
           profile={resultUserProfile.data ?? undefined}
         />
       </div>
@@ -64,17 +80,24 @@ export function UserSearch(): JSX.Element {
         onQuery={setCurrentQuery}
         activity={activity}
         // activity="search-revalidating"
+        errorMessages={errors}
       />
       <div className="mt-16">
         <EthAccountDetails
-          title="User's Vault"
+          title="Vault"
           ethAddress={resultUserVault.data?.address}
-          footer={
-            hasVault === false ?
-              <FadeOut>{<p>{resultUsername} has no Vault</p>}</FadeOut>
-            : undefined
-          }
-        />
+        >
+          {hasVault === false ?
+            <FadeOut>
+              {
+                <p className="text-center text-neutral-500">
+                  <RedditUsernameText>{resultUsername}</RedditUsernameText> has
+                  no Vault.
+                </p>
+              }
+            </FadeOut>
+          : undefined}
+        </EthAccountDetails>
       </div>
     </section>
   );
@@ -90,9 +113,11 @@ type Activity =
 function SearchForm({
   onQuery,
   activity,
+  errorMessages = [],
 }: {
   onQuery: (query: ValidParsedQuery | undefined) => void;
   activity: Activity;
+  errorMessages?: string[];
 }): JSX.Element {
   const inputEl = useRef<HTMLInputElement>(null);
   // const [
@@ -132,28 +157,86 @@ function SearchForm({
     }
     input.reportValidity();
   };
+
+  const queryInvalid =
+    parsedQuery?.type === "invalid-query" && parsedQuery.reason !== "empty";
+  const allErrorMessages =
+    queryInvalid ?
+      [getInvalidQueryMessage(parsedQuery), ...errorMessages]
+    : errorMessages;
+
+  const lastRunQuery = useRef<ValidParsedQuery>();
+  const runQuery = (trigger: "explicit" | "implicit"): void => {
+    if (parsedQuery?.type === "invalid-query") return;
+    // Don't make a duplicate callback for implicit triggers (e.g. un-focusing
+    // the search box.) Whereas always trigger when explicitly searching (e.g.
+    // pressing enter/search button).
+    if (
+      trigger === "implicit" &&
+      lastRunQuery.current &&
+      parsedQuery?.type === lastRunQuery.current.type &&
+      parsedQuery.value === lastRunQuery.current.value
+    ) {
+      log.debug("Ignored runQuery for implicit already-run query");
+      return;
+    }
+    log.debug("runQuery", parsedQuery?.type, parsedQuery?.value);
+    lastRunQuery.current = parsedQuery;
+    onQuery(parsedQuery);
+  };
+
   // TODO: persist to store on currentQuery change?
   // useEffect(() => {}, [currentQuery]);
 
   return (
     <WithInlineHelp
-      iconOffsetLeft="-0.6rem"
+      iconOffsetLeft="0.1rem"
+      iconOffsetTop="-1.2rem"
       // iconOffsetBottom="3.875rem"
       helpId="vault-search"
       helpText={() => (
         <>
-          Find a Reddit user's Vault address by searching for their username. Or
-          find the owner of a Vault by searching for a <code>0x…</code> address.
+          <div className="prose">
+            <ul className="list-disc">
+              <li>
+                Find a Reddit user’s Vault address by searching for their
+                username.
+              </li>
+              <li>
+                Find the owner of a Vault by searching for a <code>0x…</code>{" "}
+                address.
+              </li>
+            </ul>
+          </div>
+          {/* <p>
+            Find a Reddit user’s Vault address by searching for their username.
+            Or find the owner of a Vault by searching for a <code>0x…</code>{" "}
+            address.
+          </p> */}
+          <p className="mt-2 text-sm">
+            <Link href="https://ens.domains/">ENS names</Link> (like{" "}
+            <em>h-a-l.eth</em>) match if they point to a user’s Vault address,
+            or have a <code>com.reddit</code> label pointing to a username.
+          </p>
         </>
       )}
     >
       <form
-        className="relative"
+        className="relative max-w-prose flex flex-col items-center gap-4"
         onSubmit={(ev) => {
           ev.preventDefault();
-          onQuery(
-            parsedQuery?.type === "invalid-query" ? undefined : parsedQuery,
-          );
+          runQuery("explicit");
+        }}
+        onBlur={(ev) => {
+          if (ev.currentTarget.contains(ev.relatedTarget)) {
+            log.debug("ignored blur from focus change within self", ev.target);
+            return;
+          }
+          // if (ev.target !== ev.currentTarget) {
+          //   return;
+          // }
+          log.debug("blur", ev.target);
+          runQuery("implicit");
         }}
       >
         <div
@@ -163,29 +246,11 @@ function SearchForm({
             // "border border-neutral-300 dark:border-neutral-700",
             "ring-1 _ring-inset ring-neutral-300 dark:ring-neutral-700",
             "has-[:focus]:ring-2 _focus:ring-inset has-[:focus]:ring-logo-background",
-            "has-[:autofill]:ring-yellow-500 has-[:autofill:focus]:ring-yellow-500",
-            // " has-[:autofill]:border-blue-500",
+            "has-[:autofill]:ring-yellow-800 has-[:autofill:focus]:ring-yellow-800",
           ].join(" ")}
         >
-          <div className="z-20 absolute inset-y-0 left-0 flex items-center pl-4">
-            <SearchIcon className="w-8 text-neutral-500" />
-          </div>
-          {rawQuery ?
-            <button
-              type="button"
-              className={[
-                "z-20 absolute inset-y-0 right-0 flex items-center pr-2",
-                "cursor-pointer",
-              ].join(" ")}
-              onClick={() => {
-                setRawQuery("");
-                inputEl.current?.focus();
-              }}
-            >
-              <CloseIcon title="Clear" className="w-6 text-neutral-500" />
-            </button>
-          : undefined}
           <input
+            aria-label="Search for Reddit user."
             ref={inputEl}
             value={rawQuery}
             onChange={(ev) => {
@@ -199,11 +264,11 @@ function SearchForm({
             enterKeyHint="search"
             type="text"
             spellCheck={false}
-            name="user-vault"
-            id="search-user-vault"
+            name="user-search"
+            id="user-search"
             className={[
-              "relative _z-10 bg-transparent bg-none", // render border over the progress bar
-              "block h-16 w-80 _rounded-md",
+              "peer relative bg-transparent bg-none", // render border over the progress bar
+              "block h-16 w-80",
               "border-0 pt-1.5 pb-[0.125rem] pl-14",
               // "text-gray-900 placeholder:text-gray-400",
               // "bg-neutral-50 dark:bg-neutral-900",
@@ -217,8 +282,17 @@ function SearchForm({
             ].join(" ")}
             placeholder="Username, 0x… or .eth address"
           />
+          <div className="absolute inset-y-0 left-0 flex items-center pl-4">
+            <button
+              aria-label="Perform Search."
+              type="submit"
+              className={queryInvalid ? "cursor-not-allowed" : "cursor-pointer"}
+            >
+              <SearchIcon className="w-8 text-neutral-500" />
+            </button>
+          </div>
 
-          {true || activity !== "idle" ?
+          {activity !== "idle" ?
             <div className="absolute bottom-0 inset-x-0">
               <IndeterminateProgressBar
                 className={
@@ -238,19 +312,39 @@ function SearchForm({
             </div>
           : undefined}
         </div>
-        {(
-          parsedQuery?.type === "invalid-query" &&
-          parsedQuery.reason !== "empty"
-        ) ?
-          <label
-            htmlFor="search-user-vault"
-            className="text-red-500 inline-block m-2 text-center w-full _ml-16"
-          >
-            {getInvalidQueryMessage(parsedQuery)}
-          </label>
+        {allErrorMessages.length ?
+          <ErrorMessages messages={allErrorMessages} />
         : undefined}
       </form>
     </WithInlineHelp>
+  );
+}
+
+function ErrorMessages({ messages }: { messages: string[] }): JSX.Element {
+  return (
+    <ul aria-label="Search Errors">
+      {messages.map((msg, i) => (
+        <li key={i}>
+          <ErrorMessage>{msg}</ErrorMessage>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function ErrorMessage({ children }: { children: ReactNode }): JSX.Element {
+  return (
+    <label
+      htmlFor="user-search"
+      className={[
+        "_text-red-500 my-2 _text-center w-full _ml-16",
+        "underline decoration-wavy decoration-red-500 underline-offset-4",
+        "flex flex-row gap-x-2",
+      ].join(" ")}
+    >
+      <ErrorIcon size={24} className="_-translate-y-[0.125rem]" />
+      <span>{children}</span>
+    </label>
   );
 }
 
@@ -265,5 +359,19 @@ function getInvalidQueryMessage(invalidQuery: InvalidParsedQuery): string {
     username: "Reddit username is not valid",
   };
   return messages[invalidQuery.reason];
-  return invalidQuery.reason === "multiple" ? "Enter one word" : "Try harder!";
+}
+
+function RedditUsernameText({
+  children,
+}: {
+  children: ReactNode;
+}): JSX.Element {
+  return (
+    <>
+      <span aria-hidden="true">
+        <span className="text-sm font-medium">u</span>/
+      </span>
+      <span aria-label="username">{children}</span>
+    </>
+  );
 }
