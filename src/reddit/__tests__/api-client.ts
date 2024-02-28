@@ -418,6 +418,34 @@ describe("getRedditUserProfile()", () => {
     expect(fetchHeaders?.["content-type"]).toEqual("application/json");
   });
 
+  test.each([undefined, null, "", "lol"])(
+    "handles user profile without a valid avatar: %s",
+    // The API returns an empty string for people without a current avatar (e.g.
+    // an old uploaded image avatar).
+    async (avatarValue: unknown) => {
+      const noAvatarResponse = () => {
+        const data = oauthRedditUserAboutResponse();
+        (data.data as any).snoovatar_img = avatarValue;
+        if (avatarValue === undefined) {
+          delete (data.data as any).snoovatar_img;
+        }
+        return data;
+      };
+      const fetch = jest.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: async () => noAvatarResponse(),
+      } as Response);
+
+      await expect(
+        getRedditUserProfile({
+          username: "carbonatedcamel",
+          authToken: "secret",
+        }),
+      ).resolves.toEqual({ ...userProfile(), accountIconFullBodyURL: null });
+    },
+  );
+
   test("handles unsuccessful response", async () => {
     const fetch = jest.spyOn(globalThis, "fetch").mockResolvedValueOnce({
       ok: false,

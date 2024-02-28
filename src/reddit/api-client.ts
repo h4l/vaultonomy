@@ -336,7 +336,7 @@ const UserProfileResponse = z.object({
     name: z.string(),
     is_gold: z.boolean(),
     icon_img: z.string().url(),
-    snoovatar_img: z.string().url().nullable(),
+    snoovatar_img: z.string().url().nullable().catch(null),
   }),
 });
 type UserProfileResponse = z.infer<typeof UserProfileResponse>;
