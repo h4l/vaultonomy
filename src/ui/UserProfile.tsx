@@ -1,3 +1,5 @@
+import { ReactNode } from "react";
+
 import { RedditUserProfile } from "../reddit/reddit-interaction-spec";
 import { WithInlineHelp } from "./Help";
 import { UserAvatar } from "./UserAvatar";
@@ -12,8 +14,8 @@ export function UserProfile({
 }): JSX.Element {
   return (
     <section
-      id="account"
-      aria-label="Reddit account details"
+      id={`${label.toLowerCase()}-account`}
+      aria-label={`${label} Reddit account details`}
       className="flex flex-col items-center"
     >
       <span aria-label="status" className="sr-only">
@@ -41,27 +43,41 @@ export function UserProfile({
             hasPremium={profile.hasPremium}
           />
         </WithInlineHelp>
-      : <Username username="" hasPremium={false} />}
+      : <Username
+          username=""
+          emptyUsernamePlaceholder={false}
+          hasPremium={false}
+        />
+      }
     </section>
   );
 }
 
 function Username({
   username,
+  emptyUsernamePlaceholder = true,
   hasPremium,
 }: {
   username: string;
+  emptyUsernamePlaceholder?: boolean;
   hasPremium: boolean;
 }): JSX.Element {
-  const isDisabled = !username;
+  const placeholder =
+    username ? null
+    : emptyUsernamePlaceholder ? "ellipsis"
+    : "blank";
   return (
     <p
-      className={`text-lg mt-2 text-center relative ${isDisabled ? "opacity-30" : ""}`}
+      className={`text-lg mt-2 text-center relative ${
+        placeholder === "ellipsis" ? "opacity-30"
+        : placeholder === "blank" ? "invisible"
+        : ""
+      }`}
     >
       <span aria-hidden="true">
         <span className="text-sm font-medium">u</span>/
       </span>
-      {!isDisabled ?
+      {!placeholder ?
         <span aria-label="username">{username}</span>
       : <span aria-hidden="true">…</span>}
       {hasPremium ?
