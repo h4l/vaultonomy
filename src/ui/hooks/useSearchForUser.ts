@@ -1,5 +1,6 @@
 import {
   QueryClient,
+  QueryKey,
   queryOptions,
   useQuery,
   useQueryClient,
@@ -24,6 +25,7 @@ import { getRedditUserVaultQueryOptions } from "./useRedditUserVault";
 
 export type UseSearchForUserOptions = {
   query: ValidParsedQuery | undefined;
+  initialDataUsername?: string | undefined;
 };
 
 type UsernameQuery = { type: "username"; value: string };
@@ -109,8 +111,16 @@ function parseUsername(query: string): UsernameQuery | InvalidParsedQuery {
   return { type: "invalid-query", reason: "username" };
 }
 
-function getParsedQueryKey(parsedQuery: ParsedQuery): string {
+// TODO: replace with parsedQueryEqual?
+export function getParsedQueryKey(parsedQuery: ParsedQuery): string {
   return `${parsedQuery.type}:${parsedQuery.type === "invalid-query" ? parsedQuery.reason : parsedQuery.type}`;
+}
+
+export function parsedQueryEqual(a: ParsedQuery, b: ParsedQuery): boolean {
+  if (a.type === "invalid-query") {
+    return b.type === "invalid-query" && a.reason === b.reason;
+  }
+  return a.type === b.type && a.value === b.value;
 }
 
 async function searchForUser({
@@ -248,13 +258,19 @@ function isEnabled(
   return !!(options.redditProvider && options.session && options.query);
 }
 
-export function getSearchForUserQueryOptions(
-  options: GetSearchForUserQueryOptions,
-) {
-  return queryOptions({
+export function getSearchForUserQueryKey(
+  query: ValidParsedQuery | undefined,
+): QueryKey {
+  return ["SearchForUser", query];
+}
+
+export function getSearchForUserQueryOptions({
+  ...options
+}: GetSearchForUserQueryOptions) {
+  return queryOptions<Result<SearchForUser, SearchForUserError>>({
     // use the parsed query in the key to normalise the query so that we serve
     // equivalent queries from the cache.
-    queryKey: ["SearchForUser", options.query],
+    queryKey: getSearchForUserQueryKey(options.query),
     async queryFn() {
       if (!isEnabled(options)) throw new Error("not enabled");
       return await searchForUser(options);
@@ -276,5 +292,7 @@ export function useSearchForUser({ query }: UseSearchForUserOptions) {
     session: currentUserId ? { userId: currentUserId } : undefined,
     wagmiConfig,
   };
-  return useQuery(getSearchForUserQueryOptions(options));
+  return useQuery({
+    ...getSearchForUserQueryOptions(options),
+  });
 }

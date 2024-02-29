@@ -1,4 +1,5 @@
-import { ReactNode, useId, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { ReactNode, useEffect, useId, useRef, useState } from "react";
 
 import { assert } from "../assert";
 import { log } from "../logging";
@@ -14,7 +15,11 @@ import {
   InvalidParsedQuery,
   ParsedQuery,
   ValidParsedQuery,
+  getParsedQueryKey,
+  getSearchForUserQueryKey,
+  getSearchForUserQueryOptions,
   parseQuery,
+  parsedQueryEqual,
   useSearchForUser,
 } from "./hooks/useSearchForUser";
 import { ErrorIcon, SearchIcon } from "./icons";
@@ -25,12 +30,51 @@ export function UserSearch(): JSX.Element {
   const ref = useRef<HTMLElement>(null);
   useEnableScrollSnapWhileElementOnScreen(ref);
 
-  // const [searchForUserQuery, searchForUserResult] = useVaultonomyStore(
-  //   (store) => [store.searchForUserQuery, store.searchForUserResult],
-  // );
+  const [
+    hasHydrated,
+    searchForUserQuery,
+    searchForUserResult,
+    setSearchForUserQuery,
+    setSearchForUserResult,
+  ] = useVaultonomyStore((store) => [
+    store.hasHydrated,
+    store.searchForUserQuery,
+    store.searchForUserResult,
+    store.setSearchForUserQuery,
+    store.setSearchForUserResult,
+  ]);
 
+  const queryClient = useQueryClient();
   const [currentQuery, setCurrentQuery] = useState<ValidParsedQuery>();
+
+  // Restore persisted search results on startup as the store hydrates from persistent storage
+  useEffect(() => {
+    if (!hasHydrated || !searchForUserQuery?.rawQuery || !searchForUserResult)
+      return;
+    log.debug("UserSearch: hasHydrated:", hasHydrated);
+    const storedQuery = parseQuery(searchForUserQuery.rawQuery);
+    if (storedQuery.type === "invalid-query") return;
+
+    log.debug("Restored UserSearch result from hydrated state");
+    queryClient.setQueryData(
+      getSearchForUserQueryKey(storedQuery),
+      searchForUserResult,
+    );
+    setCurrentQuery(storedQuery);
+  }, [hasHydrated]);
+
   const search = useSearchForUser({ query: currentQuery });
+
+  // persist successful search results
+  useEffect(() => {
+    if (search.data?.value && currentQuery) {
+      log.debug("Storing user search result:", currentQuery, search.data);
+      setSearchForUserResult({
+        queryKey: getParsedQueryKey(currentQuery),
+        result: search.data,
+      });
+    }
+  }, [search.data?.value, currentQuery]);
 
   const resultUsername = search?.data?.value?.username;
   const resultUserProfile = useRedditUserProfile({
@@ -77,9 +121,15 @@ export function UserSearch(): JSX.Element {
         />
       </div>
       <SearchForm
-        onQuery={setCurrentQuery}
+        onQuery={({ rawQuery, parsedQuery }) => {
+          setSearchForUserQuery({
+            rawQuery,
+            queryKey: getParsedQueryKey(parsedQuery),
+          });
+          if (parsedQuery.type !== "invalid-query")
+            setCurrentQuery(parsedQuery);
+        }}
         activity={activity}
-        // activity="search-revalidating"
         errorMessages={errors}
       />
       <div className="mt-16">
@@ -115,7 +165,7 @@ function SearchForm({
   activity,
   errorMessages = [],
 }: {
-  onQuery: (query: ValidParsedQuery | undefined) => void;
+  onQuery: (options: { rawQuery: string; parsedQuery: ParsedQuery }) => void;
   activity: Activity;
   errorMessages?: string[];
 }): JSX.Element {
@@ -165,24 +215,23 @@ function SearchForm({
       [getInvalidQueryMessage(parsedQuery), ...errorMessages]
     : errorMessages;
 
-  const lastRunQuery = useRef<ValidParsedQuery>();
+  const lastRunQuery = useRef<ParsedQuery>();
   const runQuery = (trigger: "explicit" | "implicit"): void => {
-    if (parsedQuery?.type === "invalid-query") return;
+    if (!parsedQuery) return;
     // Don't make a duplicate callback for implicit triggers (e.g. un-focusing
     // the search box.) Whereas always trigger when explicitly searching (e.g.
     // pressing enter/search button).
     if (
       trigger === "implicit" &&
       lastRunQuery.current &&
-      parsedQuery?.type === lastRunQuery.current.type &&
-      parsedQuery.value === lastRunQuery.current.value
+      parsedQueryEqual(lastRunQuery.current, parsedQuery)
     ) {
       log.debug("Ignored runQuery for implicit already-run query");
       return;
     }
-    log.debug("runQuery", parsedQuery?.type, parsedQuery?.value);
+    log.debug("runQuery", parsedQuery);
     lastRunQuery.current = parsedQuery;
-    onQuery(parsedQuery);
+    onQuery({ rawQuery, parsedQuery });
   };
 
   // TODO: persist to store on currentQuery change?
@@ -322,7 +371,7 @@ function SearchForm({
 
 function ErrorMessages({ messages }: { messages: string[] }): JSX.Element {
   return (
-    <ul aria-label="Search Errors">
+    <ul aria-label="Search Errors" className="mx-4">
       {messages.map((msg, i) => (
         <li key={i}>
           <ErrorMessage>{msg}</ErrorMessage>
