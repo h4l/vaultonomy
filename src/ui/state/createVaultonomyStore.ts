@@ -64,6 +64,7 @@ export type VaultonomyStateActions = {
     queryKey: string;
     result: SearchForUserResult;
   }): void;
+  setHasHydrated(hasHydrated: boolean): void;
 };
 
 export enum PairingChecklist {
@@ -85,6 +86,7 @@ export type PartialPairingState = RecursivePartial<PairingState>;
 export type RedditProviderProblem = "not-connected" | "not-logged-in";
 
 export type VaultonomyStateData = {
+  hasHydrated: boolean;
   isOnDevServer: boolean;
   provider: VaultonomyBackgroundProvider | null;
   redditProvider: RedditProvider | null;
@@ -137,6 +139,7 @@ export const createVaultonomyStore = (
     persist(
       (set) => {
         const state: VaultonomyState = {
+          hasHydrated: false,
           isOnDevServer,
           provider: provider ?? null,
           redditProvider: null,
@@ -148,6 +151,9 @@ export const createVaultonomyStore = (
           searchForUserQuery: null,
           searchForUserResult: null,
           // actions
+          setHasHydrated(hasHydrated: boolean): void {
+            set({ hasHydrated });
+          },
           setProvider(provider: VaultonomyBackgroundProvider): void {
             set((store) => {
               if (store.provider) {
@@ -274,6 +280,11 @@ export const createVaultonomyStore = (
             pinnedPairing: store.pinnedPairing,
             searchForUserQuery: store.searchForUserQuery,
             searchForUserResult: store.searchForUserResult,
+          };
+        },
+        onRehydrateStorage(_statePre) {
+          return (statePost) => {
+            statePost?.setHasHydrated(true);
           };
         },
         storage:
