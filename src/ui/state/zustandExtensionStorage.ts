@@ -1,7 +1,7 @@
 import { StateStorage, createJSONStorage } from "zustand/middleware";
 
-import { assert } from "../../assert";
 import { StorageAreaGetSetRemove, browser } from "../../webextension";
+import { ExtensionAsyncStorage } from "./ExtensionAsyncStorage";
 
 /**
  * zustand StateStorage that reads/writes a web extension chrome.storage.StorageArea.
@@ -9,18 +9,7 @@ import { StorageAreaGetSetRemove, browser } from "../../webextension";
 export function extensionStateStorage(
   storageArea: StorageAreaGetSetRemove,
 ): StateStorage {
-  return {
-    async getItem(name) {
-      const result = await storageArea.get(name);
-      return result[name] ?? null;
-    },
-    async setItem(name, value) {
-      await storageArea.set({ [name]: value });
-    },
-    async removeItem(name) {
-      await storageArea.remove(name);
-    },
-  };
+  return new ExtensionAsyncStorage(storageArea);
 }
 
 /**
@@ -30,7 +19,7 @@ export function extensionStateStorage(
 export function createExtensionStorage<T>(
   storageArea: StorageAreaGetSetRemove,
 ) {
-  // This is somewhat ineficient as we have two layers of JSON serialisation —
+  // This is somewhat inefficient as we have two layers of JSON serialisation —
   // zustand's JSONStorage serialises store state to JSON before passing it to
   // our StateStorage impl, which writes the already-JSON string to extension
   // storage, which also serialises as JSON.

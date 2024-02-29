@@ -1,4 +1,8 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  PersistQueryClientProvider,
+  Persister,
+} from "@tanstack/react-query-persist-client";
 import { ReactNode } from "react";
 import { WagmiProvider, useAccount } from "wagmi";
 
@@ -17,17 +21,24 @@ import { useRedditAccount } from "./hooks/useRedditAccount";
 import { useRedditAccountActiveVault } from "./hooks/useRedditAccountVaults";
 import { useVaultonomyBackgroundConnection } from "./hooks/useVaultonomyBackgroundProvider";
 import { VaultonomyContext } from "./state/VaultonomyContext";
-import {
-  VaultonomyStore,
-  createVaultonomyStore,
-} from "./state/createVaultonomyStore";
+import { VaultonomyStore } from "./state/createVaultonomyStore";
 import { useStoreCurrentUserId } from "./state/useStoreCurrentUserId";
 
-const queryClient = new QueryClient();
-
-export function App({ vaultonomyStore }: { vaultonomyStore: VaultonomyStore }) {
+export function App({
+  queryClient,
+  queryClientPersister,
+  vaultonomyStore,
+}: {
+  queryClient: QueryClient;
+  queryClientPersister: Persister;
+  vaultonomyStore: VaultonomyStore;
+}) {
   return (
-    <AppContext vaultonomyStore={vaultonomyStore}>
+    <AppContext
+      vaultonomyStore={vaultonomyStore}
+      queryClient={queryClient}
+      queryClientPersister={queryClientPersister}
+    >
       <AppUI />
     </AppContext>
   );
@@ -35,9 +46,13 @@ export function App({ vaultonomyStore }: { vaultonomyStore: VaultonomyStore }) {
 
 export function AppContext({
   vaultonomyStore,
+  queryClient,
+  queryClientPersister,
   children,
 }: {
   vaultonomyStore: VaultonomyStore;
+  queryClient: QueryClient;
+  queryClientPersister: Persister;
   children?: ReactNode;
 }) {
   return (
@@ -45,11 +60,16 @@ export function AppContext({
     // as a result of app state changes. If it re-renders it triggers this bug:
     // https://github.com/wevm/wagmi/issues/3611
     <WagmiProvider config={wagmiConfig} reconnectOnMount={false}>
-      <QueryClientProvider client={queryClient}>
-        <VaultonomyContext.Provider value={vaultonomyStore}>
-          <HelpProvider>{children}</HelpProvider>
-        </VaultonomyContext.Provider>
-      </QueryClientProvider>
+      <PersistQueryClientProvider
+        client={queryClient}
+        persistOptions={{ persister: queryClientPersister }}
+      >
+        <QueryClientProvider client={queryClient}>
+          <VaultonomyContext.Provider value={vaultonomyStore}>
+            <HelpProvider>{children}</HelpProvider>
+          </VaultonomyContext.Provider>
+        </QueryClientProvider>
+      </PersistQueryClientProvider>
     </WagmiProvider>
   );
 }
