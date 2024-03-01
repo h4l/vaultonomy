@@ -59,11 +59,7 @@ export type VaultonomyStateActions = {
   setPinnedPairing(pinnedPairing: PairingId | null): void;
   setPairingInterest(userInterest: UserInterest): void;
   setCurrentUserId(currentUserId: string | null): void;
-  setSearchForUserQuery(options: { queryKey: string; rawQuery: string }): void;
-  setSearchForUserResult(options: {
-    queryKey: string;
-    result: SearchForUserResult;
-  }): void;
+  setSearchForUserQuery(rawQuery: string): void;
   setHasHydrated(hasHydrated: boolean): void;
 };
 
@@ -98,8 +94,7 @@ export type VaultonomyStateData = {
   pairings: Partial<Record<string, PairingState>>;
   /** One of the pairings that has been signed and submitted to register the address. */
   pinnedPairing: PairingId | null;
-  searchForUserQuery: { queryKey: string; rawQuery: string } | null;
-  searchForUserResult: SearchForUserResult | null;
+  searchForUserQuery: string;
 };
 
 type PersistedVaultonomyStateData = Pick<
@@ -109,7 +104,6 @@ type PersistedVaultonomyStateData = Pick<
   | "pairingInterest"
   | "pinnedPairing"
   | "searchForUserQuery"
-  | "searchForUserResult"
 >;
 
 export type VaultonomyState = VaultonomyStateData & VaultonomyStateActions;
@@ -148,8 +142,7 @@ export const createVaultonomyStore = (
           pairingInterest: null,
           pairings: {},
           pinnedPairing: null,
-          searchForUserQuery: null,
-          searchForUserResult: null,
+          searchForUserQuery: "",
           // actions
           setHasHydrated(hasHydrated: boolean): void {
             set({ hasHydrated });
@@ -240,38 +233,15 @@ export const createVaultonomyStore = (
           setCurrentUserId(currentUserId: string | null): void {
             set({ currentUserId });
           },
-          setSearchForUserQuery({
-            queryKey,
-            rawQuery,
-          }: {
-            queryKey: string;
-            rawQuery: string;
-          }): void {
-            set({ searchForUserQuery: { queryKey, rawQuery } });
-          },
-          setSearchForUserResult({
-            queryKey,
-            result,
-          }: {
-            queryKey: string;
-            result: SearchForUserResult;
-          }): void {
-            set((store) => {
-              if (store.searchForUserQuery?.queryKey !== queryKey) {
-                log.debug(
-                  "Ignored setSearchForUserResult() for non-current result",
-                );
-                return store;
-              }
-              return { searchForUserResult: result };
-            });
+          setSearchForUserQuery(searchForUserQuery: string): void {
+            set({ searchForUserQuery });
           },
         };
         return state;
       },
       {
         name: "vaultonomy-ui-state",
-        version: 4,
+        version: 5,
         partialize(store): PersistedVaultonomyStateData {
           return {
             currentUserId: store.currentUserId,
@@ -279,7 +249,6 @@ export const createVaultonomyStore = (
             pairingInterest: store.pairingInterest,
             pinnedPairing: store.pinnedPairing,
             searchForUserQuery: store.searchForUserQuery,
-            searchForUserResult: store.searchForUserResult,
           };
         },
         onRehydrateStorage(_statePre) {

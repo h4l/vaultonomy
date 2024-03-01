@@ -11,11 +11,7 @@ import { Config, useConfig } from "wagmi";
 import { getEnsAddressQueryOptions, getEnsTextQueryOptions } from "wagmi/query";
 
 import { assert, assertUnreachable } from "../../assert";
-import {
-  RedditProvider,
-  RedditProviderError,
-} from "../../reddit/reddit-interaction-client";
-import { ErrorCode } from "../../reddit/reddit-interaction-spec";
+import { RedditProvider } from "../../reddit/reddit-interaction-client";
 import { RequiredNonNullable } from "../../types";
 import { Result } from "../state/createVaultonomyStore";
 import { useVaultonomyStore } from "../state/useVaultonomyStore";
@@ -109,11 +105,6 @@ function parseUsername(query: string): UsernameQuery | InvalidParsedQuery {
   }
 
   return { type: "invalid-query", reason: "username" };
-}
-
-// TODO: replace with parsedQueryEqual?
-export function getParsedQueryKey(parsedQuery: ParsedQuery): string {
-  return `${parsedQuery.type}:${parsedQuery.type === "invalid-query" ? parsedQuery.reason : parsedQuery.type}`;
 }
 
 export function parsedQueryEqual(a: ParsedQuery, b: ParsedQuery): boolean {

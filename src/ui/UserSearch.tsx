@@ -1,4 +1,3 @@
-import { useQueryClient } from "@tanstack/react-query";
 import { ReactNode, useEffect, useId, useRef, useState } from "react";
 
 import { assert } from "../assert";
@@ -15,9 +14,6 @@ import {
   InvalidParsedQuery,
   ParsedQuery,
   ValidParsedQuery,
-  getParsedQueryKey,
-  getSearchForUserQueryKey,
-  getSearchForUserQueryOptions,
   parseQuery,
   parsedQueryEqual,
   useSearchForUser,
@@ -30,56 +26,20 @@ export function UserSearch(): JSX.Element {
   const ref = useRef<HTMLElement>(null);
   useEnableScrollSnapWhileElementOnScreen(ref);
 
-  const [
-    hasHydrated,
-    searchForUserQuery,
-    searchForUserResult,
-    setSearchForUserQuery,
-    setSearchForUserResult,
-  ] = useVaultonomyStore((store) => [
-    store.hasHydrated,
-    store.searchForUserQuery,
-    store.searchForUserResult,
-    store.setSearchForUserQuery,
-    store.setSearchForUserResult,
-  ]);
+  const [searchForUserQuery, setSearchForUserQuery] = useVaultonomyStore(
+    (store) => [store.searchForUserQuery, store.setSearchForUserQuery],
+  );
 
-  const queryClient = useQueryClient();
-  const [currentQuery, setCurrentQuery] = useState<ValidParsedQuery>();
-
-  // Restore persisted search results on startup as the store hydrates from persistent storage
-  useEffect(() => {
-    if (!hasHydrated || !searchForUserQuery?.rawQuery || !searchForUserResult)
-      return;
-    log.debug("UserSearch: hasHydrated:", hasHydrated);
-    const storedQuery = parseQuery(searchForUserQuery.rawQuery);
-    if (storedQuery.type === "invalid-query") return;
-
-    log.debug("Restored UserSearch result from hydrated state");
-    queryClient.setQueryData(
-      getSearchForUserQueryKey(storedQuery),
-      searchForUserResult,
-    );
-    setCurrentQuery(storedQuery);
-  }, [hasHydrated]);
+  const [currentQuery, setCurrentQuery] = useState<
+    ValidParsedQuery | undefined
+  >();
 
   const search = useSearchForUser({ query: currentQuery });
-
-  // persist successful search results
-  useEffect(() => {
-    if (search.data?.value && currentQuery) {
-      log.debug("Storing user search result:", currentQuery, search.data);
-      setSearchForUserResult({
-        queryKey: getParsedQueryKey(currentQuery),
-        result: search.data,
-      });
-    }
-  }, [search.data?.value, currentQuery]);
-
   const resultUsername = search?.data?.value?.username;
   const resultUserProfile = useRedditUserProfile({
     username: resultUsername,
   });
+
   const resultUserVault = useRedditUserVault({
     query:
       resultUsername ? { type: "username", value: resultUsername } : undefined,
@@ -121,13 +81,12 @@ export function UserSearch(): JSX.Element {
         />
       </div>
       <SearchForm
+        defaultRawQuery={searchForUserQuery}
         onQuery={({ rawQuery, parsedQuery }) => {
-          setSearchForUserQuery({
-            rawQuery,
-            queryKey: getParsedQueryKey(parsedQuery),
-          });
-          if (parsedQuery.type !== "invalid-query")
-            setCurrentQuery(parsedQuery);
+          setSearchForUserQuery(rawQuery);
+          setCurrentQuery(
+            parsedQuery.type === "invalid-query" ? undefined : parsedQuery,
+          );
         }}
         activity={activity}
         errorMessages={errors}
@@ -161,87 +120,84 @@ type Activity =
   | "data-revalidating";
 
 function SearchForm({
+  defaultRawQuery,
   onQuery,
   activity,
   errorMessages = [],
 }: {
+  defaultRawQuery: string | undefined;
   onQuery: (options: { rawQuery: string; parsedQuery: ParsedQuery }) => void;
   activity: Activity;
   errorMessages?: string[];
 }): JSX.Element {
   const inputEl = useRef<HTMLInputElement>(null);
-  // const [
-  //   searchForUserQuery,
-  //   searchForUserResult,
-  //   setSearchForUserQuery,
-  //   setSearchForUserResult,
-  // ] = useVaultonomyStore((store) => [
-  //   store.searchForUserQuery,
-  //   store.searchForUserResult,
-  //   store.setSearchForUserQuery,
-  //   store.setSearchForUserResult,
-  // ]);
 
-  // TODO: use persistent store state
-  // searchForUserQuery?.rawQuery ?? "",
-  const [rawQuery, setRawQueryValue] = useState<string>("");
-  const [parsedQuery, setParsedQuery] = useState<ParsedQuery>();
-  // useSearchForUser({query: })
+  const [userRawQuery, setUserRawQuery] = useState<string>();
+  const rawQuery = userRawQuery ?? defaultRawQuery ?? "";
+  const parsedQuery = useRef<ParsedQuery>();
+  const [parsedQueryError, setParsedQueryError] = useState<
+    string | undefined
+  >();
 
   const setRawQuery = (value: string) => {
     const input = inputEl.current;
     assert(input);
 
-    setRawQueryValue(value);
-    const parsedQuery = parseQuery(value);
-    setParsedQuery(parsedQuery);
+    setUserRawQuery(value);
+    const thisParsedQuery = parseQuery(value);
+    parsedQuery.current = thisParsedQuery;
+
     if (
-      parsedQuery.type === "invalid-query" &&
-      parsedQuery.reason !== "empty"
+      thisParsedQuery.type === "invalid-query" &&
+      thisParsedQuery.reason !== "empty"
     ) {
       log.debug("reported invalid");
-      input.setCustomValidity(getInvalidQueryMessage(parsedQuery));
+      const msg = getInvalidQueryMessage(thisParsedQuery);
+      setParsedQueryError(msg);
+      input.setCustomValidity(msg);
     } else {
       log.debug("reported valid");
+      setParsedQueryError(undefined);
       input.setCustomValidity("");
     }
     input.reportValidity();
   };
 
-  const queryInvalid =
-    parsedQuery?.type === "invalid-query" && parsedQuery.reason !== "empty";
+  const queryInvalid = !!parsedQueryError;
   const allErrorMessages =
-    queryInvalid ?
-      [getInvalidQueryMessage(parsedQuery), ...errorMessages]
-    : errorMessages;
+    queryInvalid ? [parsedQueryError, ...errorMessages] : errorMessages;
 
   const lastRunQuery = useRef<ParsedQuery>();
   const runQuery = (trigger: "explicit" | "implicit"): void => {
-    if (!parsedQuery) return;
+    if (!parsedQuery.current) return;
     // Don't make a duplicate callback for implicit triggers (e.g. un-focusing
     // the search box.) Whereas always trigger when explicitly searching (e.g.
     // pressing enter/search button).
     if (
       trigger === "implicit" &&
       lastRunQuery.current &&
-      parsedQueryEqual(lastRunQuery.current, parsedQuery)
+      parsedQueryEqual(lastRunQuery.current, parsedQuery.current)
     ) {
       log.debug("Ignored runQuery for implicit already-run query");
       return;
     }
-    log.debug("runQuery", parsedQuery);
-    lastRunQuery.current = parsedQuery;
-    onQuery({ rawQuery, parsedQuery });
+    log.debug("runQuery", parsedQuery.current);
+    lastRunQuery.current = parsedQuery.current;
+    onQuery({ rawQuery, parsedQuery: parsedQuery.current });
   };
 
-  // TODO: persist to store on currentQuery change?
-  // useEffect(() => {}, [currentQuery]);
+  // Allow an asynchronously-set defaultRawQuery to initialise the query
+  useEffect(() => {
+    if (defaultRawQuery !== undefined && userRawQuery === undefined) {
+      setRawQuery(defaultRawQuery);
+      runQuery("implicit");
+    }
+  }, [defaultRawQuery, userRawQuery]);
 
   return (
     <WithInlineHelp
       iconOffsetLeft="0.1rem"
       iconOffsetTop="-1.2rem"
-      // iconOffsetBottom="3.875rem"
       helpId="vault-search"
       helpText={() => (
         <>
@@ -257,11 +213,6 @@ function SearchForm({
               </li>
             </ul>
           </div>
-          {/* <p>
-            Find a Reddit user’s Vault address by searching for their username.
-            Or find the owner of a Vault by searching for a <code>0x…</code>{" "}
-            address.
-          </p> */}
           <p className="mt-2 text-sm">
             <Link href="https://ens.domains/">ENS names</Link> (like{" "}
             <em>h-a-l.eth</em>) match if they point to a user’s Vault address,
@@ -281,9 +232,6 @@ function SearchForm({
             log.debug("ignored blur from focus change within self", ev.target);
             return;
           }
-          // if (ev.target !== ev.currentTarget) {
-          //   return;
-          // }
           log.debug("blur", ev.target);
           runQuery("implicit");
         }}
