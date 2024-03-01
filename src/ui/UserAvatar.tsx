@@ -3,10 +3,13 @@ import React from "react";
 export function UserAvatar({
   avatarUrl,
   className,
+  title,
 }: {
+  title?: string;
   avatarUrl?: string;
   className?: string;
 }) {
+  title = title || (avatarUrl ? "User Avatar" : "Placeholder Avatar");
   return (
     <svg
       aria-hidden={avatarUrl === undefined}
@@ -15,7 +18,7 @@ export function UserAvatar({
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
     >
-      <title>User Avatar</title>
+      <title>{title}</title>
       <circle cx="154" cy="245.265" r="125.972" fill="#D9D9D9" />
       <mask
         id="user_avatar_circle_mask"
