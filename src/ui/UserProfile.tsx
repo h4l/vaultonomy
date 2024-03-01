@@ -2,6 +2,7 @@ import { ReactNode } from "react";
 
 import { RedditUserProfile } from "../reddit/reddit-interaction-spec";
 import { WithInlineHelp } from "./Help";
+import { Link } from "./Link";
 import { UserAvatar } from "./UserAvatar";
 import { pxNumbersAsRem } from "./utils/units";
 
@@ -28,10 +29,17 @@ export function UserProfile({
         iconOffsetBottom="3.875rem"
         helpText={`${label} Reddit account's avatar.`}
       >
-        <UserAvatar
-          className="w-40"
-          avatarUrl={profile?.accountIconFullBodyURL || undefined}
-        />
+        {profile ?
+          <Link
+            href={`https://www.reddit.com/user/${encodeURIComponent(profile.username)}`}
+          >
+            <UserAvatar
+              title={`${profile.username}'s Reddit Profile`}
+              className="w-40"
+              avatarUrl={profile.accountIconFullBodyURL ?? undefined}
+            />
+          </Link>
+        : <UserAvatar className="w-40" avatarUrl={undefined} />}
       </WithInlineHelp>
       {profile ?
         <WithInlineHelp
