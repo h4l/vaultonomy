@@ -1,6 +1,8 @@
 import {
   JSONRPCClient,
   JSONRPCErrorException,
+  JSONRPCErrorResponse,
+  JSONRPCID,
   JSONRPCServer,
   JSONRPCServerAndClient,
 } from "json-rpc-2.0";
@@ -98,6 +100,25 @@ export class VaultonomyBackgroundServiceSession {
 
   private createServer(): JSONRPCServer {
     const server = new JSONRPCServer({ errorListener: () => undefined });
+
+    const defaultMapError = server.mapErrorToJSONRPCErrorResponse;
+    server.mapErrorToJSONRPCErrorResponse = (
+      id: JSONRPCID,
+      _error: any,
+    ): JSONRPCErrorResponse => {
+      const error = _error as Partial<Error>;
+      // When proxying calls with RedditProvider, its errors wrap a JSONRPCErrorException
+      // as error.cause. We should report this underlying error to transparently
+      // proxy the error.
+      if (
+        !(error instanceof JSONRPCErrorException) &&
+        error.cause instanceof JSONRPCErrorException
+      ) {
+        return defaultMapError(id, error.cause);
+      }
+
+      return defaultMapError(id, error);
+    };
 
     server.addMethod(
       VaultonomyGetRedditTabAvailability.name,
