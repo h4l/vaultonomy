@@ -20,15 +20,14 @@ export function TestGradient(): JSX.Element {
   } as const;
   const img: keyof typeof images = "ugly";
   const avatarUrl = images[img].avatarUrl;
-  // const height = images[img].height * (308 / 380); // FIXME: don't scale
-  const height = images[img].height;
+  const imgHeight = images[img].height;
 
-  // TODO: should be 0 with variable overall height
-  // const imgY = 457.5 - height;
-  const imgY = 564 - height;
+  const imgBelowY = 103;
+  const viewHeight = imgHeight - imgBelowY;
+  const imgY = 0;
   const circleRadius = 148;
   const circlePad = 5;
-  const circleMidY = 308;
+  const circleMidY = viewHeight - circlePad - circleRadius;
   const width = 380;
 
   const MaskLower = () => (
@@ -84,7 +83,7 @@ export function TestGradient(): JSX.Element {
   return (
     <svg
       className="my-4"
-      viewBox={`0 0 ${width} 466`}
+      viewBox={`0 0 ${width} ${viewHeight}`}
       width={width}
       xmlns="http://www.w3.org/2000/svg"
     >
