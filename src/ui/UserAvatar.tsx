@@ -18,7 +18,7 @@ export function TestGradient(): JSX.Element {
       height: 559,
     },
   } as const;
-  const img: keyof typeof images = "blackHex";
+  const img: keyof typeof images = "ugly";
   const avatarUrl = images[img].avatarUrl;
   // const height = images[img].height * (308 / 380); // FIXME: don't scale
   const height = images[img].height;
@@ -70,10 +70,11 @@ export function TestGradient(): JSX.Element {
           fill="url(#fade-v)"
           mask={`url(#${id})`}
         />
-        <circle
+        <ellipse
           cx={width / 2}
           cy={circleMidY}
-          r={circleRadius}
+          rx={circleRadius + circlePad * 0.5}
+          ry={circleRadius}
           fill={bw ? "white" : "blue"}
         />
       </>
