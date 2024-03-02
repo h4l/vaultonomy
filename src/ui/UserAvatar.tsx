@@ -20,14 +20,26 @@ export function TestGradient(): JSX.Element {
   } as const;
   const img: keyof typeof images = "blackHex";
   const avatarUrl = images[img].avatarUrl;
-  const height = images[img].height * (308 / 380); // FIXME: don't scale
+  // const height = images[img].height * (308 / 380); // FIXME: don't scale
+  const height = images[img].height;
 
   // TODO: should be 0 with variable overall height
-  const imgY = 457.5 - height;
+  // const imgY = 457.5 - height;
+  const imgY = 564 - height;
+  const circleRadius = 148;
+  const circlePad = 5;
+  const circleMidY = 308;
+  const width = 380;
 
   const MaskLower = () => (
     <>
-      <rect x={0} y={250} width={308} height={300 - 250} fill="url(#fade-v)" />
+      <rect
+        x={0}
+        y={circleMidY}
+        width={width}
+        height={60}
+        fill="url(#fade-v)"
+      />
     </>
   );
 
@@ -36,24 +48,34 @@ export function TestGradient(): JSX.Element {
     return (
       <>
         <mask id={id}>
-          <circle cx={34 + 120} cy={250} r={124} fill={"white"} />
+          <circle
+            cx={width / 2}
+            cy={circleMidY}
+            r={circleRadius + circlePad}
+            fill={"white"}
+          />
         </mask>
         <rect
           x={0}
           y={0}
-          width={308}
-          height={250}
+          width={width}
+          height={circleMidY}
           fill={bw ? "white" : "skyblue"}
         />
         <rect
           x={0}
-          y={250}
-          width={308}
+          y={circleMidY}
+          width={width}
           height={5}
           fill="url(#fade-v)"
           mask={`url(#${id})`}
         />
-        <circle cx={34 + 120} cy={250} r={120} fill={bw ? "white" : "blue"} />
+        <circle
+          cx={width / 2}
+          cy={circleMidY}
+          r={circleRadius}
+          fill={bw ? "white" : "blue"}
+        />
       </>
     );
   };
@@ -61,8 +83,8 @@ export function TestGradient(): JSX.Element {
   return (
     <svg
       className="my-4"
-      viewBox="0 0 308 375"
-      width={308}
+      viewBox={`0 0 ${width} 466`}
+      width={width}
       xmlns="http://www.w3.org/2000/svg"
     >
       <defs>
@@ -94,15 +116,20 @@ export function TestGradient(): JSX.Element {
           href={avatarUrl}
           x="0"
           y={imgY}
-          width="308"
+          width={width}
           mask="url(#mask-lower)"
         />
-        <circle cx={34 + 120} cy={250} r={124} fill="#D9D9D9" />
+        <circle
+          cx={width / 2}
+          cy={circleMidY}
+          r={circleRadius + circlePad}
+          fill="#D9D9D9"
+        />
         <image
           href={avatarUrl}
           x="0"
           y={imgY}
-          width="308"
+          width={width}
           mask="url(#mask-upper)"
         />
       </g>
