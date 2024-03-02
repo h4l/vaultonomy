@@ -1,4 +1,156 @@
-import React from "react";
+import React, { useId } from "react";
+
+export function TestGradient(): JSX.Element {
+  const images = {
+    ugly: {
+      avatarUrl:
+        "https://i.redd.it/snoovatar/avatars/nftv2_bmZ0X2VpcDE1NToxMzdfNDA5OWI2MjY1MzhhNjFkODhmYTU4MzVjOGJlZWRhZjgwNzMwMTdhNF8zNQ_rare_df8d801e-41cd-4cb0-a6a1-d510a0680d2a.png",
+      height: 600,
+    },
+    sure: {
+      avatarUrl:
+        "https://i.redd.it/snoovatar/avatars/95e2eaad-0386-4aec-8d88-ee729d397c50.png",
+      height: 487,
+    },
+    blackHex: {
+      avatarUrl:
+        "https://i.redd.it/snoovatar/avatars/nftv2_bmZ0X2VpcDE1NToxMzdfZmIxMjYxMDMyYjEyOTM4MzQzZTllYzk0MTlmNjNlNGZkOWZhOWZlZl8xNjc_rare_f2366892-37ee-4caa-9f80-9a2320eee62b.png",
+      height: 559,
+    },
+  } as const;
+  const img: keyof typeof images = "blackHex";
+  const avatarUrl = images[img].avatarUrl;
+  const height = images[img].height * (308 / 380); // FIXME: don't scale
+
+  // TODO: should be 0 with variable overall height
+  const imgY = 457.5 - height;
+
+  const MaskLower = () => (
+    <>
+      <rect x={0} y={250} width={308} height={300 - 250} fill="url(#fade-v)" />
+    </>
+  );
+
+  const MaskUpper = ({ bw }: { bw: boolean }) => {
+    const id = useId();
+    return (
+      <>
+        <mask id={id}>
+          <circle cx={34 + 120} cy={250} r={124} fill={"white"} />
+        </mask>
+        <rect
+          x={0}
+          y={0}
+          width={308}
+          height={250}
+          fill={bw ? "white" : "skyblue"}
+        />
+        <rect
+          x={0}
+          y={250}
+          width={308}
+          height={5}
+          fill="url(#fade-v)"
+          mask={`url(#${id})`}
+        />
+        <circle cx={34 + 120} cy={250} r={120} fill={bw ? "white" : "blue"} />
+      </>
+    );
+  };
+
+  return (
+    <svg
+      className="my-4"
+      viewBox="0 0 308 375"
+      width={308}
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <defs>
+        <linearGradient
+          id="fade-v"
+          x1="0"
+          y1="0"
+          x2="0"
+          y2="1"
+          // gradientUnits="userSpaceOnUse"
+        >
+          <stop offset="0" stop-color="white" />
+          <stop offset="1" stop-color="black" />
+        </linearGradient>
+        <mask id="mask-lower">
+          <MaskLower />
+        </mask>
+        <mask id="mask-upper">
+          <MaskUpper bw={true} />
+        </mask>
+      </defs>
+      {/* <rect x={0} y={0} width={308} height={372} fill="yellow" /> */}
+      <g id="mask-lower-visual">{/* <MaskLower /> */}</g>
+      <g id="mask-upper-visual">{/* <MaskUpper bw={true} /> */}</g>
+
+      <g data-mask="url(#user_avatar_circle_mask)" opacity={1}>
+        {/* TODO: rescale everything for native width? 380px */}
+        <image
+          href={avatarUrl}
+          x="0"
+          y={imgY}
+          width="308"
+          mask="url(#mask-lower)"
+        />
+        <circle cx={34 + 120} cy={250} r={124} fill="#D9D9D9" />
+        <image
+          href={avatarUrl}
+          x="0"
+          y={imgY}
+          width="308"
+          mask="url(#mask-upper)"
+        />
+      </g>
+      {/* <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d={[
+          // "M 307.122 0.763245",
+          "M 308 0",
+          // "H 0.877563",
+          "H 0",
+          // "V 250.047",
+          "V 250",
+          "H 33.3109",
+          "C 35.6226 314.93 88.7861 366.817 154.031 366.817",
+          "C 219.275 366.817 272.439 314.93 274.751 250.047",
+          // "H 307.122",
+          "H 308",
+          // "V 0.763245",
+          "V 0",
+          "Z",
+        ].join(" ")}
+        fill="#FF3232"
+      /> */}
+
+      {/* Prev clip circle bottom: 366.81 */}
+      {/* Prev grey circle bottom: 371.16 */}
+      {/* 4.35 stroke */}
+      {/* <mask
+        id="user_avatar_circle_mask"
+        style={{ maskType: "alpha" }}
+        maskUnits="userSpaceOnUse"
+        x="0"
+        y="0"
+        width="308"
+        height="367"
+      >
+        <path
+          fillRule="evenodd"
+          clipRule="evenodd"
+          d="M307.122 0.763245H0.877563V250.047H33.3109C35.6226 314.93 88.7861 366.817 154.031 366.817C219.275 366.817 272.439 314.93 274.751 250.047H307.122V0.763245Z"
+          fill="#FF3232"
+        />
+      </mask> */}
+      {/* <rect x={0} y={0} width={308} height={372} fill="blue" /> */}
+    </svg>
+  );
+}
 
 export function UserAvatar({
   avatarUrl,
