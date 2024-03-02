@@ -42,7 +42,19 @@ export type InvalidParsedQuery = {
 };
 export type ParsedQuery = ValidParsedQuery | InvalidParsedQuery;
 
-type SearchForUserError = { type: "not-found"; query: ValidParsedQuery };
+export type NotFoundReason =
+  | "username-not-found"
+  | "address-not-a-vault"
+  | "ens-name-has-no-address"
+  | "ens-name-address-not-a-vault"
+  | "ens-name-has-no-com-reddit"
+  | "ens-name-com-reddit-username-not-found";
+export type SearchForUserNotFoundError = {
+  type: "not-found";
+  tags: NotFoundReason[];
+  query: ValidParsedQuery;
+};
+type SearchForUserError = SearchForUserNotFoundError;
 type SearchForUser = { username: string };
 export type SearchForUserResult = Result<SearchForUser, SearchForUserError>;
 
@@ -155,7 +167,11 @@ async function searchForUserByUsername({
       username: query.value,
     }),
   );
-  if (!result) return { result: "error", error: { type: "not-found", query } };
+  if (!result)
+    return {
+      result: "error",
+      error: { type: "not-found", query, tags: ["username-not-found"] },
+    };
   return { result: "ok", value: { username: result.username } };
 }
 
@@ -175,7 +191,11 @@ async function searchForUserByVaultAddress({
       query: { type: "address", value: query.value },
     }),
   );
-  if (!result) return { result: "error", error: { type: "not-found", query } };
+  if (!result)
+    return {
+      result: "error",
+      error: { type: "not-found", query, tags: ["address-not-a-vault"] },
+    };
   return { result: "ok", value: { username: result.username } };
 }
 
@@ -183,7 +203,7 @@ async function searchForUserByEnsName({
   ...options
 }: {
   query: EnsNameQuery;
-} & SearchForUserOptions) {
+} & SearchForUserOptions): Promise<SearchForUserResult> {
   const [byAddress, byTxtRecord] = await Promise.all([
     searchForUserByEnsNameAddress(options),
     searchForUserByEnsNameTxtRecord(options),
@@ -194,7 +214,16 @@ async function searchForUserByEnsName({
   if (byTxtRecord.result === "ok") return byTxtRecord;
 
   assert(byAddress.error.type === "not-found");
-  return byAddress;
+  assert(byTxtRecord.error.type === "not-found");
+  // Merge the not found reasons
+  return {
+    result: "error",
+    error: {
+      type: "not-found",
+      query: options.query,
+      tags: [...byAddress.error.tags, ...byTxtRecord.error.tags],
+    },
+  };
 }
 
 async function searchForUserByEnsNameAddress({
@@ -210,12 +239,21 @@ async function searchForUserByEnsNameAddress({
       name: normalize(query.value),
     }),
   );
-  if (!address) return { result: "error", error: { type: "not-found", query } };
-  return await searchForUserByVaultAddress({
+  if (!address)
+    return {
+      result: "error",
+      error: { type: "not-found", query, tags: ["ens-name-has-no-address"] },
+    };
+  const user = await searchForUserByVaultAddress({
     query: { type: "address", value: address },
     queryClient,
     ...options,
   });
+  if (user.result === "ok") return user;
+  return {
+    result: "error",
+    error: { type: "not-found", query, tags: ["ens-name-address-not-a-vault"] },
+  };
 }
 
 async function searchForUserByEnsNameTxtRecord({
@@ -233,16 +271,30 @@ async function searchForUserByEnsNameTxtRecord({
       key: "com.reddit",
     }),
   );
-  const validated = parseQuery(result?.trim() ?? "");
+  if (!result) {
+    return {
+      result: "error",
+      error: { type: "not-found", query, tags: ["ens-name-has-no-com-reddit"] },
+    };
+  }
+  const validated = parseQuery(result);
   if (validated.type === "username") {
-    return await searchForUserByUsername({
+    const user = await searchForUserByUsername({
       query: validated,
       queryClient,
       redditProvider,
       session,
     });
+    if (user.result === "ok") return user;
   }
-  return { result: "error", error: { type: "not-found", query } };
+  return {
+    result: "error",
+    error: {
+      type: "not-found",
+      query,
+      tags: ["ens-name-com-reddit-username-not-found"],
+    },
+  };
 }
 
 function isEnabled(

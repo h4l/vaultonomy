@@ -12,7 +12,9 @@ import { useRedditUserProfile } from "./hooks/useRedditUserProfile";
 import { useRedditUserVault } from "./hooks/useRedditUserVault";
 import {
   InvalidParsedQuery,
+  NotFoundReason,
   ParsedQuery,
+  SearchForUserNotFoundError,
   ValidParsedQuery,
   parseQuery,
   parsedQueryEqual,
@@ -89,6 +91,7 @@ export function UserSearch(): JSX.Element {
           );
         }}
         activity={activity}
+        notFoundError={search.data?.error}
         errorMessages={errors}
       />
       <div className="mt-16">
@@ -123,11 +126,13 @@ function SearchForm({
   defaultRawQuery,
   onQuery,
   activity,
+  notFoundError,
   errorMessages = [],
 }: {
   defaultRawQuery: string | undefined;
   onQuery: (options: { rawQuery: string; parsedQuery: ParsedQuery }) => void;
   activity: Activity;
+  notFoundError?: SearchForUserNotFoundError;
   errorMessages?: string[];
 }): JSX.Element {
   const inputEl = useRef<HTMLInputElement>(null);
@@ -208,15 +213,16 @@ function SearchForm({
                 username.
               </li>
               <li>
-                Find the owner of a Vault by searching for a <code>0x…</code>{" "}
-                address.
+                Find the owner of a Vault by searching for a{" "}
+                <strong>0x…</strong> address.
               </li>
             </ul>
           </div>
           <p className="mt-2 text-sm">
             <Link href="https://ens.domains/">ENS names</Link> (like{" "}
-            <em>h-a-l.eth</em>) match if they point to a user’s Vault address,
-            or have a <code>com.reddit</code> label pointing to a username.
+            <strong>h-a-l.eth</strong>) match if they point to a user’s Vault
+            address, or have a <strong>com.reddit</strong> label pointing to a
+            username.
           </p>
         </>
       )}
@@ -309,23 +315,51 @@ function SearchForm({
             </div>
           : undefined}
         </div>
-        {allErrorMessages.length ?
-          <ErrorMessages messages={allErrorMessages} />
+        {allErrorMessages.length || notFoundError ?
+          <ErrorMessages
+            notFoundError={notFoundError}
+            messages={allErrorMessages}
+          />
         : undefined}
       </form>
     </WithInlineHelp>
   );
 }
 
-function ErrorMessages({ messages }: { messages: string[] }): JSX.Element {
+function ErrorMessages({
+  notFoundError,
+  messages,
+}: {
+  notFoundError: SearchForUserNotFoundError | undefined;
+  messages: string[];
+}): JSX.Element {
   return (
     <ul aria-label="Search Errors" className="mx-4">
+      <li key="not-found">
+        {notFoundError ?
+          <UserNotFound notFound={notFoundError} />
+        : undefined}
+      </li>
       {messages.map((msg, i) => (
         <li key={i}>
-          <ErrorMessage>{msg}</ErrorMessage>
+          <ErrorMessage>
+            <ErrorMessageHeadline>{msg}</ErrorMessageHeadline>
+          </ErrorMessage>
         </li>
       ))}
     </ul>
+  );
+}
+
+function ErrorMessageHeadline({
+  children,
+}: {
+  children: ReactNode;
+}): JSX.Element {
+  return (
+    <div className="underline decoration-wavy decoration-red-500 underline-offset-4">
+      {children}
+    </div>
   );
 }
 
@@ -333,14 +367,10 @@ function ErrorMessage({ children }: { children: ReactNode }): JSX.Element {
   return (
     <label
       htmlFor="user-search"
-      className={[
-        "_text-red-500 my-2 _text-center w-full _ml-16",
-        "underline decoration-wavy decoration-red-500 underline-offset-4",
-        "flex flex-row gap-x-2",
-      ].join(" ")}
+      className="my-2 flex flex-row gap-x-2 items-start"
     >
       <ErrorIcon size={24} className="_-translate-y-[0.125rem]" />
-      <span>{children}</span>
+      <div>{children}</div>
     </label>
   );
 }
@@ -370,5 +400,57 @@ function RedditUsernameText({
       </span>
       <span aria-label="username">{children}</span>
     </>
+  );
+}
+
+const NOT_FOUND_REASONS: Record<ValidParsedQuery["type"], string> = {
+  username: "Nobody on Reddit has this username",
+  address: "Nobody on Reddit has a Vault with this address",
+  "ens-name": "Nobody on Reddit matches this ENS name",
+};
+const ENS_NOT_FOUND_DETAIL: Partial<Record<NotFoundReason, ReactNode>> = {
+  "ens-name-has-no-address": (
+    <>
+      It does not point to a <strong>0x…</strong> address
+    </>
+  ),
+  "ens-name-address-not-a-vault": (
+    <>
+      No Vaults match its <strong>0x…</strong> address
+    </>
+  ),
+  "ens-name-has-no-com-reddit": (
+    <>
+      It has no <b>com.reddit</b> record
+    </>
+  ),
+  "ens-name-com-reddit-username-not-found": (
+    <>
+      Its <strong>com.reddit</strong> record is not anybody's username
+    </>
+  ),
+};
+
+function UserNotFound({
+  notFound,
+}: {
+  notFound: SearchForUserNotFoundError;
+}): JSX.Element {
+  const details = notFound.tags
+    .map((tag) => ENS_NOT_FOUND_DETAIL[tag])
+    .filter((x): x is ReactNode => !!x);
+  return (
+    <ErrorMessage>
+      <ErrorMessageHeadline>
+        {NOT_FOUND_REASONS[notFound.query.type]}
+      </ErrorMessageHeadline>
+      {details.length > 0 ?
+        <ul className="text-sm m-2 list-disc">
+          {details.map((r, i) => (
+            <li key={i}>{r}</li>
+          ))}
+        </ul>
+      : undefined}
+    </ErrorMessage>
   );
 }
