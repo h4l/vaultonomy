@@ -76,10 +76,11 @@ export function UserSearch(): JSX.Element {
       <h2 id={headingId} className="sr-only">
         Find User
       </h2>
-      <div className="my-16 _opacity-25">
+      <div className="mt-8 mb-16">
         <UserProfile
           label="Found"
           profile={resultUserProfile.data ?? undefined}
+          fixedHeight={true}
         />
       </div>
       <SearchForm
@@ -94,7 +95,7 @@ export function UserSearch(): JSX.Element {
         notFoundError={search.data?.error}
         errorMessages={errors}
       />
-      <div className="mt-16">
+      <div className="mt-8">
         <EthAccountDetails
           title="Vault"
           ethAddress={resultUserVault.data?.address}
@@ -201,7 +202,7 @@ function SearchForm({
 
   return (
     <form
-      className="relative max-w-prose flex flex-col items-center gap-4"
+      className="relative max-w-prose flex flex-col items-center gap-4 min-h-[7.5rem]"
       onSubmit={(ev) => {
         ev.preventDefault();
         runQuery("explicit");
