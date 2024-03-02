@@ -200,47 +200,47 @@ function SearchForm({
   }, [defaultRawQuery, userRawQuery]);
 
   return (
-    <WithInlineHelp
-      iconOffsetLeft="0.1rem"
-      iconOffsetTop="-1.2rem"
-      helpId="vault-search"
-      helpText={() => (
-        <>
-          <div className="prose">
-            <ul className="list-disc">
-              <li>
-                Find a Reddit user’s Vault address by searching for their
-                username.
-              </li>
-              <li>
-                Find the owner of a Vault by searching for a{" "}
-                <strong>0x…</strong> address.
-              </li>
-            </ul>
-          </div>
-          <p className="mt-2 text-sm">
-            <Link href="https://ens.domains/">ENS names</Link> (like{" "}
-            <strong>h-a-l.eth</strong>) match if they point to a user’s Vault
-            address, or have a <strong>com.reddit</strong> label pointing to a
-            username.
-          </p>
-        </>
-      )}
+    <form
+      className="relative max-w-prose flex flex-col items-center gap-4"
+      onSubmit={(ev) => {
+        ev.preventDefault();
+        runQuery("explicit");
+      }}
+      onBlur={(ev) => {
+        if (ev.currentTarget.contains(ev.relatedTarget)) {
+          log.debug("ignored blur from focus change within self", ev.target);
+          return;
+        }
+        log.debug("blur", ev.target);
+        runQuery("implicit");
+      }}
     >
-      <form
-        className="relative max-w-prose flex flex-col items-center gap-4"
-        onSubmit={(ev) => {
-          ev.preventDefault();
-          runQuery("explicit");
-        }}
-        onBlur={(ev) => {
-          if (ev.currentTarget.contains(ev.relatedTarget)) {
-            log.debug("ignored blur from focus change within self", ev.target);
-            return;
-          }
-          log.debug("blur", ev.target);
-          runQuery("implicit");
-        }}
+      <WithInlineHelp
+        iconOffsetLeft="0.2rem"
+        iconOffsetTop="-0.9rem"
+        helpId="vault-search"
+        helpText={() => (
+          <>
+            <div className="prose">
+              <ul className="list-disc">
+                <li>
+                  Find a Reddit user’s Vault address by searching for their
+                  username.
+                </li>
+                <li>
+                  Find the owner of a Vault by searching for a{" "}
+                  <strong>0x…</strong> address.
+                </li>
+              </ul>
+            </div>
+            <p className="mt-2 text-sm">
+              <Link href="https://ens.domains/">ENS names</Link> (like{" "}
+              <strong>h-a-l.eth</strong>) match if they point to a user’s Vault
+              address, or have a <strong>com.reddit</strong> label pointing to a
+              username.
+            </p>
+          </>
+        )}
       >
         <div
           className={[
@@ -315,14 +315,14 @@ function SearchForm({
             </div>
           : undefined}
         </div>
-        {allErrorMessages.length || notFoundError ?
-          <ErrorMessages
-            notFoundError={notFoundError}
-            messages={allErrorMessages}
-          />
-        : undefined}
-      </form>
-    </WithInlineHelp>
+      </WithInlineHelp>
+      {allErrorMessages.length || notFoundError ?
+        <ErrorMessages
+          notFoundError={notFoundError}
+          messages={allErrorMessages}
+        />
+      : undefined}
+    </form>
   );
 }
 
