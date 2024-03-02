@@ -9,9 +9,11 @@ import { pxNumbersAsRem } from "./utils/units";
 export function UserProfile({
   label = "Your",
   profile,
+  fixedHeight = false,
 }: {
   label?: string;
   profile?: RedditUserProfile;
+  fixedHeight?: boolean;
 }): JSX.Element {
   return (
     <section
@@ -37,9 +39,15 @@ export function UserProfile({
               title={`${profile.username}'s Reddit Profile`}
               className="w-40"
               avatarUrl={profile.accountIconFullBodyURL ?? undefined}
+              fixedHeight={fixedHeight}
             />
           </Link>
-        : <UserAvatar className="w-40" avatarUrl={undefined} />}
+        : <UserAvatar
+            className="w-40"
+            avatarUrl={undefined}
+            fixedHeight={fixedHeight}
+          />
+        }
       </WithInlineHelp>
       {profile ?
         <WithInlineHelp

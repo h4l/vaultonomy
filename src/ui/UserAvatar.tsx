@@ -1,13 +1,20 @@
 import React, { useId } from "react";
 
+const IMG_WIDTH = 380;
+const IMG_BELOW = 103;
+const MAX_IMG_HEIGHT = 600;
+const MAX_AVATAR_HEIGHT = MAX_IMG_HEIGHT - IMG_BELOW;
+
 export function UserAvatar({
   avatarUrl,
   className,
   title,
+  fixedHeight = false,
 }: {
   title?: string;
   avatarUrl?: string;
   className?: string;
+  fixedHeight?: boolean;
 }) {
   title = title || (avatarUrl ? "User Avatar" : "Placeholder Avatar");
   const id = useId();
@@ -18,20 +25,19 @@ export function UserAvatar({
   // Avatar images are a fixed width, but variable height, depending on how
   // tall their headwear. Feet are at the same offset from the btotom. So we
   // position the image relative to the bottom, not the top.
-  const imgBelowY = 103;
-  const viewHeight = imgHeight - imgBelowY;
+  const viewHeight = imgHeight - IMG_BELOW;
   const imgY = 0;
   const circleRadius = 148;
   const circlePad = 5;
   const circleMidY = viewHeight - circlePad - circleRadius;
-  const width = 380;
-
+  const viewboxOriginY = fixedHeight ? viewHeight - MAX_AVATAR_HEIGHT : 0;
+  const viewboxHeight = fixedHeight ? MAX_AVATAR_HEIGHT : viewHeight;
   const MaskLower = () => (
     <>
       <rect
         x={0}
         y={circleMidY}
-        width={width}
+        width={IMG_WIDTH}
         height={60}
         fill={`url(#grad-wb-v${id})`}
       />
@@ -43,23 +49,23 @@ export function UserAvatar({
       <>
         <mask id={`mask-outer-circle${id}`}>
           <circle
-            cx={width / 2}
+            cx={IMG_WIDTH / 2}
             cy={circleMidY}
             r={circleRadius + circlePad}
             fill="white"
           />
         </mask>
-        <rect x={0} y={0} width={width} height={circleMidY} fill="white" />
+        <rect x={0} y={0} width={IMG_WIDTH} height={circleMidY} fill="white" />
         <rect
           x={0}
           y={circleMidY}
-          width={width}
+          width={IMG_WIDTH}
           height={5}
           fill={`url(#grad-wb-v${id})`}
           mask={`url(#mask-outer-circle${id})`}
         />
         <ellipse
-          cx={width / 2}
+          cx={IMG_WIDTH / 2}
           cy={circleMidY}
           rx={circleRadius + circlePad * 0.5}
           ry={circleRadius}
@@ -72,8 +78,8 @@ export function UserAvatar({
   return (
     <svg
       className={className}
-      viewBox={`0 0 ${width} ${viewHeight}`}
-      width={width}
+      viewBox={`0 ${viewboxOriginY} ${IMG_WIDTH} ${viewboxHeight}`}
+      width={IMG_WIDTH}
       xmlns="http://www.w3.org/2000/svg"
     >
       <defs>
@@ -98,11 +104,11 @@ export function UserAvatar({
         href={`#${showPlaceholder ? "placeholder" : "img"}${id}`}
         x="0"
         y={imgY}
-        width={width}
+        width={IMG_WIDTH}
         mask={`url(#mask-lower${id})`}
       />
       <circle
-        cx={width / 2}
+        cx={IMG_WIDTH / 2}
         cy={circleMidY}
         r={circleRadius + circlePad}
         fill="#D9D9D9"
@@ -111,7 +117,7 @@ export function UserAvatar({
         href={`#${showPlaceholder ? "placeholder" : "img"}${id}`}
         x="0"
         y={imgY}
-        width={width}
+        width={IMG_WIDTH}
         mask={`url(#mask-upper${id})`}
       />
     </svg>
@@ -133,7 +139,7 @@ export function UserAvatarImage({
         id={id}
         data-testid="user-avatar-image"
         onLoad={(ev) => onLoad && onLoad(ev.currentTarget.getBBox().height)}
-        width="380"
+        width={IMG_WIDTH}
         href={url}
       />
     </>
@@ -148,9 +154,9 @@ function PlaceholderAvatarImage({ id }: { id?: string }) {
       id={id}
       data-testid="placeholder-avatar-image"
       xmlns="http://www.w3.org/2000/svg"
-      width="380"
+      width={IMG_WIDTH}
       height={PLACEHOLDER_HEIGHT}
-      viewBox={`0 -1 380 ${PLACEHOLDER_HEIGHT}`}
+      viewBox={`0 -1 ${IMG_WIDTH} ${PLACEHOLDER_HEIGHT}`}
     >
       <title>Placeholder Avatar</title>
       <path
