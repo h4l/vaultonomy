@@ -65,7 +65,9 @@ export function parseQuery(rawQuery: string): ParsedQuery {
   }
 
   const prefixedUsername =
-    /^(https?:\/\/([\w-]+\.)?reddit.com\/)?u(ser)?\/(?<name>.+)$/i.exec(query);
+    /^(https?:\/\/([\w-]+\.)?reddit.com\/)?u(ser)?\/(?<name>[\w-]+)\/*$/i.exec(
+      query,
+    );
   if (prefixedUsername) {
     const name = prefixedUsername.groups!.name;
     assert(name);
