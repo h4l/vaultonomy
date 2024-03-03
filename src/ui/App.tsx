@@ -98,19 +98,7 @@ export function AppUI() {
         <VaultonomyLogo className="" />
       </header>
       <main className="flex flex-col gap-20">
-        <UserProfile
-          profile={
-            redditAccount.isRedditAvailable ? redditAccount.data : undefined
-          }
-          // <UserProfile
-          //   profile={{
-          //     hasPremium: true,
-          //     userID: "abc123",
-          //     username: "h4l",
-          //     accountIconURL:
-          //       "https://i.redd.it/snoovatar/avatars/nftv2_bmZ0X2VpcDE1NToxMzdfOWQ4NTQyZWYxMjM3OTMzYmFkYmU4NjcyOTFmNmMwNDM0YjhkMzE1Y18yNzEz_rare_0411a65f-b673-43bf-ae65-b7cc7c9349a2.png",
-          //   }}
-        />
+        <UserProfile profile={redditAccount.data} />
 
         <div className="mx-10 flex flex-row flex-wrap justify-center gap-x-40 gap-y-20">
           <Vault activeVault={activeVault} />
@@ -122,9 +110,6 @@ export function AppUI() {
           activeVault={activeVault}
           wallet={wallet}
         />
-
-        {/* <UserAvatar avatarUrl="https://i.redd.it/snoovatar/avatars/nftv2_bmZ0X2VpcDE1NToxMzdfOWQ4NTQyZWYxMjM3OTMzYmFkYmU4NjcyOTFmNmMwNDM0YjhkMzE1Y18yNzEz_rare_0411a65f-b673-43bf-ae65-b7cc7c9349a2.png" />
-        <UserAvatar avatarUrl="https://i.redd.it/snoovatar/avatars/7d436c39-b6be-4e4b-8d42-5c51562e1095.png" /> */}
 
         <PastVaults userId={userId} />
       </main>
