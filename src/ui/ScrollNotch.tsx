@@ -1,3 +1,4 @@
+import debounce from "lodash.debounce";
 import { useEffect, useRef } from "react";
 
 import { assert } from "../assert";
@@ -10,7 +11,6 @@ type ScrollNotchState = {
 };
 
 const log = _log.getLogger("ui/ScrollNotch");
-log.setLevel("warn");
 
 /**
  * This is a notch in the page that the viewport top settles into if scrolling
@@ -76,33 +76,76 @@ export function ScrollNotch({
     observer.observe(top);
     observer.observe(slope);
 
-    const onScrollEnd = () => {
-      if (state.topVisible || !state.slopeVisible) return;
-
-      // Only the slope is visible, which means it must be intersecting the top
-      // of the viewport. Slide the top of the viewport down to bottom (middle)
-      // of the V-shaped slope.
-      const slopeArea = slope.getBoundingClientRect();
-      const pos = window.scrollY;
-      const target = window.scrollY + slopeArea.top + slopeArea.height / 2;
-      if (Math.abs(pos - target) < 1) {
-        log.debug("ScrollNotch: scrollend at bottom of slope");
-        return;
+    let lastManualScrollTime = 0;
+    const detectManualScroll = (ev: KeyboardEvent | Event) => {
+      if (
+        ev.type === "wheel" ||
+        (ev.type === "keydown" &&
+          "PageDown PageUp ArrowUp ArrowDown".includes(
+            (ev as KeyboardEvent).code,
+          ))
+      ) {
+        // only record manual scrolls within the slope
+        if (state.topVisible || !state.slopeVisible) return;
+        lastManualScrollTime = Date.now();
       }
-      log.debug(
-        "ScrollNotch: scrollend at on slope, scrolling from ",
-        pos,
-        " to ",
-        target,
-      );
-      window.scrollTo({ behavior: "smooth", top: target });
     };
+    document.addEventListener("keydown", detectManualScroll);
+    document.addEventListener("wheel", detectManualScroll);
+
+    // We want to avoid fighting the user if they scroll manually as we
+    // auto-scroll to the low point. Our strategy to achieve this is first to
+    // debounce (delay and aggregate) all auto-scrolls until 500ms after the
+    // most-recent scroll end. This makes the auto scroll feel less assertive.
+    // Second, we delay auto-scrolls until at ~500ms after the most-recent
+    // manual keyboard or mouse scroll.
+    //
+    // In principle we could shorten overall debounce and keep the manual-scroll
+    // delay higher, but browsers report wheel events throughout inertial smooth
+    // scrolls, so there's generally been a "manual" scroll within 500ms when
+    // scrolling into the region. (An exception is if you do a page up/down into
+    // the region.) The result is that the manual scroll delay is
+    const onScrollEnd = debounce(
+      () => {
+        if (state.topVisible || !state.slopeVisible) return;
+
+        // retry the auto-scroll later if we just saw a manual scroll
+        if (Date.now() - lastManualScrollTime < 490) {
+          log.debug("debouncing scrollend close to manual scroll");
+          onScrollEnd();
+          return;
+        }
+
+        // Only the slope is visible, which means it must be intersecting the top
+        // of the viewport. Slide the top of the viewport down to bottom (middle)
+        // of the V-shaped slope.
+        const slopeArea = slope.getBoundingClientRect();
+        const pos = window.scrollY;
+        const target = window.scrollY + slopeArea.top + slopeArea.height / 2;
+        if (Math.abs(pos - target) < 1) {
+          log.debug("ScrollNotch: scrollend at bottom of slope");
+          return;
+        }
+        log.debug(
+          "ScrollNotch: scrollend at on slope, scrolling from ",
+          pos,
+          " to ",
+          target,
+        );
+        window.scrollTo({ behavior: "smooth", top: target });
+      },
+      510,
+      { leading: false, trailing: true },
+    );
     document.addEventListener("scrollend", onScrollEnd);
 
     return () => {
       observer.unobserve(top);
       observer.unobserve(slope);
+      document.removeEventListener("keydown", detectManualScroll);
+      document.removeEventListener("wheel", detectManualScroll);
       document.removeEventListener("scrollend", onScrollEnd);
+      onScrollEnd.cancel();
     };
   }, []);
 
