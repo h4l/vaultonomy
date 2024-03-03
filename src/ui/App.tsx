@@ -11,6 +11,7 @@ import { Footer } from "./Footer";
 import { HelpDialog, HelpProvider } from "./Help";
 import { Pairing } from "./Pairing";
 import { PastVaults } from "./PastVaults";
+import { ScrollNotch } from "./ScrollNotch";
 import { TopBanner } from "./TopBanner";
 import { UserProfile } from "./UserProfile";
 import { UserSearch } from "./UserSearch";
@@ -86,6 +87,7 @@ export function AppUI() {
     <>
       <TopBanner />
       <UserSearch />
+      <ScrollNotch slopeHeight="20rem" />
       <header className="pt-32 pb-16 w-72 max-w-full mx-auto">
         <VaultonomyLogo className="" />
       </header>
