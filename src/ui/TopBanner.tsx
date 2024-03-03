@@ -1,11 +1,9 @@
 import { ReactNode, useEffect, useRef, useState } from "react";
 
 import { HelpMessageProps, WithInlineHelp } from "./Help";
-import { ReservedSpace } from "./ReservedSpace";
 import { AriaLiveAlert } from "./a11y";
 import { useAnimateOnOffScreen } from "./hooks/useAnimateOnOffScreen";
-import { useHtmlElementHeight } from "./hooks/useHtmlElementHeight";
-import { ErrorIcon, GitHubLogo, VaultonomyExtensionIcon } from "./icons";
+import { ErrorIcon, VaultonomyExtensionIcon } from "./icons";
 import { useVaultonomyStore } from "./state/useVaultonomyStore";
 
 type AlertType = "reddit-logged-out" | "reddit-disconnected";
@@ -35,7 +33,6 @@ export function TopBanner(): JSX.Element {
     const startup = setTimeout(() => setStartupDelayElapsed(true), 500);
     return () => clearTimeout(startup);
   }, []);
-  // if(!startupDelayElapsed) return <></>
 
   return (
     <AlertBanner active={alertType !== null}>
@@ -126,7 +123,7 @@ export function AlertBanner({
       <div
         ref={ref}
         className={[
-          "transition-[top] duration-500",
+          "invisible transition-[top] duration-500",
           "fixed z-20 _-top-8 -inset-x-8 px-12 py-4 -rotate-1",
           "bg-gradient-to-t via-25% from-neutral-25 to-neutral-100",
           "dark:from-neutral-800 dark:to-neutral-875",

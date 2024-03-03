@@ -65,7 +65,7 @@ export function useAnimateOnOffScreen({
         targetVisibility === "open" ? closedTopPosition : openTopPosition)();
       el.style.top = top;
       el.style.bottom = "";
-      el.style.visibility = "";
+      el.style.visibility = "visible";
       setTransitionState("after-start");
     } else if (transitionState === "after-start") {
       // set transition animation target. This can flip mid-transition when toggling quickly
@@ -74,7 +74,7 @@ export function useAnimateOnOffScreen({
       el.style.top = top;
     } else {
       // set final/idle state
-      el.style.visibility = targetVisibility === "open" ? "" : "hidden";
+      el.style.visibility = targetVisibility === "open" ? "visible" : "hidden";
       if (edge === "top") {
         const top = (
           targetVisibility === "open" ? openTopPosition : closedTopPosition)();
