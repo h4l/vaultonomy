@@ -82,7 +82,7 @@ export function UserAvatar({
       width={IMG_WIDTH}
       xmlns="http://www.w3.org/2000/svg"
     >
-      <defs>
+      <defs aria-hidden="true">
         {avatarUrl ?
           <UserAvatarImage id={`img${id}`} onLoad={setLoaded} url={avatarUrl} />
         : undefined}
@@ -114,6 +114,7 @@ export function UserAvatar({
         fill="#D9D9D9"
       />
       <use
+        aria-hidden="true"
         href={`#${showPlaceholder ? "placeholder" : "img"}${id}`}
         x="0"
         y={imgY}
