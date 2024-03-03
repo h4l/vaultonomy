@@ -8,6 +8,7 @@ import {
   ErrorCode,
   RedditUserProfile,
 } from "../../reddit/reddit-interaction-spec";
+import { AnyRedditUserProfile } from "../../reddit/types";
 import { RequiredNonNullable } from "../../types";
 import { useVaultonomyStore } from "../state/useVaultonomyStore";
 import { useRedditProvider } from "./useRedditProvider";
@@ -33,7 +34,7 @@ export function getRedditUserProfileQueryOptions(
 ) {
   return queryOptions({
     queryKey: ["RedditProvider", "UserProfile", options.username],
-    async queryFn(): Promise<RedditUserProfile | null> {
+    async queryFn(): Promise<AnyRedditUserProfile | null> {
       if (!isEnabled(options)) throw new Error("not enabled");
       const { redditProvider, session, username } = options;
       try {

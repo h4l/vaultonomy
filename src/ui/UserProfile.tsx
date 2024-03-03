@@ -1,20 +1,23 @@
 import { ReactNode } from "react";
 
 import { RedditUserProfile } from "../reddit/reddit-interaction-spec";
+import { AnyRedditUserProfile } from "../reddit/types";
 import { WithInlineHelp } from "./Help";
 import { Link } from "./Link";
 import { UserAvatar } from "./UserAvatar";
+import { BlockIcon } from "./icons";
 import { pxNumbersAsRem } from "./utils/units";
 
 export function UserProfile({
   label = "Your",
-  profile,
+  profile: anyProfile,
   fixedHeight = false,
 }: {
   label?: string;
-  profile?: RedditUserProfile;
+  profile?: AnyRedditUserProfile;
   fixedHeight?: boolean;
 }): JSX.Element {
+  const profile = anyProfile?.isSuspended ? undefined : anyProfile;
   return (
     <section
       id={`${label.toLowerCase()}-account`}
@@ -22,7 +25,7 @@ export function UserProfile({
       className="flex flex-col items-center"
     >
       <span aria-label="status" className="sr-only">
-        {profile === undefined ?
+        {anyProfile === undefined ?
           "Disconnected from Reddit"
         : "Connected to Reddit"}
       </span>
@@ -49,22 +52,22 @@ export function UserProfile({
           />
         }
       </WithInlineHelp>
-      {profile ?
+      {anyProfile ?
         <WithInlineHelp
           iconOffsetTop="58%"
           helpText={`${label} Reddit account's username.`}
         >
           <Username
-            username={profile.username}
-            hasPremium={profile.hasPremium}
+            username={anyProfile.username}
+            badge={
+              profile?.hasPremium ? "premium"
+              : anyProfile.isSuspended ?
+                "suspended"
+              : null
+            }
           />
         </WithInlineHelp>
-      : <Username
-          username=""
-          emptyUsernamePlaceholder={false}
-          hasPremium={false}
-        />
-      }
+      : <Username username="" emptyUsernamePlaceholder={false} />}
     </section>
   );
 }
@@ -72,11 +75,11 @@ export function UserProfile({
 function Username({
   username,
   emptyUsernamePlaceholder = true,
-  hasPremium,
+  badge,
 }: {
   username: string;
   emptyUsernamePlaceholder?: boolean;
-  hasPremium: boolean;
+  badge?: "premium" | "suspended" | null;
 }): JSX.Element {
   const placeholder =
     username ? null
@@ -96,13 +99,23 @@ function Username({
       {!placeholder ?
         <span aria-label="username">{username}</span>
       : <span aria-hidden="true">…</span>}
-      {hasPremium ?
+      {badge === "premium" ?
         // Icon sits to the right of username without affecting the username's
         // central position. So we use absolute positioning.
         <>
           <RedditPremiumIcon className="inline absolute top-1/2 translate-x-1 -translate-y-1/2" />
           <span aria-label="user type" className="sr-only">
             Reddit Premium User
+          </span>
+        </>
+      : badge === "suspended" ?
+        <>
+          <BlockIcon
+            title="Suspended User"
+            className="inline absolute top-1/2 translate-x-2 -translate-y-1/2 text-red-500 w-5"
+          />
+          <span aria-label="user type" className="sr-only">
+            Suspended User
           </span>
         </>
       : undefined}
