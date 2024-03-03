@@ -191,6 +191,7 @@ const HelpButton = forwardRef(function HelpButton(
 
   return (
     <button
+      type="button"
       ref={ref}
       role="switch"
       aria-checked={helpId === help.pinnedHelpItem?.helpId}
