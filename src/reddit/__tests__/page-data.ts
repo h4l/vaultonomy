@@ -40,6 +40,7 @@ describe("fetchPageData()", () => {
         accountIconFullBodyURL: "https://example.com/imgFull",
         accountIconURL: "https://example.com/imgSquare",
         username: "exampleuser",
+        isSuspended: false,
       },
       auth: {
         token: "abc-123",
@@ -78,6 +79,7 @@ describe("fetchPageData()", () => {
           accountIconFullBodyURL: null,
           accountIconURL: "https://example.com/imgSquare",
           username: "exampleuser",
+          isSuspended: false,
         },
         auth: {
           token: "abc-123",

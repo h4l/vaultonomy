@@ -20,6 +20,8 @@ import {
   RedditCreateAddressOwnershipChallengeParams,
   RedditGetAccountVaultAddresses,
   RedditGetAccountVaultAddressesParams,
+  RedditGetOtherUserProfileParams,
+  RedditGetOwnUserProfileParams,
   RedditGetUserProfile,
   RedditGetUserProfileParams,
   RedditGetUserVault,
@@ -29,6 +31,7 @@ import {
   RedditUserProfile,
   isErrorCode,
 } from "./reddit-interaction-spec";
+import { AnyRedditUserProfile } from "./types";
 
 export { AccountVaultAddress, RedditEIP712Challenge } from "./api-client";
 
@@ -175,15 +178,31 @@ export class RedditProvider {
   // createRCPMethodCaller doesn't support null default args.
   private _getUserProfile: (
     params: RedditGetUserProfileParams | null,
-  ) => Promise<RedditUserProfile>;
+  ) => Promise<AnyRedditUserProfile>;
 
   // TODO: should we make these return functional error values rather than throw?
 
+  getUserProfile(): Promise<RedditUserProfile>;
+  getUserProfile(
+    params: RedditGetOwnUserProfileParams | null,
+  ): Promise<RedditUserProfile>;
+  getUserProfile(
+    params: RedditGetOtherUserProfileParams,
+  ): Promise<AnyRedditUserProfile>;
+
+  // This overload is covered by the others, but is needed to satisfy TS when a
+  // params var is a union of the other overloads' argument types.
+  getUserProfile(
+    params?: RedditGetUserProfileParams | null,
+  ): Promise<AnyRedditUserProfile>;
+
   getUserProfile(
     params: RedditGetUserProfileParams | null = null,
-  ): Promise<RedditUserProfile> {
+  ): Promise<AnyRedditUserProfile> {
+    // TODO: assert to enforce overload types
     return this._getUserProfile(params);
   }
+
   createAddressOwnershipChallenge: (
     params: RedditCreateAddressOwnershipChallengeParams,
   ) => Promise<RedditEIP712Challenge>;

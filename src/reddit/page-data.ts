@@ -80,6 +80,11 @@ export async function fetchPageData(
       accountIconURL: raw.data.user.account.accountIcon,
       accountIconFullBodyURL: raw.data.user.account.snoovatarFullBodyAsset,
       hasPremium: raw.data.user.account.isGold,
+      // I've not been badly behaved enough to have a suspended account to
+      // test with, but if the user's account is suspended, I imagine it won't
+      // have enough data for RawPageData.parse to succeed, so we can assume
+      // it's not suspended.
+      isSuspended: false,
     },
     auth: {
       token: raw.data.user.session.accessToken,

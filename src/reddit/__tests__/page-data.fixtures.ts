@@ -60,6 +60,7 @@ export const loggedInUser = ({
     accountIconFullBodyURL: "https://example.com/imgFull",
     accountIconURL: "https://example.com/imgSquare",
     hasPremium: true,
+    isSuspended: false,
   },
   auth: {
     token: "secret",
@@ -75,4 +76,5 @@ export const userProfile: () => RedditUserProfile = () => ({
     "https://i.redd.it/snoovatar/avatars/db365226-120c-40fd-b8d6-e2ef120f3b45.png",
   accountIconURL:
     "https://styles.redditmedia.com/t5_7vae3z/styles/profileIcon_snoodb365226-120c-40fd-b8d6-e2ef120f3b45-headshot.png?width=256\u0026height=256\u0026crop=256:256,smart\u0026s=e65b37ed86118f8cba6a0cb15cc08488cbe6ab69",
+  isSuspended: false,
 });

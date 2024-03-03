@@ -12,9 +12,11 @@ import {
   getRedditUserVault,
   registerAddressWithAccount,
 } from "../api-client";
+import { SuspendedRedditUserProfile } from "../types";
 import {
   MetaApiMeAddressResponses,
   oauthRedditUserAboutResponse,
+  oauthRedditUserAboutResponseSuspended,
   redditEIP712Challenge,
 } from "./api-client.fixtures";
 import { userProfile } from "./page-data.fixtures";
@@ -445,6 +447,25 @@ describe("getRedditUserProfile()", () => {
       ).resolves.toEqual({ ...userProfile(), accountIconFullBodyURL: null });
     },
   );
+
+  test("handles successful request for suspended user profile", async () => {
+    const expectedProfile: SuspendedRedditUserProfile = {
+      username: "MetaMask",
+      isSuspended: true,
+    };
+    jest.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => oauthRedditUserAboutResponseSuspended(),
+    } as Response);
+
+    await expect(
+      getRedditUserProfile({
+        username: "MetaMask",
+        authToken: "secret",
+      }),
+    ).resolves.toEqual(expectedProfile);
+  });
 
   test("handles unsuccessful response", async () => {
     const fetch = jest.spyOn(globalThis, "fetch").mockResolvedValueOnce({

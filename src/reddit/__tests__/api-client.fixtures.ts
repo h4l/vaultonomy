@@ -134,6 +134,19 @@ export const MetaApiMeAddressResponses = {
   }),
 } as const;
 
+export const oauthRedditUserAboutResponseSuspended = () =>
+  ({
+    kind: "t2",
+    data: {
+      name: "MetaMask",
+      is_suspended: true,
+      awardee_karma: 0,
+      awarder_karma: 0,
+      is_blocked: false,
+      total_karma: 0,
+    },
+  }) as const;
+
 export const oauthRedditUserAboutResponse = () =>
   ({
     kind: "t2",

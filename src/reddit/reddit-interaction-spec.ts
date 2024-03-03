@@ -9,7 +9,7 @@ import {
   RedditEIP712Challenge,
   RedditUserVault,
 } from "./api-client";
-import { RedditUserProfile } from "./types";
+import { AnyRedditUserProfile } from "./types";
 
 export { RedditUserProfile } from "./types";
 
@@ -43,10 +43,26 @@ export function isErrorCode(num: number): num is ErrorCode {
 export const Session = z.object({ userId: z.string() });
 export type Session = z.infer<typeof Session>;
 
-export const RedditGetUserProfileParams = z.object({
+export const RedditGetOwnUserProfileParams = z.object({
   session: Session.nullish(),
-  username: z.string().nullish(),
+  username: z.null().optional(),
 });
+export type RedditGetOwnUserProfileParams = z.infer<
+  typeof RedditGetOwnUserProfileParams
+>;
+
+export const RedditGetOtherUserProfileParams = z.object({
+  session: Session.nullish(),
+  username: z.string(),
+});
+export type RedditGetOtherUserProfileParams = z.infer<
+  typeof RedditGetOtherUserProfileParams
+>;
+
+export const RedditGetUserProfileParams = z.union([
+  RedditGetOwnUserProfileParams,
+  RedditGetOtherUserProfileParams,
+]);
 export type RedditGetUserProfileParams = z.infer<
   typeof RedditGetUserProfileParams
 >;
@@ -54,7 +70,7 @@ export type RedditGetUserProfileParams = z.infer<
 export const RedditGetUserProfile = defineMethod({
   name: "reddit_getUserProfile",
   params: RedditGetUserProfileParams.nullable(),
-  returns: RedditUserProfile,
+  returns: AnyRedditUserProfile,
 });
 
 export const RedditCreateAddressOwnershipChallengeParams = z.object({

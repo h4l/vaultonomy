@@ -2,12 +2,12 @@
  * This module provides client operations for the parts of Reddit's (internal)
  * API we need to use.
  */
-import { Address, getAddress } from "viem";
+import { getAddress } from "viem";
 import { z } from "zod";
 
 import { HTTPResponseError } from "../errors/http";
 import { EthAddress, EthHexSignature, RawEthAddress } from "../types";
-import { RedditUserProfile } from "./types";
+import { AnyRedditUserProfile, RedditUserProfile } from "./types";
 
 // TODO: review how strictly we validate the challenge structure.
 // We need to be sure that we're presenting a challenge for Reddit, so it
@@ -331,13 +331,23 @@ export type GetRedditUserProfileOptions = z.infer<
 >;
 
 const UserProfileResponse = z.object({
-  data: z.object({
-    id: z.string(),
-    name: z.string(),
-    is_gold: z.boolean(),
-    icon_img: z.string().url(),
-    snoovatar_img: z.string().url().nullable().catch(null),
-  }),
+  data: z
+    .object({
+      id: z.string(),
+      name: z.string(),
+      is_gold: z.boolean(),
+      icon_img: z.string().url(),
+      snoovatar_img: z.string().url().nullable().catch(null),
+      // This doesn't exist in the response (unless it's true), but we include
+      // it manually to distinguish between the types.
+      is_suspended: z.literal(false).catch(false),
+    })
+    .or(
+      z.object({
+        name: z.string(),
+        is_suspended: z.literal(true),
+      }),
+    ),
 });
 type UserProfileResponse = z.infer<typeof UserProfileResponse>;
 
@@ -346,7 +356,7 @@ type UserProfileResponse = z.infer<typeof UserProfileResponse>;
  */
 export async function getRedditUserProfile(
   options: GetRedditUserProfileOptions,
-): Promise<RedditUserProfile> {
+): Promise<AnyRedditUserProfile> {
   const { username, authToken } = GetRedditUserProfileOptions.parse(options);
   const response = await fetch(
     `https://oauth.reddit.com/user/${encodeURIComponent(username)}/about.json`,
@@ -365,11 +375,14 @@ export async function getRedditUserProfile(
     );
   }
   const { data } = UserProfileResponse.parse(await response.json());
-  return {
-    userID: `t2_${data.id}`,
-    username: data.name,
-    hasPremium: data.is_gold,
-    accountIconURL: data.icon_img,
-    accountIconFullBodyURL: data.snoovatar_img,
-  };
+  return data.is_suspended ?
+      { username: data.name, isSuspended: true }
+    : {
+        isSuspended: false,
+        userID: `t2_${data.id}`,
+        username: data.name,
+        hasPremium: data.is_gold,
+        accountIconURL: data.icon_img,
+        accountIconFullBodyURL: data.snoovatar_img,
+      };
 }
