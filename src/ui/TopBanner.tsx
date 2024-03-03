@@ -60,7 +60,9 @@ export function TopBanner(): JSX.Element {
           helpId="not-logged-in-to-reddit"
           helpText={() => (
             <>
-              <p>XXXX</p>
+              To use Vaultonomy, you must be logged in to your Reddit account.
+              This is because Vaultonomy communicates with Reddit using the
+              identity of the logged-in user.
             </>
           )}
         />
