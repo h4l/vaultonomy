@@ -213,7 +213,7 @@ export function FadeOut({ children }: { children?: ReactNode }): JSX.Element {
 }
 
 function blockExplorerAddressDetailUrl(ethAddress: string): string {
-  return `https://blockscan.com.io/address/${encodeURIComponent(ethAddress)}`;
+  return `https://blockscan.com/address/${encodeURIComponent(ethAddress)}`;
 }
 function openseaAddressDetailUrl(ethAddress: string): string {
   return `https://opensea.io/${encodeURIComponent(ethAddress)}`;
