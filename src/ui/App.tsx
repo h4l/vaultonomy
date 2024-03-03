@@ -3,7 +3,7 @@ import {
   PersistQueryClientProvider,
   Persister,
 } from "@tanstack/react-query-persist-client";
-import { ReactNode } from "react";
+import { ReactNode, useRef } from "react";
 import { WagmiProvider, useAccount } from "wagmi";
 
 import { wagmiConfig } from "../wagmi";
@@ -12,6 +12,7 @@ import { HelpDialog, HelpProvider } from "./Help";
 import { Pairing } from "./Pairing";
 import { PastVaults } from "./PastVaults";
 import { ScrollNotch } from "./ScrollNotch";
+import { ScrollRestorer } from "./ScrollRestorer";
 import { TopBanner } from "./TopBanner";
 import { UserProfile } from "./UserProfile";
 import { UserSearch } from "./UserSearch";
@@ -76,6 +77,7 @@ export function AppContext({
 }
 
 export function AppUI() {
+  const defaultScrollPosition = useRef<HTMLElement>(null);
   useVaultonomyBackgroundConnection();
   const redditAccount = useRedditAccount();
   useStoreCurrentUserId(redditAccount);
@@ -85,10 +87,14 @@ export function AppUI() {
 
   return (
     <>
+      <ScrollRestorer defaultStart={defaultScrollPosition} />
       <TopBanner />
       <UserSearch />
       <ScrollNotch slopeHeight="20rem" />
-      <header className="pt-32 pb-16 w-72 max-w-full mx-auto">
+      <header
+        ref={defaultScrollPosition}
+        className="pt-32 pb-16 w-72 max-w-full mx-auto"
+      >
         <VaultonomyLogo className="" />
       </header>
       <main className="flex flex-col gap-20">
