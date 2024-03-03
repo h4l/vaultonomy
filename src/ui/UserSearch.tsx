@@ -7,7 +7,6 @@ import { WithInlineHelp } from "./Help";
 import { IndeterminateProgressBar } from "./IndeterminateProgressBar";
 import { Link } from "./Link";
 import { UserProfile } from "./UserProfile";
-import { useEnableScrollSnapWhileElementOnScreen } from "./hooks/useEnableScrollSnapWhileElementOnScreen";
 import { useRedditUserProfile } from "./hooks/useRedditUserProfile";
 import { useRedditUserVault } from "./hooks/useRedditUserVault";
 import {
@@ -26,7 +25,6 @@ import { useVaultonomyStore } from "./state/useVaultonomyStore";
 export function UserSearch(): JSX.Element {
   const headingId = useId();
   const ref = useRef<HTMLElement>(null);
-  useEnableScrollSnapWhileElementOnScreen(ref);
 
   const [searchForUserQuery, setSearchForUserQuery] = useVaultonomyStore(
     (store) => [store.searchForUserQuery, store.setSearchForUserQuery],

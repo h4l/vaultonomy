@@ -84,16 +84,8 @@ export function AppUI() {
 
   return (
     <>
-      <hr
-        aria-hidden="true"
-        className="snap-start scroll-p-52 invisible border-none"
-      />
       <TopBanner />
       <UserSearch />
-      <hr
-        aria-hidden="true"
-        className="snap-start scroll-p-52 invisible border-none"
-      />
       <header className="pt-32 pb-16 w-72 max-w-full mx-auto">
         <VaultonomyLogo className="" />
       </header>
