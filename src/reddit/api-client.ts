@@ -6,6 +6,7 @@ import { getAddress } from "viem";
 import { z } from "zod";
 
 import { HTTPResponseError } from "../errors/http";
+import { log } from "../logging";
 import { EthAddress, EthHexSignature, RawEthAddress } from "../types";
 import { AnyRedditUserProfile, RedditUserProfile } from "./types";
 
@@ -214,6 +215,14 @@ export async function getRedditUserVault(
       },
     },
   );
+  // API returns 404 when looking up suspended accounts
+  if (response.status === 404) {
+    log.info(
+      "getRedditUserVault(): treating 404 response as no vault: ",
+      params,
+    );
+    return undefined;
+  }
   if (!response.ok) {
     throw new HTTPResponseError(
       `HTTP request to get vault address of reddit user failed`,

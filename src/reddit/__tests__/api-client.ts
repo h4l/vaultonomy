@@ -305,6 +305,22 @@ describe("getRedditUserVault()", () => {
     },
   );
 
+  test("treats 404 (when requesting for a suspended user) as no vault", async () => {
+    // API 404s when requesting a suspended user's vault
+    jest.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+      ok: false,
+      status: 404,
+      json: async () => ({ error: "nothing to see here" }),
+    } as Response);
+
+    await expect(
+      getRedditUserVault({
+        query: { type: "username", value: "metamask" },
+        authToken: "secret",
+      }),
+    ).resolves.toBeUndefined();
+  });
+
   test("handles unsuccessful response", async () => {
     const fetch = jest.spyOn(globalThis, "fetch").mockResolvedValueOnce({
       ok: false,
