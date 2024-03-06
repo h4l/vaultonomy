@@ -1,8 +1,11 @@
 import { jest } from "@jest/globals";
+import { Mock } from "jest-mock";
 import { nextTick } from "process";
 import util from "util";
 
+import { Connector } from "../rpc/connections";
 import { StorageAreaClear, StorageAreaGetSetRemove } from "../webextension";
+import { createRawPortConnector } from "../webextensions/createRawPortConnector";
 import { retroactivePortDisconnection } from "../webextensions/retroactivePortDisconnection";
 
 type Callback<EventArgs extends unknown[]> = (...args: EventArgs) => void;
@@ -51,6 +54,9 @@ export class EventEmitter<EventArgs extends unknown[]>
 
 export type MockPortSendMessage = (message: unknown, port: MockPort) => void;
 export type MockPortSendDisconnect = (port: MockPort) => void;
+export type MockPortConnector = Connector<MockPort> & {
+  port: MockPort | undefined;
+};
 
 /** A mock implementation of the WebExtension Port API.
  *
@@ -68,6 +74,7 @@ export class MockPort implements chrome.runtime.Port {
   onDisconnect: chrome.runtime.PortDisconnectEvent = this.#onDisconnect;
   onMessage: chrome.runtime.PortMessageEvent = this.#onMessage;
   sender?: chrome.runtime.MessageSender | undefined;
+  #allowDisconnectAfterDisconnect: boolean;
 
   readonly name: string;
   constructor(options?: {
@@ -75,7 +82,10 @@ export class MockPort implements chrome.runtime.Port {
     sender?: chrome.runtime.MessageSender;
     sendPostedMessage?: MockPortSendMessage;
     sendDisconnect?: MockPortSendDisconnect;
+    allowDisconnectAfterDisconnect?: boolean;
   }) {
+    this.#allowDisconnectAfterDisconnect =
+      options?.allowDisconnectAfterDisconnect ?? true;
     this.name = options?.name ?? "Unnamed MockPort";
     this.sender = options?.sender;
     this.#sendPostedMessage = options?.sendPostedMessage ?? (() => undefined);
@@ -91,6 +101,25 @@ export class MockPort implements chrome.runtime.Port {
     const mockPort = new MockPort();
     retroactivePortDisconnection.register(mockPort);
     return mockPort;
+  }
+
+  static createMockConnector(): [
+    Mock<Connector<chrome.runtime.Port>>,
+    MockPort,
+  ] {
+    let mockPort: MockPort =
+      MockPort.createAndRegisterRetroactiveDisconnection();
+
+    const connector = jest
+      .fn<Connector<chrome.runtime.Port>>()
+      .mockImplementation(() => {
+        throw new Error(
+          "createMockConnector(): tried to connect more than once",
+        );
+      })
+      .mockImplementationOnce(createRawPortConnector(() => mockPort));
+
+    return [connector, mockPort];
   }
 
   receiveMessage(message: unknown): void {
@@ -117,6 +146,7 @@ export class MockPort implements chrome.runtime.Port {
   disconnect(): void {
     // Note that disconnect() does not emit an event on OUR onDisconnect.
     if (this.#isDisconnected) {
+      if (this.#allowDisconnectAfterDisconnect) return;
       throw new Error("Attempted to disconnect a disconnected Port");
     }
     this.#isDisconnected = true;
@@ -157,11 +187,10 @@ export class MockStorage
     await nextTickPromise();
     if (keys === null || keys === undefined) return {};
     const values =
-      typeof keys === "string"
-        ? { [keys]: undefined }
-        : Array.isArray(keys)
-          ? Object.fromEntries(keys.map((key) => [key, undefined]))
-          : { ...keys };
+      typeof keys === "string" ? { [keys]: undefined }
+      : Array.isArray(keys) ?
+        Object.fromEntries(keys.map((key) => [key, undefined]))
+      : { ...keys };
     for (const key in values) {
       const value = this.storage.get(key);
       if (value !== undefined) values[key] = JSON.parse(value);
