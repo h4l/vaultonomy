@@ -9,7 +9,7 @@ import {
 
 import { AssertionError } from "../assert";
 import { retroactivePortDisconnection } from "../webextensions/retroactivePortDisconnection";
-import { Connector } from "./connections";
+import { AsyncConnector, Connector } from "./connections";
 
 type Unbind = () => void;
 
@@ -197,6 +197,31 @@ export function createJSONRPCClientPortConnector({
     };
 
     const [port, disconnectPort] = portConnector(disconnect);
+
+    const client = createClient(port);
+    const unbindFromPort = bindPortToJSONRPCClient({ port, client });
+
+    return [client, disconnect];
+  };
+}
+
+export function createJSONRPCClientPortConnectorAsync({
+  portConnector,
+  createClient = createDefaultClient,
+}: {
+  portConnector: AsyncConnector<chrome.runtime.Port>;
+  createClient?: (port: chrome.runtime.Port) => JSONRPCClient;
+}): AsyncConnector<JSONRPCClient> {
+  return async (onDisconnect) => {
+    let disconnectCalled = false;
+    const disconnect = () => {
+      if (disconnectCalled) return;
+      disconnectCalled = true;
+      disconnectPort();
+      unbindFromPort();
+      onDisconnect && onDisconnect();
+    };
+    const [port, disconnectPort] = await portConnector(disconnect);
 
     const client = createClient(port);
     const unbindFromPort = bindPortToJSONRPCClient({ port, client });

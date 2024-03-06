@@ -3,13 +3,20 @@ import { Emitter, createNanoEvents } from "nanoevents";
 
 import { VaultonomyError } from "../VaultonomyError";
 import {
+  AnyManagedConnection,
+  AsyncConnector,
+  AsyncManagedConnection,
   Connector,
   Disconnect,
   ManagedConnection,
+  ReconnectingAsyncManagedConnection,
   ReconnectingManagedConnection,
 } from "../rpc/connections";
 import { createRCPMethodCaller } from "../rpc/typing";
-import { createJSONRPCClientPortConnector } from "../rpc/webextension-port-json-rpc";
+import {
+  createJSONRPCClientPortConnector,
+  createJSONRPCClientPortConnectorAsync,
+} from "../rpc/webextension-port-json-rpc";
 import {
   AccountVaultAddress,
   RedditEIP712Challenge,
@@ -102,12 +109,22 @@ export class RedditProvider {
     );
   }
 
+  public static fromAsyncPortConnector(
+    portConnector: AsyncConnector<chrome.runtime.Port>,
+  ) {
+    return new RedditProvider(
+      new ReconnectingAsyncManagedConnection(
+        createJSONRPCClientPortConnectorAsync({ portConnector }),
+      ),
+    );
+  }
+
   readonly emitter: Emitter<RedditProviderEvents> = createNanoEvents();
   private _mostRecentError: AnyRedditProviderError | undefined;
-  private readonly managedClient: ManagedConnection<JSONRPCClient>;
+  private readonly managedClient: AnyManagedConnection<JSONRPCClient>;
   private readonly unbindManagedClientEvents: Disconnect;
 
-  constructor(managedClient: ManagedConnection<JSONRPCClient>) {
+  constructor(managedClient: AnyManagedConnection<JSONRPCClient>) {
     this.managedClient = managedClient;
     this.unbindManagedClientEvents = this.managedClient.emitter.on(
       "disconnected",

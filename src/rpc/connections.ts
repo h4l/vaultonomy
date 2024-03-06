@@ -1,11 +1,22 @@
 import { Emitter, createNanoEvents } from "nanoevents";
 
+import { VaultonomyError } from "../VaultonomyError";
+import { assert } from "../assert";
 import { log as _log } from "../logging";
 
 const log = _log.getLogger("rpc/connections");
 
+export class CouldNotConnect extends VaultonomyError {}
+
 export type Disconnect = () => void;
 export type Connector<T> = (onDisconnect?: Disconnect) => [T, Disconnect];
+export type AsyncConnector<T> = (
+  onDisconnect?: Disconnect,
+) => Promise<[T, Disconnect]>;
+
+export type AnyManagedConnection<T> =
+  | ManagedConnection<T>
+  | AsyncManagedConnection<T>;
 
 export interface ManagedConnection<T> {
   // TODO: do we actually need this in practice? We currently have RedditProvider
@@ -16,6 +27,18 @@ export interface ManagedConnection<T> {
   //   the connection than an emitted event.
   readonly emitter: Emitter<{ disconnected: (connection: T) => void }>;
   getConnection(): T;
+  disconnect(instance?: T): void;
+}
+
+export interface AsyncManagedConnection<T> {
+  // TODO: do we actually need this in practice? We currently have RedditProvider
+  //   report disconnection, but now that we auto-reconnect, being disconnected
+  //   is much less significant, as it's a normal part of operation. What's more
+  //   significant is if we can't reconnect, but that seems better communicated
+  //   with an exception from getConnection() or from a subsequent request via
+  //   the connection than an emitted event.
+  readonly emitter: Emitter<{ disconnected: (connection: T) => void }>;
+  getConnection(): Promise<T>;
   disconnect(instance?: T): void;
 }
 
@@ -101,5 +124,82 @@ export class ReconnectingManagedConnection<T> implements ManagedConnection<T> {
     if (expected && expected !== this.connection) return;
     this.connection = undefined;
     this.disconnectConnection && this.disconnectConnection();
+  }
+}
+
+/**
+ * Create a connection asynchronously, and cache it until it disconnects.
+ *
+ * getConnection() returns the same connection instance until it disconnects.
+ * A separate instances of ReconnectingAsyncManagedConnection (sharing the same
+ * AsyncConnector) must be used when distinct connections are required.
+ */
+export class ReconnectingAsyncManagedConnection<T extends object>
+  implements AsyncManagedConnection<T>
+{
+  private nextConnectionId = 0;
+  public readonly emitter: Emitter<{ disconnected: (connection: T) => void }>;
+  private futureConnection: { id: number; connection: Promise<T> } | undefined;
+  private currentConnection: T | undefined;
+
+  private disconnectors: WeakMap<T, Disconnect>;
+
+  constructor(private readonly connector: AsyncConnector<T>) {
+    this.emitter = createNanoEvents();
+    this.disconnectors = new WeakMap();
+  }
+
+  private async connect(id: number): Promise<T> {
+    const [connection, disconnect] = await this.connector(() => {
+      this.disconnect(connection);
+    });
+
+    this.disconnectors.set(connection, () => {
+      if (this.futureConnection?.id === id) this.futureConnection = undefined;
+      disconnect();
+      this.emitter.emit("disconnected", connection);
+    });
+    return connection;
+  }
+
+  getConnection(): Promise<T> {
+    if (!this.futureConnection) {
+      this.disconnect(); // also clear this.currentConnection
+
+      // all calls getConnection() calls share the same connection. Multiple
+      // instances of this class sharing the same AsyncConnector must be used if
+      // distinct connections are required.
+      const id = this.nextConnectionId++;
+      this.futureConnection = {
+        id,
+        connection: this.connect(id),
+      };
+
+      // Clear failed connection attempts so that subsequent calls retry
+      this.futureConnection.connection
+        .then((c) => {
+          assert(this.currentConnection === undefined); // no need to disconnect
+          this.currentConnection = c;
+        })
+        .catch((e) => {
+          log.debug("dropping rejected connect() promise:", e);
+          if (id === this.futureConnection?.id) {
+            this.futureConnection = undefined;
+          }
+        });
+    }
+    return this.futureConnection.connection;
+  }
+
+  /**
+   * Disconnect the current connection or a specific connection only.
+   */
+  disconnect(connection: T | undefined = this.currentConnection): void {
+    if (!connection) return;
+
+    const disconnect = this.disconnectors.get(connection);
+    if (disconnect) disconnect(); // emits on this.emitter
+    if (connection === this.currentConnection)
+      this.currentConnection = undefined;
   }
 }

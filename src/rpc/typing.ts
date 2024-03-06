@@ -2,7 +2,7 @@ import { JSONRPCClient, JSONRPCErrorException } from "json-rpc-2.0";
 import { z } from "zod";
 
 import { ErrorCode } from "../reddit/reddit-interaction-spec";
-import { ManagedConnection } from "./connections";
+import { AnyManagedConnection, ManagedConnection } from "./connections";
 
 export interface RPCMethodSpec<
   Params extends z.ZodTypeAny,
@@ -47,14 +47,15 @@ export function createRCPMethodCaller<
     method: RPCMethodSpec<Params, Returns>;
     mapError?: RPCErrorMapper;
   } & (
-    | { managedClient: ManagedConnection<JSONRPCClient>; client?: undefined }
+    | { managedClient: AnyManagedConnection<JSONRPCClient>; client?: undefined }
     | { client: JSONRPCClient; managedClient?: undefined }
   ),
 ): RCPMethodCaller<Params, Returns> {
   // implement() automatically validates params and the return value
   const method = options.method.signature.implement(async (params) => {
     try {
-      const client = options.client ?? options.managedClient.getConnection();
+      const client =
+        options.client ?? (await options.managedClient.getConnection());
       return await client.request(options.method.name, params);
     } catch (error) {
       if (!(options.mapError && error instanceof JSONRPCErrorException))
