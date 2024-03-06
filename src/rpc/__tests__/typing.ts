@@ -2,6 +2,7 @@ import { jest } from "@jest/globals";
 import { JSONRPCClient } from "json-rpc-2.0";
 import { ZodError, z } from "zod";
 
+import { ReconnectingManagedConnection } from "../connections";
 import { createRCPMethodCaller, defineMethod } from "../typing";
 
 test("defineMethod()", async () => {
@@ -33,6 +34,24 @@ describe("createRCPMethodCaller()", () => {
   test("creates client request when called", async () => {
     jest.spyOn(JSONRPCClient.prototype, "request").mockResolvedValue("hi Bob");
     await expect(greet({ name: "Bob", msg: "hi" })).resolves.toEqual("hi Bob");
+    expect(JSONRPCClient.prototype.request).toBeCalledWith("greet", {
+      name: "Bob",
+      msg: "hi",
+    });
+  });
+
+  test("creates request to managedClient when called", async () => {
+    let managedClientGreet = createRCPMethodCaller({
+      method,
+      managedClient: new ReconnectingManagedConnection<JSONRPCClient>(() => [
+        client,
+        () => {},
+      ]),
+    });
+    jest.spyOn(JSONRPCClient.prototype, "request").mockResolvedValue("hi Bob");
+    await expect(
+      managedClientGreet({ name: "Bob", msg: "hi" }),
+    ).resolves.toEqual("hi Bob");
     expect(JSONRPCClient.prototype.request).toBeCalledWith("greet", {
       name: "Bob",
       msg: "hi",

@@ -2,6 +2,7 @@ import { JSONRPCClient, JSONRPCErrorException } from "json-rpc-2.0";
 import { z } from "zod";
 
 import { ErrorCode } from "../reddit/reddit-interaction-spec";
+import { ManagedConnection } from "./connections";
 
 export interface RPCMethodSpec<
   Params extends z.ZodTypeAny,
@@ -41,15 +42,20 @@ export type RPCErrorMapper<E = Error> = (error: JSONRPCErrorException) => E;
 export function createRCPMethodCaller<
   Params extends z.ZodTypeAny,
   Returns extends z.ZodTypeAny,
->(options: {
-  method: RPCMethodSpec<Params, Returns>;
-  client: JSONRPCClient;
-  mapError?: RPCErrorMapper;
-}): RCPMethodCaller<Params, Returns> {
+>(
+  options: {
+    method: RPCMethodSpec<Params, Returns>;
+    mapError?: RPCErrorMapper;
+  } & (
+    | { managedClient: ManagedConnection<JSONRPCClient>; client?: undefined }
+    | { client: JSONRPCClient; managedClient?: undefined }
+  ),
+): RCPMethodCaller<Params, Returns> {
   // implement() automatically validates params and the return value
   const method = options.method.signature.implement(async (params) => {
     try {
-      return await options.client.request(options.method.name, params);
+      const client = options.client ?? options.managedClient.getConnection();
+      return await client.request(options.method.name, params);
     } catch (error) {
       if (!(options.mapError && error instanceof JSONRPCErrorException))
         throw error;
