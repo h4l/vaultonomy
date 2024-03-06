@@ -1,25 +1,21 @@
-import {
-  JSONRPCClient,
-  JSONRPCServer,
-  JSONRPCServerAndClient,
-} from "json-rpc-2.0";
+import { JSONRPCServer, JSONRPCServerAndClient } from "json-rpc-2.0";
 import { Emitter, createNanoEvents } from "nanoevents";
 
 import { assertUnreachable } from "../../assert";
 import { RedditProvider } from "../../reddit/reddit-interaction-client";
-import { createRCPMethodCaller } from "../../rpc/typing";
 import {
-  bindPortToJSONRPCServerAndClient,
-  createPortSendRequestFn,
-} from "../../rpc/webextension-port-json-rpc";
+  Connector,
+  ManagedConnection,
+  ReconnectingManagedConnection,
+  mapConnection,
+} from "../../rpc/connections";
+import { createRCPMethodCaller } from "../../rpc/typing";
+import { createJSONRPCServerAndClientPortConnector } from "../../rpc/webextension-port-json-rpc";
 import {
   RedditTabAvailability,
   VaultonomyGetRedditTabAvailability,
   VaultonomyUiNotify,
 } from "../../vaultonomy-rpc-spec";
-import { retroactivePortDisconnection } from "../../webextensions/retroactivePortDisconnection";
-
-type Unbind = () => void;
 
 export type RedditTabBecameAvailableEvent = {
   type: "redditTabBecameAvailable";
@@ -37,46 +33,34 @@ export interface RedditTabConnectionEvents {
 export class VaultonomyBackgroundProvider {
   readonly emitter: Emitter<RedditTabConnectionEvents> = createNanoEvents();
 
-  private readonly jsonrpc: JSONRPCServerAndClient;
-  private readonly unbindFromPort: Unbind;
+  private readonly managedServerAndClient: ManagedConnection<JSONRPCServerAndClient>;
   public readonly redditProvider: RedditProvider;
   private redditWasAvailableOnLastUpdate: boolean | undefined = undefined;
 
-  constructor(private readonly port: chrome.runtime.Port) {
-    this.jsonrpc = this.createServerAndClient(port);
-    this.unbindFromPort = bindPortToJSONRPCServerAndClient({
-      port,
-      serverAndClient: this.jsonrpc,
-    });
+  constructor(portConnector: Connector<chrome.runtime.Port>) {
+    this.managedServerAndClient =
+      new ReconnectingManagedConnection<JSONRPCServerAndClient>(
+        createJSONRPCServerAndClientPortConnector({
+          portConnector,
+          createServer: this.createServer.bind(this),
+        }),
+      );
+
+    const managedClient = mapConnection(
+      this.managedServerAndClient,
+      (sc) => sc.client,
+    );
 
     this.getRedditTabAvailability = createRCPMethodCaller({
       method: VaultonomyGetRedditTabAvailability,
-      client: this.jsonrpc.client,
+      managedClient,
     });
 
-    this.redditProvider = new RedditProvider({
-      redditInteractionClient: this.jsonrpc.client,
-    });
-
-    // Our RedditProvider doesn't register any event listeners, so we don't
-    // really need to disconnect it. But seems like we should for completeness,
-    // seeing as it has an emitter with a disconnected event.
-    retroactivePortDisconnection.addRetroactiveDisconnectListener(port, () => {
-      this.redditProvider.emitter.emit("disconnected");
-    });
+    this.redditProvider = new RedditProvider(managedClient);
   }
 
   get isRedditAvailable(): boolean {
     return !!this.redditWasAvailableOnLastUpdate;
-  }
-
-  private createServerAndClient(
-    port: chrome.runtime.Port,
-  ): JSONRPCServerAndClient {
-    return new JSONRPCServerAndClient(
-      this.createServer(),
-      this.createClient(port),
-    );
   }
 
   private createServer(): JSONRPCServer {
@@ -109,11 +93,6 @@ export class VaultonomyBackgroundProvider {
     return server;
   }
 
-  private createClient(port: chrome.runtime.Port): JSONRPCClient {
-    const client = new JSONRPCClient(createPortSendRequestFn(port));
-    return client;
-  }
-
   /**
    * This is protected as it seems unlikely that the UI needs to call it directly.
    */
@@ -137,7 +116,6 @@ export class VaultonomyBackgroundProvider {
   }
 
   disconnect(): void {
-    this.unbindFromPort();
-    this.port.disconnect();
+    this.managedServerAndClient.disconnect();
   }
 }

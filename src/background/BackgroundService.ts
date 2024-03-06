@@ -6,6 +6,7 @@ import { RedditProvider } from "../reddit/reddit-interaction-client";
 import { REDDIT_INTERACTION_PORT_NAME } from "../reddit/reddit-interaction-spec";
 import { VAULTONOMY_RPC_PORT as VAULTONOMY_RPC_PORT_NAME } from "../vaultonomy-rpc-spec";
 import { browser } from "../webextension";
+import { createContentScriptPortConnector } from "../webextensions/port-connections";
 import { retroactivePortDisconnection } from "../webextensions/retroactivePortDisconnection";
 import { RedditTabConnection } from "./RedditTabConnection";
 import { VaultonomyBackgroundServiceSession } from "./VaultonomyBackgroundServiceSession";
@@ -121,11 +122,10 @@ export class BackgroundService {
             currentRedditProvider = {
               tabId: event.tabId,
               redditProvider: RedditProvider.from(
-                retroactivePortDisconnection.register(
-                  browser.tabs.connect(event.tabId, {
-                    name: REDDIT_INTERACTION_PORT_NAME.withRandomTag().toString(),
-                  }),
-                ),
+                createContentScriptPortConnector({
+                  tabId: event.tabId,
+                  portName: REDDIT_INTERACTION_PORT_NAME,
+                }),
               ),
             };
             currentRedditProvider.redditProvider.emitter.on(

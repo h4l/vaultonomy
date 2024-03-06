@@ -1,14 +1,15 @@
 import { JSONRPCClient, JSONRPCErrorException } from "json-rpc-2.0";
 import { Emitter, createNanoEvents } from "nanoevents";
-import { Address } from "viem";
 
 import { VaultonomyError } from "../VaultonomyError";
-import { createRCPMethodCaller } from "../rpc/typing";
 import {
-  bindPortToJSONRPCClient,
-  createPortSendRequestFn,
-} from "../rpc/webextension-port-json-rpc";
-import { retroactivePortDisconnection } from "../webextensions/retroactivePortDisconnection";
+  Connector,
+  Disconnect,
+  ManagedConnection,
+  ReconnectingManagedConnection,
+} from "../rpc/connections";
+import { createRCPMethodCaller } from "../rpc/typing";
+import { createJSONRPCClientPortConnector } from "../rpc/webextension-port-json-rpc";
 import {
   AccountVaultAddress,
   RedditEIP712Challenge,
@@ -91,33 +92,27 @@ export class RedditProvider {
   /** Create a RedditProvider that communicates over a WebExtension Port.
    *
    * The Port itself is also disconnected when this provider disconnects itself
-   * from the Port, unless `options.propagateDisconnect` is `false`.
+   * from the Port.
    */
-  public static from(
-    port: chrome.runtime.Port,
-    options?: { propagateDisconnect?: boolean },
-  ) {
-    const client = new JSONRPCClient(createPortSendRequestFn(port));
-    const rp = new RedditProvider({ redditInteractionClient: client });
-    const unbind = bindPortToJSONRPCClient({ port, client });
-    // propagate disconnection between the provider and the port both ways
-    rp.emitter.on("disconnectSelf", () => {
-      unbind();
-      if (options?.propagateDisconnect !== false) {
-        port.disconnect();
-      }
-    });
-    retroactivePortDisconnection.addRetroactiveDisconnectListener(port, () => {
-      rp.emitter.emit("disconnected");
-    });
-    return rp;
+  public static from(portConnector: Connector<chrome.runtime.Port>) {
+    return new RedditProvider(
+      new ReconnectingManagedConnection(
+        createJSONRPCClientPortConnector({ portConnector }),
+      ),
+    );
   }
 
   readonly emitter: Emitter<RedditProviderEvents> = createNanoEvents();
   private _mostRecentError: AnyRedditProviderError | undefined;
+  private readonly managedClient: ManagedConnection<JSONRPCClient>;
+  private readonly unbindManagedClientEvents: Disconnect;
 
-  constructor(options: { redditInteractionClient: JSONRPCClient }) {
-    const client = options.redditInteractionClient;
+  constructor(managedClient: ManagedConnection<JSONRPCClient>) {
+    this.managedClient = managedClient;
+    this.unbindManagedClientEvents = this.managedClient.emitter.on(
+      "disconnected",
+      () => this.emitter.emit("disconnected"),
+    );
 
     const trackErrors = <A extends any[], R>(
       f: (...args: A) => Promise<R>,
@@ -140,38 +135,46 @@ export class RedditProvider {
     this._getUserProfile = trackErrors(
       createRCPMethodCaller({
         method: RedditGetUserProfile,
-        client,
+        managedClient,
         mapError: AnyRedditProviderError.from,
       }),
     );
     this.createAddressOwnershipChallenge = trackErrors(
       createRCPMethodCaller({
         method: RedditCreateAddressOwnershipChallenge,
-        client,
+        managedClient,
         mapError: AnyRedditProviderError.from,
       }),
     );
     this.registerAddressWithAccount = trackErrors(
       createRCPMethodCaller({
         method: RedditRegisterAddressWithAccount,
-        client,
+        managedClient,
         mapError: AnyRedditProviderError.from,
       }),
     );
     this.getUserVault = trackErrors(
       createRCPMethodCaller({
         method: RedditGetUserVault,
-        client,
+        managedClient,
         mapError: AnyRedditProviderError.from,
       }),
     );
     this.getAccountVaultAddresses = trackErrors(
       createRCPMethodCaller({
         method: RedditGetAccountVaultAddresses,
-        client,
+        managedClient,
         mapError: AnyRedditProviderError.from,
       }),
     );
+  }
+
+  disconnect(): void {
+    // Note: with ReconnectingManagedConnection the managedClient can re-connect
+    // after we disconnect() it if another provider call is made.
+    // TODO: should we shut down the provider to prevent subsequent calls?
+    this.managedClient.disconnect();
+    this.unbindManagedClientEvents();
   }
 
   // This is required because params is optional with default null, but

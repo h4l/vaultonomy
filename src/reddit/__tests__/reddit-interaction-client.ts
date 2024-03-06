@@ -1,4 +1,5 @@
 import { expect, jest } from "@jest/globals";
+import { Mock } from "jest-mock";
 import {
   createJSONRPCErrorResponse,
   createJSONRPCSuccessResponse,
@@ -6,8 +7,8 @@ import {
 
 import { MockPort } from "../../__tests__/webextension.mock";
 
-import { sleep } from "../../__tests__/testing.utils";
 import { assert } from "../../assert";
+import { Connector } from "../../rpc/connections";
 import { AccountVaultAddress, RedditUserVault } from "../api-client";
 import {
   RedditProvider,
@@ -23,38 +24,38 @@ import { loggedInUser } from "./page-data.fixtures";
 
 describe("RedditProvider()", () => {
   describe("from(Port)", () => {
-    test.each`
-      propagateDisconnect
-      ${true}
-      ${false}
-    `(
-      'disconnects from Port when "disconnectSelf" fires with propagateDisconnect: $propagateDisconnect',
-      async ({ propagateDisconnect }: { propagateDisconnect: boolean }) => {
-        const rpDisconnected = jest.fn();
-        const port = MockPort.createAndRegisterRetroactiveDisconnection();
-        const reddit = RedditProvider.from(port, { propagateDisconnect });
-        reddit.emitter.on("disconnected", rpDisconnected);
-
-        reddit.emitter.emit("disconnectSelf");
-        await sleep();
-
-        expect(port.onMessage.removeListener).toHaveBeenCalled();
-        expect(jest.mocked(port.disconnect).mock.calls.length).toEqual(
-          propagateDisconnect ? 1 : 0,
-        );
-        // As with Port, initiating a disconnect does not notify ourself.
-        expect(rpDisconnected).not.toHaveBeenCalled();
-      },
-    );
-
-    test("provider fires disconnected when its Port's other end disconnects", async () => {
+    test("disconnect() disconnects from Port", async () => {
+      jest.useFakeTimers();
       const rpDisconnected = jest.fn();
-      const port = MockPort.createAndRegisterRetroactiveDisconnection();
-      const reddit = RedditProvider.from(port);
+      const [portConnector, port] = MockPort.createMockConnector();
+      const reddit = RedditProvider.from(portConnector);
       reddit.emitter.on("disconnected", rpDisconnected);
 
+      // Port is not connected until an RPC call is made
+      reddit.getUserProfile().catch(() => {});
+      await jest.runAllTimersAsync();
+
+      reddit.disconnect();
+      await jest.runAllTimersAsync();
+
+      expect(port.onMessage.removeListener).toHaveBeenCalled();
+      expect(port.disconnect).toHaveBeenCalled();
+      expect(rpDisconnected).toHaveBeenCalled();
+    });
+
+    test("provider fires disconnected when its Port's other end disconnects", async () => {
+      jest.useFakeTimers();
+      const rpDisconnected = jest.fn();
+      const [portConnector, port] = MockPort.createMockConnector();
+      const reddit = RedditProvider.from(portConnector);
+      reddit.emitter.on("disconnected", rpDisconnected);
+
+      // Port is not connected until an RPC call is made
+      reddit.getUserProfile().catch(() => {});
+      await jest.runAllTimersAsync();
+
       port.receiveDisconnect();
-      await sleep();
+      await jest.runAllTimersAsync();
 
       expect(rpDisconnected).toHaveBeenCalled();
       expect(port.onMessage.removeListener).toHaveBeenCalled();
@@ -62,12 +63,13 @@ describe("RedditProvider()", () => {
   });
 
   describe("RPC methods", () => {
+    let portConnector: Connector<chrome.runtime.Port>;
     let port: MockPort;
     let reddit: RedditProvider;
     let messages: any[] = [];
     beforeEach(() => {
-      port = MockPort.createAndRegisterRetroactiveDisconnection();
-      reddit = RedditProvider.from(port);
+      [portConnector, port] = MockPort.createMockConnector();
+      reddit = RedditProvider.from(portConnector);
 
       messages = [];
       jest.mocked(port.postMessage).mockImplementation((message) => {
