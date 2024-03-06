@@ -125,3 +125,7 @@ describe("bindPortToJSONRPCClient()", () => {
     );
   });
 });
+
+// TODO: tests for bindPortToJSONRPCServerAndClient
+// TODO: tests for createJSONRPCServerAndClientPortConnector
+// TODO: tests for createJSONRPCClientPortConnector

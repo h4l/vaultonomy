@@ -9,6 +9,7 @@ import {
 
 import { AssertionError } from "../assert";
 import { retroactivePortDisconnection } from "../webextensions/retroactivePortDisconnection";
+import { Connector } from "./connections";
 
 type Unbind = () => void;
 
@@ -132,5 +133,74 @@ export function bindPortToJSONRPCServerAndClient({
 
   return () => {
     unbind("JSONRPCServerAndClient was unbound from Port");
+  };
+}
+
+export function createDefaultClient(port: chrome.runtime.Port): JSONRPCClient {
+  const client = new JSONRPCClient(createPortSendRequestFn(port));
+  return client;
+}
+
+export function createJSONRPCServerAndClientPortConnector({
+  portConnector,
+  createServer,
+  createClient = createDefaultClient,
+}: {
+  portConnector: Connector<chrome.runtime.Port>;
+  createServer(): JSONRPCServer;
+  createClient?: (port: chrome.runtime.Port) => JSONRPCClient;
+}): Connector<JSONRPCServerAndClient> {
+  return (onDisconnect) => {
+    let disconnectCalled = false;
+
+    const disconnect = () => {
+      if (disconnectCalled) return;
+      disconnectCalled = true;
+      disconnectPort();
+      unbindFromPort();
+      onDisconnect && onDisconnect();
+    };
+
+    const [port, disconnectPort] = portConnector(() => disconnect());
+
+    const serverAndClient = new JSONRPCServerAndClient(
+      createServer(),
+      createClient(port),
+    );
+
+    const unbindFromPort = bindPortToJSONRPCServerAndClient({
+      port,
+      serverAndClient: serverAndClient,
+    });
+
+    return [serverAndClient, disconnect];
+  };
+}
+
+export function createJSONRPCClientPortConnector({
+  portConnector,
+  createClient = createDefaultClient,
+}: {
+  portConnector: Connector<chrome.runtime.Port>;
+  createClient?: (port: chrome.runtime.Port) => JSONRPCClient;
+}): Connector<JSONRPCClient> {
+  return (onDisconnect) => {
+    let disconnectCalled = false;
+
+    const disconnect = () => {
+      if (disconnectCalled) return;
+      disconnectCalled = true;
+
+      disconnectPort();
+      unbindFromPort();
+      onDisconnect && onDisconnect();
+    };
+
+    const [port, disconnectPort] = portConnector(disconnect);
+
+    const client = createClient(port);
+    const unbindFromPort = bindPortToJSONRPCClient({ port, client });
+
+    return [client, disconnect];
   };
 }
