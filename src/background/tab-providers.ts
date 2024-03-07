@@ -24,45 +24,32 @@ export interface TabProvider {
  * if we don't have the host permission for reddit URLs.
  */
 export class ActiveTabProvider implements TabProvider {
-  private activeTab: chrome.tabs.Tab | undefined;
+  private activeTabId: number | undefined;
 
   constructor() {
     this.onActionClicked = this.onActionClicked.bind(this);
     browser.action.onClicked.addListener(this.onActionClicked);
-
-    // Tab objects are a snapshot of tab state, not a live view. We stay up to
-    // date by subscribing to changes, but we could instead re-fetch the tab in
-    // getTab.
-    this.onTabUpdated = this.onTabUpdated.bind(this);
-    browser.tabs.onUpdated.addListener(this.onTabUpdated);
-
-    // TODO: check if updated is enough to detect tabs closing, or if we need more events.
   }
 
   private onActionClicked(tab: chrome.tabs.Tab): void {
     if (!isRedditTab(tab)) return;
 
-    this.activeTab = tab;
-  }
-
-  private onTabUpdated(
-    tabId: number,
-    _changeInfo: chrome.tabs.TabChangeInfo,
-    tab: chrome.tabs.Tab,
-  ): void {
-    if (tabId !== this.activeTab?.id) return;
-    this.activeTab = isRedditTab(tab) ? tab : undefined;
+    this.activeTabId = tab.id;
   }
 
   async getTab(): Promise<chrome.tabs.Tab> {
-    if (this.activeTab) return this.activeTab;
+    const tab =
+      this.activeTabId === undefined ?
+        null
+      : await browser.tabs.get(this.activeTabId).catch(() => null);
+
+    if (tab && isRedditTab(tab)) return tab;
     throw new TabNotAvailable("no active reddit tab");
   }
 
   unbind(): void {
     browser.action.onClicked.removeListener(this.onActionClicked);
-    browser.tabs.onUpdated.removeListener(this.onTabUpdated);
-    this.activeTab = undefined;
+    this.activeTabId = undefined;
   }
 }
 
