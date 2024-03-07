@@ -17,6 +17,7 @@ import {
   RedditGetUserVault,
   RedditRegisterAddressWithAccount,
 } from "../reddit/reddit-interaction-spec";
+import { CouldNotConnect, Disconnect } from "../rpc/connections";
 import { createRCPMethodCaller } from "../rpc/typing";
 import {
   bindPortToJSONRPCServerAndClient,
@@ -34,7 +35,7 @@ type Unbind = () => void;
 /**
  * Client for the Vaultonomy UI service.
  *
- * Provides methods that make JSON RCPC calls to a Valtonomy UI service.
+ * Provides methods that make JSON RPC calls to a Vaultonomy UI service.
  */
 class VaultonomyUiProvider {
   constructor(vaultonomyUiClient: JSONRPCClient) {
@@ -47,17 +48,10 @@ class VaultonomyUiProvider {
   notify: (event: VaultonomyBackgroundEvent) => Promise<null>;
 }
 
-function redditDisconnectedError(
-  methodName: string,
-  params?: unknown,
-): JSONRPCErrorException {
+function redditDisconnectedError(): JSONRPCErrorException {
   return new JSONRPCErrorException(
     "No Reddit tab is connected, cannot forward request.",
     ErrorCode.REDDIT_TAB_DISCONNECTED,
-    {
-      method: methodName,
-      params,
-    },
   );
 }
 
@@ -71,12 +65,15 @@ function redditDisconnectedError(
  */
 export class VaultonomyBackgroundServiceSession {
   private disconnected: boolean = false;
-  private redditProvider: RedditProvider | undefined;
   private readonly jsonrpc: JSONRPCServerAndClient;
   private readonly vaultonomyUi: VaultonomyUiProvider;
   private readonly unbindFromPort: Unbind;
+  private readonly unbindRedditProviderDisconnected: Unbind;
 
-  constructor(private readonly port: chrome.runtime.Port) {
+  constructor(
+    private readonly port: chrome.runtime.Port,
+    private redditProvider: RedditProvider,
+  ) {
     this.disconnected = retroactivePortDisconnection.hasDisconnected(port);
     retroactivePortDisconnection.addRetroactiveDisconnectListener(port, () => {
       this.disconnect();
@@ -87,6 +84,19 @@ export class VaultonomyBackgroundServiceSession {
       serverAndClient: this.jsonrpc,
     });
     this.vaultonomyUi = new VaultonomyUiProvider(this.jsonrpc.client);
+
+    // TODO: We probably don't need redditTabBecameUnavailable because we
+    // connect on demand in response to a UI request.
+    this.unbindRedditProviderDisconnected = this.redditProvider.emitter.on(
+      "disconnected",
+      () => {
+        this.vaultonomyUi
+          .notify({ type: "redditTabBecameUnavailable" })
+          .catch((error) =>
+            this.#logErrorUnlessDisconnected("failed to notify UI", error),
+          );
+      },
+    );
   }
 
   private createServerAndClient(
@@ -117,6 +127,12 @@ export class VaultonomyBackgroundServiceSession {
         return defaultMapError(id, error.cause);
       }
 
+      // RedditProvider creates Port connections to a Reddit tab as needed. This
+      // can fail (throwing CouldNotConnect) if no Reddit tabs are available.
+      if (error instanceof CouldNotConnect) {
+        return defaultMapError(id, redditDisconnectedError());
+      }
+
       return defaultMapError(id, error);
     };
 
@@ -140,9 +156,6 @@ export class VaultonomyBackgroundServiceSession {
     server.addMethod(
       RedditGetUserProfile.name,
       RedditGetUserProfile.signature.implement(async (params) => {
-        if (!this.redditProvider) {
-          throw redditDisconnectedError(RedditGetUserProfile.name);
-        }
         return await this.redditProvider.getUserProfile(params);
       }),
     );
@@ -150,12 +163,6 @@ export class VaultonomyBackgroundServiceSession {
       RedditCreateAddressOwnershipChallenge.name,
       RedditCreateAddressOwnershipChallenge.signature.implement(
         async (params) => {
-          if (!this.redditProvider) {
-            throw redditDisconnectedError(
-              RedditCreateAddressOwnershipChallenge.name,
-              params,
-            );
-          }
           return await this.redditProvider.createAddressOwnershipChallenge(
             params,
           );
@@ -165,12 +172,6 @@ export class VaultonomyBackgroundServiceSession {
     server.addMethod(
       RedditRegisterAddressWithAccount.name,
       RedditRegisterAddressWithAccount.signature.implement(async (params) => {
-        if (!this.redditProvider) {
-          throw redditDisconnectedError(
-            RedditRegisterAddressWithAccount.name,
-            params,
-          );
-        }
         await this.redditProvider.registerAddressWithAccount(params);
         return null;
       }),
@@ -178,18 +179,12 @@ export class VaultonomyBackgroundServiceSession {
     server.addMethod(
       RedditGetUserVault.name,
       RedditGetUserVault.signature.implement(async (params) => {
-        if (!this.redditProvider) {
-          throw redditDisconnectedError(RedditGetUserVault.name, params);
-        }
         return await this.redditProvider.getUserVault(params);
       }),
     );
     server.addMethod(
       RedditGetAccountVaultAddresses.name,
       RedditGetAccountVaultAddresses.signature.implement(async (params) => {
-        if (!this.redditProvider) {
-          throw redditDisconnectedError(RedditGetAccountVaultAddresses.name);
-        }
         return await this.redditProvider.getAccountVaultAddresses(params);
       }),
     );
@@ -200,35 +195,6 @@ export class VaultonomyBackgroundServiceSession {
   private createClient(port: chrome.runtime.Port): JSONRPCClient {
     const client = new JSONRPCClient(createPortSendRequestFn(port));
     return client;
-  }
-
-  setRedditProvider(redditProvider: RedditProvider | undefined): void {
-    if (this.redditProvider === redditProvider) return;
-
-    let event: VaultonomyBackgroundEvent | undefined;
-    if (redditProvider && this.redditProvider === undefined) {
-      event = { type: "redditTabBecameAvailable" };
-    } else if (!redditProvider && this.redditProvider) {
-      event = { type: "redditTabBecameUnavailable" };
-    }
-    this.disconnectRedditProvider();
-    this.redditProvider = redditProvider;
-    if (event) {
-      this.vaultonomyUi
-        .notify(event)
-        .catch((error) =>
-          this.#logErrorUnlessDisconnected("failed to notify UI", error),
-        );
-    }
-
-    // We don't listen for the RedditProvider disconnecting, because that should
-    // happen when its Reddit tab disconnects and we expect an external entity
-    // is responsible for noticing that and calling setRedditProvider(undefined)
-  }
-
-  private disconnectRedditProvider(): void {
-    // This also disconnects the provider's connection to its Reddit tab
-    this.redditProvider?.emitter.emit("disconnectSelf");
   }
 
   #logErrorUnlessDisconnected(msg: string, error: unknown): void {
@@ -244,6 +210,7 @@ export class VaultonomyBackgroundServiceSession {
     this.disconnected = true;
     this.unbindFromPort();
     this.port.disconnect();
-    this.disconnectRedditProvider();
+    this.unbindRedditProviderDisconnected();
+    this.redditProvider.disconnect();
   }
 }

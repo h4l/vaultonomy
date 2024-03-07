@@ -1,3 +1,4 @@
+import { Emitter, Unsubscribe, createNanoEvents } from "nanoevents";
 import { z } from "zod";
 
 import { VaultonomyError } from "../VaultonomyError";
@@ -16,6 +17,49 @@ export interface TabProvider {
   unbind(): void;
 }
 
+function isFulfilled<T>(
+  arg: PromiseSettledResult<T>,
+): arg is PromiseFulfilledResult<T> {
+  return arg.status === "fulfilled";
+}
+
+export class DefaultRedditTabProvider implements TabProvider {
+  private readonly activeTabProvider: ActiveRedditTabProvider;
+  private readonly persistedTabProvider: PersistedRedditTabProvider;
+  private readonly globalTabProvider: GlobalRedditTabProvider;
+  private readonly unbindActiveTabChanged: Unsubscribe;
+
+  constructor() {
+    this.activeTabProvider = new ActiveRedditTabProvider();
+    this.persistedTabProvider = new PersistedRedditTabProvider();
+    this.globalTabProvider = new GlobalRedditTabProvider();
+
+    this.unbindActiveTabChanged = this.activeTabProvider.onActiveTabChanged(
+      (id) => {
+        this.persistedTabProvider.setTab(id);
+      },
+    );
+  }
+  async getTab(): Promise<chrome.tabs.Tab> {
+    const results = await Promise.allSettled([
+      this.persistedTabProvider.getTab(),
+      this.activeTabProvider.getTab(),
+      this.globalTabProvider.getTab(),
+    ]);
+    const tab = results.find(isFulfilled)?.value;
+
+    if (tab) return tab;
+    throw new TabNotAvailable("no reddit tab is available");
+  }
+
+  unbind(): void {
+    this.unbindActiveTabChanged();
+    this.activeTabProvider.unbind();
+    this.persistedTabProvider.unbind();
+    this.globalTabProvider.unbind();
+  }
+}
+
 /**
  * Provide access to the currently-active Reddit tab.
  *
@@ -23,7 +67,9 @@ export interface TabProvider {
  * if any. We have access to this tab thanks to the activeTab permission, even
  * if we don't have the host permission for reddit URLs.
  */
-export class ActiveTabProvider implements TabProvider {
+export class ActiveRedditTabProvider implements TabProvider {
+  private emitter: Emitter<{ activeTabChanged: (id: number) => void }> =
+    createNanoEvents();
   private activeTabId: number | undefined;
 
   constructor() {
@@ -35,6 +81,11 @@ export class ActiveTabProvider implements TabProvider {
     if (!isRedditTab(tab)) return;
 
     this.activeTabId = tab.id;
+    this.emitter.emit("activeTabChanged", tab.id);
+  }
+
+  onActiveTabChanged(callback: (id: number) => void): Unbind {
+    return this.emitter.on("activeTabChanged", callback);
   }
 
   async getTab(): Promise<chrome.tabs.Tab> {

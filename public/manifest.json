@@ -13,7 +13,7 @@
   "version": "0.0.1",
   "description": "Manage your Reddit account's Vault from the browser.",
   "permissions": ["scripting", "sidePanel", "storage", "activeTab"],
-  "host_permissions": [],
+  "host_permissions": ["https://www.reddit.com/*", "https://new.reddit.com/*"],
   "background": {
     "service_worker": "background.js",
     "type": "module"

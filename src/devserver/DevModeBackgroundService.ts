@@ -6,23 +6,23 @@ import { retroactivePortDisconnection } from "../webextensions/retroactivePortDi
 import { isDevServerSender } from "./isDevServerSender";
 
 export class DevModeBackgroundService extends BackgroundService {
-  protected initSync(): void {
-    super.initSync();
+  constructor() {
+    super();
 
     browser.runtime.onConnectExternal.addListener((port) => {
       retroactivePortDisconnection.register(port);
-      this.handleExtensionConnection(port).catch(log.error);
+      this.handleExternalConnection(port);
     });
   }
 
-  async handleExternalConnection(port: chrome.runtime.Port) {
+  protected handleExternalConnection(port: chrome.runtime.Port) {
     if (
       port.sender &&
       isDevServerSender(port.sender) &&
       VAULTONOMY_RPC_PORT.matches(port.name)
     ) {
       log.debug(`Received ${VAULTONOMY_RPC_PORT} connection from dev-server`);
-      await this.handleExtensionConnection(port);
+      this.handleExtensionConnection(port);
     } else {
       log.debug("Disconnecting unexpected external connection:", port);
       port.disconnect();

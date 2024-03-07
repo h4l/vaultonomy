@@ -1,6 +1,5 @@
 import { assert } from "./assert";
 import { log } from "./logging";
-import { AVAILABILITY_PORT_NAME } from "./messaging";
 import { createServerSession } from "./reddit/reddit-interaction-server";
 import { REDDIT_INTERACTION_PORT_NAME } from "./reddit/reddit-interaction-spec";
 import { ConnectionOverlay } from "./reddit/ui/connection-overlay";
@@ -21,11 +20,13 @@ function start(): Stop {
     assert(false, "attempted to start() when already started");
   }
 
-  const availabilityConnection = createAvailabilityConnection();
-  const stopRedditInteractionConnections = handleRedditInteractionConnections(
-    availabilityConnection,
-  );
+  const stopRedditInteractionConnections = handleRedditInteractionConnections();
 
+  // TODO: remove this in due course, or at least make it non-modal so the page
+  // can still be used.
+  // TODO: introduce a timeout to close the connection if unused for some period?
+  // This may not be necessary as the background service worker will itself stop
+  // after 30s or so.
   const connectionOverlay = new ConnectionOverlay({
     onRemoved: () => stop && stop(),
   });
@@ -34,27 +35,11 @@ function start(): Stop {
   return () => {
     stop = undefined;
     stopRedditInteractionConnections();
-    availabilityConnection.disconnect();
     connectionOverlay.remove();
   };
 }
 
-export function createAvailabilityConnection(): chrome.runtime.Port {
-  const port = browser.runtime.connect({
-    name: AVAILABILITY_PORT_NAME.withRandomTag().toString(),
-  });
-  retroactivePortDisconnection.register(port);
-  retroactivePortDisconnection.addRetroactiveDisconnectListener(port, () => {
-    log.debug("availability Port disconnected");
-    stop && stop();
-  });
-  // TODO: add explicit message handler to stop?
-  return port;
-}
-
-export function handleRedditInteractionConnections(
-  availabilityConnection: chrome.runtime.Port,
-): Stop {
+export function handleRedditInteractionConnections(): Stop {
   const onConnect = (port: chrome.runtime.Port): void => {
     log.debug("Port Connected:", port.name);
     retroactivePortDisconnection.register(port);
@@ -70,18 +55,6 @@ export function handleRedditInteractionConnections(
     retroactivePortDisconnection.addRetroactiveDisconnectListener(port, () => {
       log.debug("Stopping JSONRPC server for port", port);
     });
-
-    // Shutdown all RPC connections when the availability connection drops.
-    assert(availabilityConnection);
-    retroactivePortDisconnection.addRetroactiveDisconnectListener(
-      availabilityConnection,
-      () => {
-        log.debug(
-          "disconnecting RPC Port due to availability Port disconnecting",
-        );
-        port.disconnect();
-      },
-    );
   };
   browser.runtime.onConnect.addListener(onConnect);
   return () => browser.runtime.onConnect.removeListener(onConnect);
