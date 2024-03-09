@@ -28,6 +28,8 @@ export default {
   },
   extensionsToTreatAsEsm: [".ts", ".tsx"],
   setupFilesAfterEnv: ["<rootDir>/jest-setup.ts"],
-  resetMocks: true,
-  resetModules: true,
+  // TODO: update any tests that rely on reset
+  clearMocks: true,
+  // resetMocks: true,
+  // resetModules: true,
 };
