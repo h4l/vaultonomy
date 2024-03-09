@@ -84,13 +84,22 @@ class PortDisconnectionListener {
       port,
       "addRetroactiveDisconnectListener",
     );
+    const boundOnDisconnect = onDisconnect.bind(undefined, port);
     if (portState.hasDisconnected) {
-      const timeout = setTimeout(onDisconnect, 0);
+      const timeout = setTimeout(boundOnDisconnect, 0);
       return () => {
         clearTimeout(timeout);
       };
     }
-    return portState.emitter.on("disconnected", onDisconnect);
+    // Only listen for one event
+    const unbind = portState.emitter.on("disconnected", () => {
+      try {
+        boundOnDisconnect();
+      } finally {
+        unbind();
+      }
+    });
+    return unbind;
   }
 }
 
