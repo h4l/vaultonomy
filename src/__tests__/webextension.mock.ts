@@ -1,12 +1,359 @@
 import { jest } from "@jest/globals";
-import { Mock } from "jest-mock";
+import { FunctionLike, Mock } from "jest-mock";
+import { mock } from "jest-mock-extended";
 import { nextTick } from "process";
 import util from "util";
 
 import { Connector } from "../rpc/connections";
+import { RecursivePartial } from "../types";
 import { StorageAreaClear, StorageAreaGetSetRemove } from "../webextension";
 import { createRawPortConnector } from "../webextensions/createRawPortConnector";
 import { retroactivePortDisconnection } from "../webextensions/retroactivePortDisconnection";
+import { nextTickPromise } from "./testing.utils";
+
+function unimplementedMockFn<T extends FunctionLike>() {
+  const mock = jest.fn<T>(((): any => {
+    throw new Error("Mocked without implementation");
+  }) as T);
+  return mock;
+}
+
+/**
+ * Store state for a mock that is reset when jest.clearAllMocks() is called.
+ *
+ * @param initial The initial value after clearAllMocks().
+ * @returns A function that returns the current state.
+ */
+function mockState<T extends Record<string | number | symbol, any>>(
+  initial: T | (() => T),
+): () => T {
+  const stateCarrier = jest.fn<(this: T) => void>();
+  return (): T => {
+    if (stateCarrier.mock.contexts.length === 0) {
+      stateCarrier.call(
+        typeof initial === "function" ? initial() : { ...initial },
+      );
+    }
+    return stateCarrier.mock.contexts[0];
+  };
+}
+
+function escapeRegex(string: string): string {
+  return string.replace(/[/\-\\^$*+?.()|[\]{}]/g, "\\$&");
+}
+
+function matchGlob(pattern: string, value: string): boolean {
+  if (!pattern.includes("*")) return pattern === value;
+  return new RegExp(pattern.split("*").map(escapeRegex).join(".*")).test(value);
+}
+
+const sensitiveTabField = /^(?:url|pendingUrl|title|favIconUrl)$/;
+
+function queryMatchesTab(
+  query: chrome.tabs.QueryInfo,
+  tab: chrome.tabs.Tab,
+): "sensitive-match" | "unsensitive-match" | "no-match" {
+  let result: "sensitive-match" | "unsensitive-match" = "unsensitive-match";
+  for (const [key, value] of Object.entries(query)) {
+    if (key === "url") {
+      const url = tab.url;
+      if (value === undefined || url === undefined) return "no-match";
+      if (Array.isArray(value)) {
+        if (!value.some((v) => matchGlob(v, url))) return "no-match";
+      } else if (!matchGlob(String(value), url)) return "no-match";
+    } else if (
+      value !== undefined &&
+      tab[key as keyof chrome.tabs.Tab] !== value
+    ) {
+      return "no-match";
+    }
+    if (sensitiveTabField.test(key)) result = "sensitive-match";
+  }
+  return result;
+}
+
+export const activeTabAccessible = Symbol("activeTabAccessible");
+
+export function markActiveTabAccessible(
+  options: chrome.tabs.CreateProperties,
+  accessible: boolean = true,
+): chrome.tabs.CreateProperties {
+  (options as any)[activeTabAccessible] = accessible;
+  return options;
+}
+
+export function isActiveTabAccessible(tab: chrome.tabs.Tab): boolean {
+  return !!(activeTabAccessible in tab && tab[activeTabAccessible]);
+}
+
+function getTabsMock(thisMock: ThisMock): RecursivePartial<typeof chrome.tabs> {
+  type TabState = { nextId: number; tabs: Map<number, chrome.tabs.Tab> };
+  const state = mockState<TabState>(
+    (): TabState => ({ nextId: 9000, tabs: new Map() }),
+  );
+
+  function mockTab(
+    options: chrome.tabs.CreateProperties,
+  ): ReturnType<typeof mock<chrome.tabs.Tab>> {
+    const tab = mock<chrome.tabs.Tab>({ id: state().nextId++, ...options });
+    state().tabs.set(tab.id!, tab);
+    return tab;
+  }
+
+  async function canAccess(
+    tab: chrome.tabs.Tab,
+    hasActiveTabPermission?: boolean,
+  ): Promise<boolean> {
+    if (isActiveTabAccessible(tab)) {
+      if (hasActiveTabPermission === undefined)
+        hasActiveTabPermission = await thisMock().permissions.contains({
+          permissions: ["activeTab"],
+        });
+      if (hasActiveTabPermission) return true;
+    }
+    return (
+      tab.url !== undefined &&
+      (await thisMock().permissions.contains({
+        permissions: ["tabs"],
+        origins: [tab.url],
+      }))
+    );
+  }
+
+  function censorTab(tab: chrome.tabs.Tab): void {
+    delete tab.url;
+    delete tab.favIconUrl;
+    delete tab.pendingUrl;
+    delete tab.title;
+  }
+
+  return {
+    get: jest.fn(async (id: number) => {
+      const tab = state().tabs.get(id);
+      if (!tab) throw new Error(`No tab with id: ${id}`);
+
+      const resultTab = { ...tab };
+      if (!(await canAccess(tab))) censorTab(resultTab);
+      return resultTab;
+    }),
+    create: jest.fn<typeof chrome.tabs.create>(async (opt) => {
+      return mockTab(opt);
+    }),
+    query: jest.fn<typeof chrome.tabs.query>(
+      async (query: chrome.tabs.QueryInfo) => {
+        const matches = [...state().tabs.values()].map((tab) => ({
+          tab,
+          match: queryMatchesTab(query, tab),
+        }));
+
+        const permittedTabs: chrome.tabs.Tab[] = [];
+        const hasActiveTabPermission = await thisMock().permissions.contains({
+          permissions: ["activeTab"],
+        });
+
+        for (const { tab, match } of matches) {
+          if (match === "no-match") continue;
+
+          // This is simplistic, but good enough for testing (in reality the
+          // active flag doesn't control whether an extension with activeTab
+          // permission can access it, tabs are not accessible without
+          // user-interaction, and inactive tabs remain accessible).
+          const canRead = await canAccess(tab, hasActiveTabPermission);
+          if (match === "sensitive-match" && !canRead) continue;
+
+          // The match does not depend on a sensitive field, but we censor its
+          // fields if we lack access to it.
+          const resultTab = { ...tab };
+          if (!canRead) {
+            censorTab(resultTab);
+          }
+
+          permittedTabs.push(resultTab);
+        }
+        return permittedTabs;
+      },
+    ),
+    remove: jest.fn(async (tabIds: number | number[]): Promise<void> => {
+      await nextTickPromise();
+      if (typeof tabIds === "number") state().tabs.delete(tabIds);
+      else for (const id of tabIds) state().tabs.delete(id);
+    }),
+    discard: jest.fn(async (tabId?: number): Promise<void> => {
+      if (tabId === undefined) {
+        for (const tab of state().tabs.values()) {
+          if (!tab.active && !tab.discarded) {
+            tab.discarded = true;
+            return;
+          }
+        }
+      } else {
+        const tab = state().tabs.get(tabId);
+        if (tab && !tab.active) tab.discarded = true;
+      }
+    }),
+    connect: jest.fn(
+      (
+        _tabId: number,
+        connectInfo?: chrome.runtime.ConnectInfo,
+      ): chrome.runtime.Port => {
+        return new MockPort({ name: connectInfo?.name }) as chrome.runtime.Port;
+      },
+    ),
+  };
+}
+
+function getWindowsMock(): RecursivePartial<typeof chrome.windows> {
+  type WindowsState = {
+    nextId: number;
+    windows: Map<number, chrome.windows.Window>;
+  };
+  const state = mockState<WindowsState>(() => ({
+    nextId: 1,
+    windows: new Map(),
+  }));
+
+  return {
+    get: jest.fn(
+      async (windowId: number, query?: any): Promise<chrome.windows.Window> => {
+        if (query !== undefined)
+          throw new Error("windows.get() with query is not implemented");
+        const window = state().windows.get(windowId);
+        if (!window) throw new Error(`No window with id: ${windowId}`);
+        return window;
+      },
+    ),
+    getCurrent: jest.fn(async (): Promise<chrome.windows.Window> => {
+      // Use focussed as a proxy for current — good enough for testing
+      for (const window of state().windows.values()) {
+        if (window.focused) return window;
+      }
+      throw new Error("No window is current");
+    }),
+    create: jest.fn(
+      async ({
+        focused = false,
+        incognito = false,
+        ...createData
+      }: chrome.windows.CreateData = {}): Promise<chrome.windows.Window> => {
+        const window: chrome.windows.Window = {
+          id: state().nextId++,
+          alwaysOnTop: false,
+          focused,
+          incognito,
+          ...(createData ?? {}),
+        };
+        state().windows.set(window.id!, window);
+        return window;
+      },
+    ),
+    remove: jest.fn(async (windowId: number): Promise<void> => {
+      state().windows.delete(windowId);
+    }),
+  };
+}
+
+function getPermissionsMock(): RecursivePartial<typeof chrome.permissions> {
+  type PermissionsState = {
+    permissions: Map<string, null | Set<string>>;
+  };
+  const state = mockState<PermissionsState>(() => ({ permissions: new Map() }));
+
+  return {
+    contains: jest.fn(
+      async (requested: chrome.permissions.Permissions): Promise<boolean> => {
+        const { permissions } = state();
+        // I'm not sure what the behaviour is for this as the docs aren't
+        // specific.
+        for (const permission of requested.permissions ?? []) {
+          const allowedOrigins = permissions.get(permission);
+          if (allowedOrigins === undefined) return false;
+          // Permissions without origin lists are assumed to be global
+          if (allowedOrigins === null) continue;
+
+          for (const origin of requested.origins ?? []) {
+            let allowed = false;
+            for (const allowedOrigin of allowedOrigins) {
+              if (matchGlob(allowedOrigin, origin)) {
+                allowed = true;
+                break;
+              }
+            }
+            if (!allowed) return false;
+          }
+        }
+        return true;
+      },
+    ),
+    request: jest.fn(
+      async (requested: chrome.permissions.Permissions): Promise<boolean> => {
+        const { permissions } = state();
+        for (const permission of requested.permissions ?? []) {
+          let origins = permissions.get(permission);
+          if (!origins) {
+            origins = new Set();
+            permissions.set(permission, origins);
+          }
+          for (const origin of requested.origins ?? []) origins.add(origin);
+        }
+        return true;
+      },
+    ),
+  };
+}
+
+function getScriptingMock(): RecursivePartial<typeof chrome.scripting> {
+  return {
+    executeScript: jest.fn(
+      async <Args extends any[], Result>(
+        _injection: chrome.scripting.ScriptInjection<Args, Result>,
+      ): Promise<Array<chrome.scripting.InjectionResult<Awaited<Result>>>> => {
+        throw new Error("Mock has no default implementation");
+      },
+    ),
+  };
+}
+
+function getDefaultWebextensionMock(
+  thisMock: ThisMock,
+): RecursivePartial<typeof chrome> {
+  return {
+    action: {
+      onClicked: new EventEmitter(),
+    },
+    storage: {
+      session: new MockStorage(),
+    },
+    tabs: getTabsMock(thisMock),
+    runtime: {},
+    windows: getWindowsMock(),
+    permissions: getPermissionsMock(),
+    scripting: getScriptingMock(),
+  };
+}
+
+type ThisMock = () => typeof chrome;
+
+export function installWebextensionMock(
+  customize?: (
+    browser?: RecursivePartial<typeof chrome>,
+  ) => RecursivePartial<typeof chrome>,
+) {
+  const thisMock = () => browser as typeof chrome;
+  let browser = getDefaultWebextensionMock(thisMock);
+  if (customize) browser = customize(browser);
+
+  jest.unstable_mockModule<typeof import("../webextension")>(
+    "./src/webextension",
+    () => ({ browser: browser as typeof chrome }),
+  );
+}
+
+export function mockedEvent<EventArgs extends unknown[]>(
+  event: chrome.events.Event<Callback<EventArgs>>,
+): EventEmitter<EventArgs> {
+  if (event instanceof EventEmitter) return event;
+  throw new Error(`value is not an EventEmitter mock instance: ${event}`);
+}
 
 type Callback<EventArgs extends unknown[]> = (...args: EventArgs) => void;
 
@@ -160,8 +507,6 @@ export class MockPort implements chrome.runtime.Port {
     })})`;
   }
 }
-
-const nextTickPromise = () => new Promise((resolve) => nextTick(resolve));
 
 export class MockStorage
   implements StorageAreaGetSetRemove, StorageAreaClear, StorageAreaGetSetRemove
