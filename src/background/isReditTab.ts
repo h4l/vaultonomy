@@ -8,3 +8,7 @@ export function isRedditTab(
     false
   );
 }
+
+export function redditTabUrlPatterns(): string[] {
+  return ["https://www.reddit.com/*", "https://new.reddit.com/*"];
+}
