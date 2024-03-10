@@ -500,6 +500,10 @@ export class MockPort implements chrome.runtime.Port {
     nextTick(() => this.#sendDisconnect(this));
   }
 
+  get isDisconnected(): boolean {
+    return this.#isDisconnected;
+  }
+
   toString(): string {
     return `MockPort(${util.inspect({
       name: this.name,
