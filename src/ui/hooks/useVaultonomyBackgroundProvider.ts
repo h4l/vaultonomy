@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { assert, assertUnreachable } from "../../assert";
 import { log } from "../../logging";
 import { ErrorCode } from "../../reddit/reddit-interaction-spec";
+import { CouldNotConnect } from "../../rpc/connections";
 import { useVaultonomyStore } from "../state/useVaultonomyStore";
 import { createVaultonomyBackgroundProvider } from "./createVaultonomyBackgroundProvider";
 
@@ -25,11 +26,11 @@ export function useVaultonomyBackgroundConnection() {
     s.onRedditNotLoggedOut,
   ]);
   useEffect(() => {
+    let stopped = false;
     const createdProvider = createVaultonomyBackgroundProvider({
       isOnDevServer,
     });
     setProvider(createdProvider);
-
     if (createdProvider.isRedditAvailable)
       setRedditProvider(createdProvider.redditProvider);
 
@@ -37,6 +38,7 @@ export function useVaultonomyBackgroundConnection() {
     const stopAvailabilityStatus = createdProvider.emitter.on(
       "availabilityStatus",
       (e) => {
+        if (stopped) return;
         if (e.type === "redditTabBecameAvailable")
           setRedditProvider(createdProvider.redditProvider);
         else if (e.type === "redditTabBecameUnavailable")
@@ -44,10 +46,16 @@ export function useVaultonomyBackgroundConnection() {
         else assertUnreachable(e);
       },
     );
+    createdProvider.requestAvailabilityStatus().catch((e) => {
+      // react strict mode stops the connection before the request starts
+      if (stopped) return;
+      log.error("requestAvailabilityStatus() failed:", e);
+    });
 
     const stopRequestFailed = createdProvider.redditProvider.emitter.on(
       "requestFailed",
       (e) => {
+        if (stopped) return;
         if (e.type === ErrorCode.USER_NOT_LOGGED_IN) {
           onRedditLoggedOut();
         } else {
@@ -61,6 +69,7 @@ export function useVaultonomyBackgroundConnection() {
     );
 
     return () => {
+      stopped = true;
       stopAvailabilityStatus();
       stopRequestFailed();
       stopRequestSucceeded();

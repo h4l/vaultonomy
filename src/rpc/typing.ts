@@ -33,9 +33,7 @@ export function defineMethod<
 export type RCPMethodCaller<
   Params extends z.ZodTypeAny,
   Returns extends z.ZodTypeAny,
-> =
-  Params extends z.ZodNull ? () => z.infer<Returns>
-  : (params: z.infer<Params>) => z.infer<Returns>;
+> = (params: z.infer<Params>) => z.infer<Returns>;
 
 export type RPCErrorMapper<E = Error> = (error: JSONRPCErrorException) => E;
 

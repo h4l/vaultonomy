@@ -5,6 +5,7 @@ import { AsyncConnector } from "../rpc/connections";
 import { VAULTONOMY_RPC_PORT as VAULTONOMY_RPC_PORT_NAME } from "../vaultonomy-rpc-spec";
 import { browser } from "../webextension";
 import { retroactivePortDisconnection } from "../webextensions/retroactivePortDisconnection";
+import { RedditTabObserver } from "./RedditTabObserver";
 import { VaultonomyBackgroundServiceSession } from "./VaultonomyBackgroundServiceSession";
 import { redditTabConnector } from "./tab-connector";
 import { DefaultRedditTabProvider } from "./tab-providers";
@@ -15,6 +16,7 @@ type Disconnect = () => void;
 
 export class BackgroundService {
   private readonly tabConnector: AsyncConnector<chrome.runtime.Port>;
+  private readonly tabObserver: RedditTabObserver;
 
   constructor() {
     this.handleExtensionConnection = this.handleExtensionConnection.bind(this);
@@ -30,6 +32,9 @@ export class BackgroundService {
       retroactivePortDisconnection.register(port);
       this.handleExtensionConnection(port);
     });
+
+    this.tabObserver = new RedditTabObserver();
+    this.tabObserver.start();
   }
 
   protected handleExtensionConnection(port: chrome.runtime.Port) {
@@ -65,6 +70,7 @@ export class BackgroundService {
     const session = new VaultonomyBackgroundServiceSession(
       port,
       redditProvider,
+      this.tabObserver,
     );
 
     const disconnect = () => {

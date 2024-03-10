@@ -75,3 +75,6 @@ export type Evaluate<type> = { [key in keyof type]: type[key] } & unknown;
 export type RequiredNonNullable<T> = {
   [P in keyof T]-?: NonNullable<T[P]>;
 };
+
+export type Unbind = () => void;
+export type Disconnect = Unbind;

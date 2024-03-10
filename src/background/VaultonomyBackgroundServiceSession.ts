@@ -29,6 +29,7 @@ import {
   VaultonomyUiNotify,
 } from "../vaultonomy-rpc-spec";
 import { retroactivePortDisconnection } from "../webextensions/retroactivePortDisconnection";
+import { RedditTabObserver } from "./RedditTabObserver";
 
 type Unbind = () => void;
 
@@ -68,11 +69,12 @@ export class VaultonomyBackgroundServiceSession {
   private readonly jsonrpc: JSONRPCServerAndClient;
   private readonly vaultonomyUi: VaultonomyUiProvider;
   private readonly unbindFromPort: Unbind;
-  private readonly unbindRedditProviderDisconnected: Unbind;
+  private readonly unbindAvailabilityChanged: Unbind;
 
   constructor(
     private readonly port: chrome.runtime.Port,
     private redditProvider: RedditProvider,
+    private redditTabObserver: RedditTabObserver,
   ) {
     this.disconnected = retroactivePortDisconnection.hasDisconnected(port);
     retroactivePortDisconnection.addRetroactiveDisconnectListener(port, () => {
@@ -85,13 +87,16 @@ export class VaultonomyBackgroundServiceSession {
     });
     this.vaultonomyUi = new VaultonomyUiProvider(this.jsonrpc.client);
 
-    // TODO: We probably don't need redditTabBecameUnavailable because we
-    // connect on demand in response to a UI request.
-    this.unbindRedditProviderDisconnected = this.redditProvider.emitter.on(
-      "disconnected",
-      () => {
+    this.unbindAvailabilityChanged = this.redditTabObserver.emitter.on(
+      "availabilityChanged",
+      (availability) => {
         this.vaultonomyUi
-          .notify({ type: "redditTabBecameUnavailable" })
+          .notify({
+            type:
+              availability === "available" ?
+                "redditTabBecameAvailable"
+              : "redditTabBecameUnavailable",
+          })
           .catch((error) =>
             this.#logErrorUnlessDisconnected("failed to notify UI", error),
           );
@@ -139,7 +144,10 @@ export class VaultonomyBackgroundServiceSession {
     server.addMethod(
       VaultonomyGetRedditTabAvailability.name,
       VaultonomyGetRedditTabAvailability.signature.implement(async () => {
-        return { available: this.redditProvider !== undefined };
+        return {
+          available:
+            (await this.redditTabObserver.availability) === "available",
+        };
       }),
     );
 
@@ -210,7 +218,7 @@ export class VaultonomyBackgroundServiceSession {
     this.disconnected = true;
     this.unbindFromPort();
     this.port.disconnect();
-    this.unbindRedditProviderDisconnected();
+    this.unbindAvailabilityChanged();
     this.redditProvider.disconnect();
   }
 }

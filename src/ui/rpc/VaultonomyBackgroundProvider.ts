@@ -2,7 +2,12 @@ import { JSONRPCServer, JSONRPCServerAndClient } from "json-rpc-2.0";
 import { Emitter, createNanoEvents } from "nanoevents";
 
 import { assertUnreachable } from "../../assert";
-import { RedditProvider } from "../../reddit/reddit-interaction-client";
+import {
+  AnyRedditProviderError,
+  RedditProvider,
+  RedditProviderError,
+} from "../../reddit/reddit-interaction-client";
+import { ErrorCode } from "../../reddit/reddit-interaction-spec";
 import {
   Connector,
   ManagedConnection,
@@ -11,6 +16,7 @@ import {
 } from "../../rpc/connections";
 import { createRCPMethodCaller } from "../../rpc/typing";
 import { createJSONRPCServerAndClientPortConnector } from "../../rpc/webextension-port-json-rpc";
+import { Unbind } from "../../types";
 import {
   RedditTabAvailability,
   VaultonomyGetRedditTabAvailability,
@@ -36,6 +42,7 @@ export class VaultonomyBackgroundProvider {
   private readonly managedServerAndClient: ManagedConnection<JSONRPCServerAndClient>;
   public readonly redditProvider: RedditProvider;
   private redditWasAvailableOnLastUpdate: boolean | undefined = undefined;
+  private stopObservingRedditRequestOutcomes: Unbind;
 
   constructor(portConnector: Connector<chrome.runtime.Port>) {
     this.managedServerAndClient =
@@ -51,16 +58,74 @@ export class VaultonomyBackgroundProvider {
       (sc) => sc.client,
     );
 
-    this.getRedditTabAvailability = createRCPMethodCaller({
+    const getRedditTabAvailability = createRCPMethodCaller({
       method: VaultonomyGetRedditTabAvailability,
       managedClient,
     });
+    this.getRedditTabAvailability = () => getRedditTabAvailability(null);
 
     this.redditProvider = new RedditProvider(managedClient);
+
+    // This is a complementary method of inferring Reddit connectivity to the
+    // vaultonomyUi_notify requests. Mostly this shouldn't have any effect, as
+    // the notifications should pre-empt actual request failures and successes,
+    // but there may be edge cases where we can't connect to a Reddit tab, e.g.
+    // if the injected content script has failed for some reason.
+    this.stopObservingRedditRequestOutcomes =
+      this.inferRedditAvailabilityFromRequestOutcomes();
   }
 
   get isRedditAvailable(): boolean {
     return !!this.redditWasAvailableOnLastUpdate;
+  }
+
+  /**
+   * Detect whether a Reddit tab is connected by observing RedditProvider
+   * interactions.
+   */
+  private inferRedditAvailabilityFromRequestOutcomes(): Unbind {
+    const unbindRequestFailed = this.redditProvider.emitter.on(
+      "requestFailed",
+      (error: AnyRedditProviderError) => {
+        if (error instanceof RedditProviderError) {
+          if (error.type === ErrorCode.REDDIT_TAB_DISCONNECTED) {
+            this.markRedditUnavailable();
+          } else {
+            // Any other ErrorCode indicates our request got to a reddit tab and
+            // failed for another reason.
+            this.markRedditAvailable();
+          }
+        }
+        // This is an UnknownRedditProviderError which could be anything and we
+        // can't infer whether a tab is connected or not.
+      },
+    );
+    const unbindRequestSucceeded = this.redditProvider.emitter.on(
+      "requestSucceeded",
+      () => this.markRedditAvailable(),
+    );
+
+    return () => {
+      unbindRequestFailed();
+      unbindRequestSucceeded();
+    };
+  }
+
+  private markRedditAvailable(): void {
+    if (this.redditWasAvailableOnLastUpdate === true) return;
+    this.redditWasAvailableOnLastUpdate = true;
+    this.emitter.emit("availabilityStatus", {
+      type: "redditTabBecameAvailable",
+      redditProvider: this.redditProvider,
+    });
+  }
+
+  private markRedditUnavailable(): void {
+    if (this.redditWasAvailableOnLastUpdate === false) return;
+    this.redditWasAvailableOnLastUpdate = false;
+    this.emitter.emit("availabilityStatus", {
+      type: "redditTabBecameUnavailable",
+    });
   }
 
   private createServer(): JSONRPCServer {
@@ -71,17 +136,10 @@ export class VaultonomyBackgroundProvider {
       VaultonomyUiNotify.signature.implement(async (event) => {
         switch (event.type) {
           case "redditTabBecameAvailable":
-            this.redditWasAvailableOnLastUpdate = true;
-            this.emitter.emit("availabilityStatus", {
-              type: "redditTabBecameAvailable",
-              redditProvider: this.redditProvider,
-            });
+            this.markRedditAvailable();
             break;
           case "redditTabBecameUnavailable":
-            this.redditWasAvailableOnLastUpdate = false;
-            this.emitter.emit("availabilityStatus", {
-              type: "redditTabBecameUnavailable",
-            });
+            this.markRedditUnavailable();
             break;
           default:
             assertUnreachable(event);
@@ -98,24 +156,14 @@ export class VaultonomyBackgroundProvider {
    */
   protected readonly getRedditTabAvailability: () => Promise<RedditTabAvailability>;
 
-  async requestAvailabilityStatus(): Promise<
-    RedditTabBecameAvailableEvent | RedditTabBecameUnavailableEvent
-  > {
+  async requestAvailabilityStatus(): Promise<void> {
     const { available } = await this.getRedditTabAvailability();
-    let event: RedditTabBecameAvailableEvent | RedditTabBecameUnavailableEvent;
-    if (available) {
-      event = {
-        type: "redditTabBecameAvailable",
-        redditProvider: this.redditProvider,
-      };
-    } else {
-      event = { type: "redditTabBecameUnavailable" };
-    }
-    this.emitter.emit("availabilityStatus", event);
-    return event;
+    if (available) this.markRedditAvailable();
+    else this.markRedditUnavailable();
   }
 
   disconnect(): void {
     this.managedServerAndClient.disconnect();
+    this.stopObservingRedditRequestOutcomes();
   }
 }
