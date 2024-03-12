@@ -130,7 +130,7 @@ export function encodePairingStateKey({
 export const createVaultonomyStore = (
   initProps: Partial<VaultonomyParams> = {},
 ) => {
-  const { isOnDevServer = true, provider } = initProps;
+  const { isOnDevServer = false, provider } = initProps;
 
   return createStore<VaultonomyState>()(
     persist(
