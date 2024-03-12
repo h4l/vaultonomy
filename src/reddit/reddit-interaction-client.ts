@@ -102,34 +102,48 @@ export class RedditProvider {
    * from the Port.
    */
   public static from(portConnector: Connector<chrome.runtime.Port>) {
-    return new RedditProvider(
-      new ReconnectingManagedConnection(
+    return new RedditProvider({
+      managedClient: new ReconnectingManagedConnection(
         createJSONRPCClientPortConnector({ portConnector }),
       ),
-    );
+      stopManagedClientOnDisconnect: true,
+    });
   }
 
   public static fromAsyncPortConnector(
     portConnector: AsyncConnector<chrome.runtime.Port>,
   ) {
-    return new RedditProvider(
-      new ReconnectingAsyncManagedConnection(
+    return new RedditProvider({
+      managedClient: new ReconnectingAsyncManagedConnection(
         createJSONRPCClientPortConnectorAsync({ portConnector }),
       ),
-    );
+      stopManagedClientOnDisconnect: true,
+    });
   }
 
   readonly emitter: Emitter<RedditProviderEvents> = createNanoEvents();
   private _mostRecentError: AnyRedditProviderError | undefined;
   private readonly managedClient: AnyManagedConnection<JSONRPCClient>;
-  private readonly unbindManagedClientEvents: Disconnect;
+  private readonly managedClientEventUnbinders: Disconnect[];
+  readonly willStopManagedClientOnDisconnect: boolean;
 
-  constructor(managedClient: AnyManagedConnection<JSONRPCClient>) {
+  constructor({
+    managedClient,
+    stopManagedClientOnDisconnect = true,
+  }: {
+    managedClient: AnyManagedConnection<JSONRPCClient>;
+    stopManagedClientOnDisconnect?: boolean;
+  }) {
+    this.willStopManagedClientOnDisconnect = stopManagedClientOnDisconnect;
     this.managedClient = managedClient;
-    this.unbindManagedClientEvents = this.managedClient.emitter.on(
-      "disconnected",
-      () => this.emitter.emit("disconnected"),
-    );
+    this.managedClientEventUnbinders = [
+      this.managedClient.emitter.on("disconnected", () =>
+        this.emitter.emit("disconnected"),
+      ),
+      this.managedClient.emitter.on("stopped", () =>
+        this.emitter.emit("disconnected"),
+      ),
+    ];
 
     const trackErrors = <A extends any[], R>(
       f: (...args: A) => Promise<R>,
@@ -187,11 +201,10 @@ export class RedditProvider {
   }
 
   disconnect(): void {
-    // Note: with ReconnectingManagedConnection the managedClient can re-connect
-    // after we disconnect() it if another provider call is made.
-    // TODO: should we shut down the provider to prevent subsequent calls?
-    this.managedClient.disconnect();
-    this.unbindManagedClientEvents();
+    if (this.willStopManagedClientOnDisconnect) {
+      this.managedClient.stop();
+    }
+    for (const unbind of this.managedClientEventUnbinders) unbind();
   }
 
   // This is required because params is optional with default null, but
