@@ -3,6 +3,7 @@ import { Emitter, createNanoEvents } from "nanoevents";
 import { VaultonomyError } from "../VaultonomyError";
 import { assert } from "../assert";
 import { log as _log } from "../logging";
+import { Unbind, isPromise } from "../types";
 
 const log = _log.getLogger("rpc/connections");
 
@@ -18,6 +19,11 @@ export type AnyManagedConnection<T> =
   | ManagedConnection<T>
   | AsyncManagedConnection<T>;
 
+export type ManagedConnectionEvents<T> = {
+  disconnected: (connection: T) => void;
+  stopped: () => void;
+};
+
 export interface ManagedConnection<T> {
   // TODO: do we actually need this in practice? We currently have RedditProvider
   //   report disconnection, but now that we auto-reconnect, being disconnected
@@ -25,9 +31,11 @@ export interface ManagedConnection<T> {
   //   significant is if we can't reconnect, but that seems better communicated
   //   with an exception from getConnection() or from a subsequent request via
   //   the connection than an emitted event.
-  readonly emitter: Emitter<{ disconnected: (connection: T) => void }>;
+  readonly emitter: Emitter<ManagedConnectionEvents<T>>;
   getConnection(): T;
-  disconnect(instance?: T): void;
+  readonly isStopped: boolean;
+  stop(): void;
+  disconnect(instance: T): void;
 }
 
 export interface AsyncManagedConnection<T> {
@@ -37,17 +45,27 @@ export interface AsyncManagedConnection<T> {
   //   significant is if we can't reconnect, but that seems better communicated
   //   with an exception from getConnection() or from a subsequent request via
   //   the connection than an emitted event.
-  readonly emitter: Emitter<{ disconnected: (connection: T) => void }>;
+  readonly emitter: Emitter<ManagedConnectionEvents<T>>;
   getConnection(): Promise<T>;
-  disconnect(instance?: T): void;
+  readonly isStopped: boolean;
+  stop(): void;
+  disconnect(instance?: T | Promise<T>): void;
+}
+
+function ensureNotStopped(mc: ManagedConnection<any>): void {
+  if (mc.isStopped) throw new CouldNotConnect("stopped");
 }
 
 class MappedManagedConnection<T extends object, U extends object>
   implements ManagedConnection<U>
 {
-  readonly emitter: Emitter<{ disconnected: (connection: U) => void }>;
+  readonly emitter: Emitter<ManagedConnectionEvents<U>>;
   private readonly forwardMap: WeakMap<T, U> = new WeakMap();
   private readonly reverseMap: WeakMap<U, T> = new WeakMap();
+
+  #unbindUpstreamDisconnected: Unbind;
+  #unbindUpstreamStopped: Unbind;
+
   constructor(
     private readonly connection: ManagedConnection<T>,
     private readonly map: (t: T) => U,
@@ -55,9 +73,13 @@ class MappedManagedConnection<T extends object, U extends object>
     this.emitter = createNanoEvents();
     // TODO: do we need a way to unbind this or can we allow it to be GC'd with
     // this.connection?
-    this.connection.emitter.on(
+    this.#unbindUpstreamDisconnected = this.connection.emitter.on(
       "disconnected",
       this.onSourceDisconnected.bind(this),
+    );
+    this.#unbindUpstreamStopped = this.connection.emitter.on(
+      "stopped",
+      this.stop.bind(this),
     );
   }
 
@@ -72,20 +94,33 @@ class MappedManagedConnection<T extends object, U extends object>
   }
 
   getConnection(): U {
+    ensureNotStopped(this);
     const connection = this.connection.getConnection();
     let mappedConnection = this.forwardMap.get(connection);
     if (mappedConnection) return mappedConnection;
 
-    mappedConnection = this.map(this.connection.getConnection());
+    mappedConnection = this.map(connection);
     this.forwardMap.set(connection, mappedConnection);
     this.reverseMap.set(mappedConnection, connection);
     return mappedConnection;
   }
 
-  disconnect(instance?: U | undefined): void {
-    return this.connection.disconnect(
-      instance && this.reverseMap.get(instance),
-    );
+  get isStopped(): boolean {
+    return this.#isStopped;
+  }
+
+  #isStopped: boolean = false;
+  stop(): void {
+    if (this.#isStopped) return;
+    this.#isStopped = true;
+    this.connection.stop();
+    this.#unbindUpstreamDisconnected();
+    this.#unbindUpstreamStopped();
+  }
+
+  disconnect(instance: U): void {
+    const upstreamConnection = this.reverseMap.get(instance);
+    if (upstreamConnection) this.connection.disconnect(upstreamConnection);
   }
 }
 
@@ -97,9 +132,10 @@ export function mapConnection<T extends object, U extends object>(
 }
 
 export class ReconnectingManagedConnection<T> implements ManagedConnection<T> {
-  public readonly emitter: Emitter<{ disconnected: (connection: T) => void }>;
+  public readonly emitter: Emitter<ManagedConnectionEvents<T>>;
   private connection: T | undefined;
   private disconnectConnection: Disconnect | undefined;
+
   constructor(private readonly connector: Connector<T>) {
     this.emitter = createNanoEvents();
   }
@@ -109,7 +145,11 @@ export class ReconnectingManagedConnection<T> implements ManagedConnection<T> {
       this.disconnect(connection);
     });
     this.connection = connection;
+    let disconnected = false;
     this.disconnectConnection = () => {
+      if (disconnected) return;
+      disconnected = true;
+
       disconnect();
       this.emitter.emit("disconnected", connection);
     };
@@ -117,14 +157,50 @@ export class ReconnectingManagedConnection<T> implements ManagedConnection<T> {
   }
 
   getConnection(): T {
-    return this.connection || this.connect();
+    ensureNotStopped(this);
+    return this.connection ?? this.connect();
   }
 
-  disconnect(expected?: T | undefined): void {
-    if (expected && expected !== this.connection) return;
-    this.connection = undefined;
-    this.disconnectConnection && this.disconnectConnection();
+  #isStopped: boolean = false;
+  get isStopped(): boolean {
+    return this.#isStopped;
   }
+
+  stop(): void {
+    if (this.#isStopped) return;
+    this.#isStopped = true;
+    if (this.connection) this.disconnect(this.connection);
+    this.emitter.emit("stopped");
+  }
+
+  disconnect(connection: T): void {
+    if (connection !== this.connection) return;
+    this.connection = undefined;
+    if (this.disconnectConnection) {
+      this.disconnectConnection();
+      this.disconnectConnection = undefined;
+    }
+  }
+}
+
+type ConnectedAsyncConnectionState<T> = {
+  disconnected: boolean;
+  connection: T;
+  disconnect: Disconnect;
+};
+type PendingAsyncConnectionState<T> = {
+  disconnected: boolean;
+  connection?: T | undefined;
+  disconnect?: Disconnect | undefined;
+};
+type AnyAsyncConnectionState<T> =
+  | PendingAsyncConnectionState<T>
+  | ConnectedAsyncConnectionState<T>;
+
+function isConnectedAsyncConnectionState<T>(
+  state: AnyAsyncConnectionState<T>,
+): state is ConnectedAsyncConnectionState<T> {
+  return !!(state.connection && state.disconnect);
 }
 
 /**
@@ -137,69 +213,102 @@ export class ReconnectingManagedConnection<T> implements ManagedConnection<T> {
 export class ReconnectingAsyncManagedConnection<T extends object>
   implements AsyncManagedConnection<T>
 {
-  private nextConnectionId = 0;
-  public readonly emitter: Emitter<{ disconnected: (connection: T) => void }>;
-  private futureConnection: { id: number; connection: Promise<T> } | undefined;
-  private currentConnection: T | undefined;
+  public readonly emitter: Emitter<ManagedConnectionEvents<T>>;
+  private futureConnection: Promise<T> | undefined;
 
-  private disconnectors: WeakMap<T, Disconnect>;
+  private asyncConnectionState: WeakMap<
+    T | Promise<T>,
+    AnyAsyncConnectionState<T>
+  >;
 
   constructor(private readonly connector: AsyncConnector<T>) {
     this.emitter = createNanoEvents();
-    this.disconnectors = new WeakMap();
+    this.asyncConnectionState = new WeakMap();
   }
 
-  private async connect(id: number): Promise<T> {
+  private async connect(state: PendingAsyncConnectionState<T>): Promise<T> {
     const [connection, disconnect] = await this.connector(() => {
       this.disconnect(connection);
     });
 
-    this.disconnectors.set(connection, () => {
-      if (this.futureConnection?.id === id) this.futureConnection = undefined;
+    state.connection = connection;
+    state.disconnect = disconnect;
+
+    if (state.disconnected) {
       disconnect();
       this.emitter.emit("disconnected", connection);
-    });
+      throw new CouldNotConnect("disconnected while connecting");
+    }
+
+    // We need to link the loaded connection to the state so that disconnect()
+    // can find it later to disconnect.
+    this.asyncConnectionState.set(connection, state);
     return connection;
   }
 
   getConnection(): Promise<T> {
+    if (this.isStopped) return Promise.reject(new CouldNotConnect("stopped"));
     if (!this.futureConnection) {
-      this.disconnect(); // also clear this.currentConnection
-
       // all calls getConnection() calls share the same connection. Multiple
       // instances of this class sharing the same AsyncConnector must be used if
       // distinct connections are required.
-      const id = this.nextConnectionId++;
-      this.futureConnection = {
-        id,
-        connection: this.connect(id),
-      };
+
+      const state: PendingAsyncConnectionState<T> = { disconnected: false };
+      const futureConnection = (this.futureConnection = this.connect(state));
+      this.asyncConnectionState.set(futureConnection, state);
 
       // Clear failed connection attempts so that subsequent calls retry
-      this.futureConnection.connection
-        .then((c) => {
-          assert(this.currentConnection === undefined); // no need to disconnect
-          this.currentConnection = c;
-        })
-        .catch((e) => {
-          log.debug("dropping rejected connect() promise:", e);
-          if (id === this.futureConnection?.id) {
-            this.futureConnection = undefined;
-          }
-        });
+      futureConnection.catch((e) => {
+        log.debug("dropping rejected connect() promise:", e);
+        if (futureConnection === this.futureConnection) {
+          this.futureConnection = undefined;
+        }
+      });
     }
-    return this.futureConnection.connection;
+    return this.futureConnection;
+  }
+
+  #isStopped: boolean = false;
+  get isStopped(): boolean {
+    return this.#isStopped;
+  }
+
+  stop(): void {
+    if (this.#isStopped) return;
+    this.#isStopped = true;
+    if (this.futureConnection) {
+      this.disconnect(this.futureConnection);
+    }
+    this.emitter.emit("stopped");
   }
 
   /**
-   * Disconnect the current connection or a specific connection only.
+   * Disconnect a connected or pending connection from getConnection().
    */
-  disconnect(connection: T | undefined = this.currentConnection): void {
-    if (!connection) return;
+  disconnect(connection: T | Promise<T>): void {
+    const state = this.asyncConnectionState.get(connection);
+    if (!state) {
+      if (!isPromise(connection)) return;
+      // external derived promise — disconnect when resolved
+      connection
+        .then((c) => {
+          assert(!isPromise(c));
+          this.disconnect(c);
+        })
+        .catch(() => {});
+      return;
+    }
 
-    const disconnect = this.disconnectors.get(connection);
-    if (disconnect) disconnect(); // emits on this.emitter
-    if (connection === this.currentConnection)
-      this.currentConnection = undefined;
+    if (isConnectedAsyncConnectionState(state)) {
+      if (state.disconnected) return;
+      state.disconnected = true;
+      state.disconnect();
+    } else {
+      // Not loaded yet - connect() will disconnect when it is
+      assert(!state.connection);
+      assert(!state.disconnect);
+      state.disconnected = true;
+    }
+    // TODO: is it worth removing things from the WeakMap?
   }
 }

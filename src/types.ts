@@ -78,3 +78,13 @@ export type RequiredNonNullable<T> = {
 
 export type Unbind = () => void;
 export type Disconnect = Unbind;
+
+export function isPromise(value: unknown): value is Promise<unknown>;
+export function isPromise<T>(value: Promise<T> | unknown): value is Promise<T>;
+export function isPromise(value: any): boolean {
+  return (
+    typeof value === "object" &&
+    "then" in value &&
+    typeof value.then === "function"
+  );
+}
