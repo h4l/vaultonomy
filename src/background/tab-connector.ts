@@ -27,8 +27,6 @@ export function redditTabConnector(
       console.log("Running Vaultonomy's reddit client in active Reddit tab.");
       await browser.scripting.executeScript({
         target: { tabId: tab.id },
-        // TODO: can we re-introduce the function loading method?
-        // func: loadReddit,
         files: ["reddit-contentscript.js"],
       });
     } catch (e) {
