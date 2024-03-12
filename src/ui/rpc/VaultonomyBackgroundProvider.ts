@@ -64,7 +64,10 @@ export class VaultonomyBackgroundProvider {
     });
     this.getRedditTabAvailability = () => getRedditTabAvailability(null);
 
-    this.redditProvider = new RedditProvider(managedClient);
+    this.redditProvider = new RedditProvider({
+      managedClient,
+      stopManagedClientOnDisconnect: false,
+    });
 
     // This is a complementary method of inferring Reddit connectivity to the
     // vaultonomyUi_notify requests. Mostly this shouldn't have any effect, as
@@ -163,7 +166,7 @@ export class VaultonomyBackgroundProvider {
   }
 
   disconnect(): void {
-    this.managedServerAndClient.disconnect();
+    this.managedServerAndClient.stop();
     this.stopObservingRedditRequestOutcomes();
   }
 }
