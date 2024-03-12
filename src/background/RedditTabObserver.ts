@@ -14,19 +14,23 @@ export type RedditTabObserverEvents = {
 };
 
 type Availability = "available" | "unavailable";
+type AvailabilityState = {
+  lastAvailability: Promise<Availability> | Availability;
+  stop: Unbind;
+};
 
-// TODO logging
-
+/**
+ * Monitor the number of open Reddit tabs available to us, to determine whether
+ * it's currently possible to run our content script to communicate with Reddit.
+ */
 export class RedditTabObserver {
   readonly emitter: Emitter<RedditTabObserverEvents> = createNanoEvents();
-  #stopObserving: Unbind | undefined = undefined;
-  #lastAvailability: Availability | undefined;
+  #state: AvailabilityState | undefined;
 
-  constructor() {}
-
-  private observe(): Unbind {
+  private observe(): AvailabilityState {
+    let state: (AvailabilityState & { hasFullSnapshot: boolean }) | undefined;
     const availableTabs = new Set<number>();
-    let hasFullSnapshot = false;
+
     const syncTab = (tab: chrome.tabs.Tab) => {
       if (isRedditTab(tab)) {
         if (!availableTabs.has(tab.id)) {
@@ -38,6 +42,7 @@ export class RedditTabObserver {
         availableTabs.delete(tab.id);
       }
     };
+
     const removeTab = (id: number) => {
       if (availableTabs.has(id)) {
         log.debug(`available tab closed`, id);
@@ -45,17 +50,20 @@ export class RedditTabObserver {
       }
     };
 
-    let lastAvailability: Availability = "available";
-    const reportAvailability = () => {
-      if (!hasFullSnapshot) return;
+    const reportAvailability = (): Availability | undefined => {
+      if (!state?.hasFullSnapshot) return;
       const availability: Availability =
         availableTabs.size === 0 ? "unavailable" : "available";
-      if (availability !== lastAvailability) {
-        lastAvailability = availability;
+      if (availability !== state.lastAvailability) {
+        state.lastAvailability = availability;
         log.debug(`reddit became ${availability}`);
-        this.#lastAvailability = availability;
+        if (this.#state !== state) {
+          log.warn("reportAvailability() called while not current");
+          return;
+        }
         this.emitter.emit("availabilityChanged", availability);
       }
+      return availability;
     };
 
     const onTabUpdated = (
@@ -63,7 +71,6 @@ export class RedditTabObserver {
       _tabChangeInfo: chrome.tabs.TabChangeInfo,
       tab: chrome.tabs.Tab,
     ) => {
-      log.debug("onTabUpdated", tab.status, tab.url, tab);
       syncTab(tab);
       reportAvailability();
     };
@@ -79,60 +86,46 @@ export class RedditTabObserver {
     browser.tabs.onUpdated.addListener(onTabUpdated);
     browser.tabs.onRemoved.addListener(onTabRemoved);
 
-    (async () => {
-      const tabs = await browser.tabs.query({ url: redditTabUrlPatterns() });
-      tabs.forEach(syncTab);
-      hasFullSnapshot = true;
-      log.debug(`${availableTabs.size} tabs available at start`);
-      reportAvailability();
-    })().catch((e) => {
-      log.error("RedditTabObserver encountered an error while observing:", e);
-    });
+    state = {
+      hasFullSnapshot: false,
+      lastAvailability: (async () => {
+        const tabs = await browser.tabs.query({ url: redditTabUrlPatterns() });
+        tabs.forEach(syncTab);
+        assert(state);
+        state.hasFullSnapshot = true;
+        log.debug(`${availableTabs.size} tabs available at start`);
+        const availability = reportAvailability();
 
-    return () => {
-      browser.tabs.onUpdated.removeListener(onTabUpdated);
-      browser.tabs.onRemoved.removeListener(onTabRemoved);
+        assert(availability);
+        return availability;
+      })(),
+
+      stop: () => {
+        browser.tabs.onUpdated.removeListener(onTabUpdated);
+        browser.tabs.onRemoved.removeListener(onTabRemoved);
+      },
     };
+    return state;
   }
 
   get isStarted(): boolean {
-    return this.#stopObserving !== undefined;
+    return this.#state !== undefined;
   }
 
   get availability(): Promise<Availability> {
-    if (this.#lastAvailability === undefined) {
-      return new Promise((resolve, reject) => {
-        const unbindAvailabilityChanged = this.emitter.on(
-          "availabilityChanged",
-          (availability) => {
-            unbindAvailabilityChanged();
-            unbindStopped();
-            resolve(availability);
-          },
-        );
-        const unbindStopped = this.emitter.on("stopped", () => {
-          unbindAvailabilityChanged();
-          unbindStopped();
-          reject(
-            new Error("RedditTabObserver stopped before availability known"),
-          );
-        });
-      });
-    }
-    return Promise.resolve(this.#lastAvailability);
+    if (!this.#state) throw new Error("stopped");
+    return Promise.resolve(this.#state.lastAvailability);
   }
 
   start(): void {
-    if (this.isStarted) return;
-    this.#stopObserving = this.observe();
+    if (this.#state) return;
+    this.#state = this.observe();
   }
 
   stop(): void {
-    if (!this.isStarted) return;
-    assert(this.#stopObserving);
-    this.#stopObserving();
-    this.#stopObserving = undefined;
-    this.#lastAvailability = undefined;
+    if (!this.#state) return;
+    this.#state.stop();
+    this.#state = undefined;
     this.emitter.emit("stopped");
   }
 }
