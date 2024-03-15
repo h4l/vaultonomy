@@ -8,6 +8,7 @@ import {
 } from "json-rpc-2.0";
 
 import { log } from "../logging";
+import { InterestInUserEvent } from "../messaging";
 import { RedditProvider } from "../reddit/reddit-interaction-client";
 import {
   ErrorCode,
@@ -209,6 +210,10 @@ export class VaultonomyBackgroundServiceSession {
     if (!this.disconnected) {
       log.error(msg, error);
     }
+  }
+
+  async notifyInterestInUser(event: InterestInUserEvent): Promise<void> {
+    await this.vaultonomyUi.notify(event);
   }
 
   /**
