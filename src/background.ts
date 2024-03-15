@@ -42,8 +42,8 @@ a user POV.
 export function main() {
   log.info("vite env", import.meta.env);
   if (import.meta.env.MODE === "development") {
-    new DevModeBackgroundService();
+    new DevModeBackgroundService().start();
   } else {
-    new BackgroundService();
+    new BackgroundService().start();
   }
 }

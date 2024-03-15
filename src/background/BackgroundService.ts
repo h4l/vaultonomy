@@ -26,31 +26,48 @@ export class BackgroundService {
   private readonly tabObserver: RedditTabObserver;
   private readonly sessions: Set<VaultonomyBackgroundServiceSession> =
     new Set();
+  protected toStop: Stop[] = [];
 
   constructor() {
-    this.handleExtensionConnection = this.handleExtensionConnection.bind(this);
-    this.handleActionButtonClick = this.handleActionButtonClick.bind(this);
-
     this.tabConnector = redditTabConnector(new DefaultRedditTabProvider());
-
-    // We must register action.onClicked synchronously, otherwise our handler
-    // won't be called for an initial action click that starts our main
-    // function.
-    browser.action.onClicked.addListener(this.handleActionButtonClick);
-    browser.runtime.onConnect.addListener((port) => {
-      retroactivePortDisconnection.register(port);
-      this.handleExtensionConnection(port);
-    });
-
     this.tabObserver = new RedditTabObserver();
+  }
+
+  #isStarted: boolean = false;
+  get isStarted(): boolean {
+    return this.#isStarted;
+  }
+
+  /**
+   * Attach event listeners, etc.
+   *
+   * start() must be called synchronously when the extension is started,
+   * otherwise our action.onClicked handler won't be called for an initial
+   * action click that starts our main function.
+   */
+  start(): void {
+    if (this.#isStarted) return;
+    this.#isStarted = true;
+
+    this.toStop = [];
+
+    this.toStop.push(this.startHandlingActionButtonClicks());
+    this.toStop.push(this.startHandlingExtensionConnections());
+    this.toStop.push(this.startNotifyInterestInUsersFromUserLinkInteraction());
+    this.toStop.push(this.startNotifyInterestInUsersFromUserPageViews());
+    this.toStop.push(this.ensureContentScriptsRunningAfterInstall());
     this.tabObserver.start();
+  }
 
-    // TODO: refactor to use start()/stop() pattern to help when testing
-    const stop: Stop[] = [];
+  stop(): void {
+    if (!this.#isStarted) return;
+    this.#isStarted = false;
 
-    stop.push(this.startNotifyInterestInUsersFromUserLinkInteraction());
-    stop.push(this.startNotifyInterestInUsersFromUserPageViews());
-    stop.push(this.ensureContentScriptsRunningAfterInstall());
+    for (const stop of this.toStop) stop();
+    this.tabObserver.stop();
+    for (const session of this.sessions) session.disconnect();
+
+    // Note that tabConnector is stateless and doesn't need to be stopped.
   }
 
   /**
@@ -77,7 +94,7 @@ export class BackgroundService {
     return () => browser.runtime.onInstalled.removeListener(onInstalled);
   }
 
-  protected async injectUserInterestDetectionContentScriptInOpenRedditTabs(): Promise<void> {
+  private async injectUserInterestDetectionContentScriptInOpenRedditTabs(): Promise<void> {
     const results = await Promise.allSettled(
       (await browser.tabs.query({ url: redditTabUrlPatterns() })).map((tab) => {
         chrome.scripting.executeScript({
@@ -159,6 +176,17 @@ export class BackgroundService {
     return () => browser.runtime.onMessage.removeListener(onMessage);
   }
 
+  private startHandlingExtensionConnections(): Stop {
+    const onConnect = (port: chrome.runtime.Port) => {
+      retroactivePortDisconnection.register(port);
+      this.handleExtensionConnection(port);
+    };
+
+    browser.runtime.onConnect.addListener(onConnect);
+
+    return () => browser.runtime.onConnect.removeListener(onConnect);
+  }
+
   protected handleExtensionConnection(port: chrome.runtime.Port) {
     switch (PortName.parse(port.name).base) {
       case VAULTONOMY_RPC_PORT_NAME.base:
@@ -212,14 +240,20 @@ export class BackgroundService {
     return disconnect;
   }
 
-  handleActionButtonClick(tab: chrome.tabs.Tab) {
-    log.trace("handleActionButtonClick()", new Date().toLocaleTimeString());
-    // Opening the side panel be strictly synchronous, as we can only modify the
-    // sidePanel from a user interaction event callback.
-    this.ensureSidePanelIsOpenAndDisplayingVaultonomy(tab);
+  private startHandlingActionButtonClicks(): Stop {
+    const onActionButtonClicked = (tab: chrome.tabs.Tab) => {
+      log.trace("Action button clicked", new Date().toLocaleTimeString());
+      // Opening the side panel be strictly synchronous, as we can only modify the
+      // sidePanel from a user interaction event callback.
+      this.ensureSidePanelIsOpenAndDisplayingVaultonomy(tab);
+    };
+
+    browser.action.onClicked.addListener(onActionButtonClicked);
+
+    return () => browser.action.onClicked.removeListener(onActionButtonClicked);
   }
 
-  ensureSidePanelIsOpenAndDisplayingVaultonomy(tab: chrome.tabs.Tab) {
+  private ensureSidePanelIsOpenAndDisplayingVaultonomy(tab: chrome.tabs.Tab) {
     log.debug("Opening side panel");
     // Enable our page in the side panel for the whole current window, not just
     // the current tab. So our page remains open when changing tabs. Users can

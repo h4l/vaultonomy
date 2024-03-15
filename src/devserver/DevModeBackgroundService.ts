@@ -1,18 +1,30 @@
+import { assert } from "../assert";
 import { BackgroundService } from "../background/BackgroundService";
 import { log } from "../logging";
+import { Stop } from "../types";
 import { VAULTONOMY_RPC_PORT } from "../vaultonomy-rpc-spec";
 import { browser } from "../webextension";
 import { retroactivePortDisconnection } from "../webextensions/retroactivePortDisconnection";
 import { isDevServerSender } from "./isDevServerSender";
 
 export class DevModeBackgroundService extends BackgroundService {
-  constructor() {
-    super();
+  start(): void {
+    if (this.isStarted) return;
+    super.start();
 
-    browser.runtime.onConnectExternal.addListener((port) => {
+    this.toStop.push(this.startHandlingExternalConnection());
+  }
+
+  private startHandlingExternalConnection(): Stop {
+    const onConnect = (port: chrome.runtime.Port) => {
       retroactivePortDisconnection.register(port);
       this.handleExternalConnection(port);
-    });
+    };
+
+    assert(!browser.runtime.onConnectExternal.hasListeners());
+    browser.runtime.onConnectExternal.addListener(onConnect);
+
+    return () => browser.runtime.onConnectExternal.removeListener(onConnect);
   }
 
   protected handleExternalConnection(port: chrome.runtime.Port) {
