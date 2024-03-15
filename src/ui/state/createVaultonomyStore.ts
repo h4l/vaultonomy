@@ -62,6 +62,8 @@ export type VaultonomyStateActions = {
   setSearchForUserQuery(rawQuery: string): void;
   setHasHydrated(hasHydrated: boolean): void;
   setLastScrollPosition(lastScrollPosition: number | null): void;
+  setAutomaticUserSearchUsername(username: string): void;
+  clearAutomaticUserSearchUsername(): void;
 };
 
 export enum PairingChecklist {
@@ -96,6 +98,7 @@ export type VaultonomyStateData = {
   /** One of the pairings that has been signed and submitted to register the address. */
   pinnedPairing: PairingId | null;
   searchForUserQuery: string;
+  automaticUserSearchUsername: string | null;
   lastScrollPosition: number | null;
 };
 
@@ -106,6 +109,7 @@ type PersistedVaultonomyStateData = Pick<
   | "pairingInterest"
   | "pinnedPairing"
   | "searchForUserQuery"
+  | "automaticUserSearchUsername"
   | "lastScrollPosition"
 >;
 
@@ -146,6 +150,7 @@ export const createVaultonomyStore = (
           pairings: {},
           pinnedPairing: null,
           searchForUserQuery: "",
+          automaticUserSearchUsername: null,
           lastScrollPosition: null,
           // actions
           setHasHydrated(hasHydrated: boolean): void {
@@ -243,6 +248,12 @@ export const createVaultonomyStore = (
           setLastScrollPosition(lastScrollPosition) {
             set({ lastScrollPosition });
           },
+          setAutomaticUserSearchUsername(automaticUserSearchUsername: string) {
+            set({ automaticUserSearchUsername });
+          },
+          clearAutomaticUserSearchUsername() {
+            set({ automaticUserSearchUsername: null });
+          },
         };
         return state;
       },
@@ -256,6 +267,7 @@ export const createVaultonomyStore = (
             pairingInterest: store.pairingInterest,
             pinnedPairing: store.pinnedPairing,
             searchForUserQuery: store.searchForUserQuery,
+            automaticUserSearchUsername: store.automaticUserSearchUsername,
             lastScrollPosition: store.lastScrollPosition,
           };
         },

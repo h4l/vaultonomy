@@ -16,6 +16,7 @@ export function useVaultonomyBackgroundConnection() {
     removeRedditProvider,
     onRedditLoggedOut,
     onRedditNotLoggedOut,
+    setAutomaticUserSearchUsername,
   ] = useVaultonomyStore((s) => [
     s.isOnDevServer,
     s.setProvider,
@@ -24,6 +25,7 @@ export function useVaultonomyBackgroundConnection() {
     s.removeRedditProvider,
     s.onRedditLoggedOut,
     s.onRedditNotLoggedOut,
+    s.setAutomaticUserSearchUsername,
   ]);
   useEffect(() => {
     let stopped = false;
@@ -68,11 +70,17 @@ export function useVaultonomyBackgroundConnection() {
       () => onRedditNotLoggedOut(),
     );
 
+    const stopOninterestInUser = createdProvider.emitter.on(
+      "interestInUser",
+      (event) => setAutomaticUserSearchUsername(event.username),
+    );
+
     return () => {
       stopped = true;
       stopAvailabilityStatus();
       stopRequestFailed();
       stopRequestSucceeded();
+      stopOninterestInUser();
       createdProvider.disconnect();
       removeProvider(createdProvider);
       removeRedditProvider(createdProvider.redditProvider);

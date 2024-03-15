@@ -26,15 +26,32 @@ export function UserSearch(): JSX.Element {
   const headingId = useId();
   const ref = useRef<HTMLElement>(null);
 
-  const [searchForUserQuery, setSearchForUserQuery] = useVaultonomyStore(
-    (store) => [store.searchForUserQuery, store.setSearchForUserQuery],
-  );
+  const [
+    searchForUserQuery,
+    setSearchForUserQuery,
+    automaticUserSearchQuery,
+    clearAutomaticUserSearchUsername,
+  ] = useVaultonomyStore((store) => {
+    const automaticUserSearchQuery = parseQuery(
+      store.automaticUserSearchUsername ?? "",
+    );
+    return [
+      store.searchForUserQuery,
+      store.setSearchForUserQuery,
+      automaticUserSearchQuery.type === "username" ?
+        automaticUserSearchQuery
+      : undefined,
+      store.clearAutomaticUserSearchUsername,
+    ];
+  });
 
   const [currentQuery, setCurrentQuery] = useState<
     ValidParsedQuery | undefined
   >();
 
-  const search = useSearchForUser({ query: currentQuery });
+  const search = useSearchForUser({
+    query: currentQuery ?? automaticUserSearchQuery,
+  });
   const resultUsername = search?.data?.value?.username;
   const resultUserProfile = useRedditUserProfile({
     username: resultUsername,
