@@ -1,11 +1,16 @@
 import { PortName } from "../PortName";
 import { log as _log } from "../logging";
+import { InterestInUserEvent } from "../messaging";
 import { RedditProvider } from "../reddit/reddit-interaction-client";
 import { AsyncConnector } from "../rpc/connections";
 import { Stop } from "../types";
 import { VAULTONOMY_RPC_PORT as VAULTONOMY_RPC_PORT_NAME } from "../vaultonomy-rpc-spec";
 import { browser } from "../webextension";
 import { retroactivePortDisconnection } from "../webextensions/retroactivePortDisconnection";
+import {
+  InterestInUserFromUserPageViewObserver,
+  UserPageTabActivatedEvent,
+} from "./InterestInUserFromUserPageViewObserver";
 import { RedditTabObserver } from "./RedditTabObserver";
 import { VaultonomyBackgroundServiceSession } from "./VaultonomyBackgroundServiceSession";
 import { redditTabUrlPatterns } from "./isReditTab";
@@ -19,6 +24,8 @@ type Disconnect = () => void;
 export class BackgroundService {
   private readonly tabConnector: AsyncConnector<chrome.runtime.Port>;
   private readonly tabObserver: RedditTabObserver;
+  private readonly sessions: Set<VaultonomyBackgroundServiceSession> =
+    new Set();
 
   constructor() {
     this.handleExtensionConnection = this.handleExtensionConnection.bind(this);
@@ -41,6 +48,8 @@ export class BackgroundService {
     // TODO: refactor to use start()/stop() pattern to help when testing
     const stop: Stop[] = [];
 
+    stop.push(this.startNotifyInterestInUsersFromUserLinkInteraction());
+    stop.push(this.startNotifyInterestInUsersFromUserPageViews());
     stop.push(this.ensureContentScriptsRunningAfterInstall());
   }
 
@@ -92,6 +101,64 @@ export class BackgroundService {
     );
   }
 
+  private notifySession(event: InterestInUserEvent) {
+    for (const session of this.sessions) session.notifyInterestInUser(event);
+  }
+
+  private startNotifyInterestInUsersFromUserPageViews(): Stop {
+    const observer = new InterestInUserFromUserPageViewObserver();
+
+    const onUserPageTabActivated = ({
+      username,
+      startTime,
+    }: UserPageTabActivatedEvent) => {
+      this.notifySession({
+        type: "redditUserShowedInterestInUser",
+        trigger: "user-page-view",
+        username,
+        startTime,
+      });
+    };
+
+    const stopOnUserPageTabActivated = observer.emitter.on(
+      "userPageTabActivated",
+      onUserPageTabActivated,
+    );
+
+    observer.start();
+
+    return () => {
+      stopOnUserPageTabActivated();
+      observer.stop();
+    };
+  }
+
+  private startNotifyInterestInUsersFromUserLinkInteraction(): Stop {
+    const onMessage = (
+      message: any,
+      sender: chrome.runtime.MessageSender,
+      _sendResponse: (response?: any) => void,
+    ): void => {
+      const parsedMsg = InterestInUserEvent.safeParse(message);
+
+      if (parsedMsg.success) {
+        const { type, username, startTime } = parsedMsg.data;
+        log.debug(type, username, new Date(startTime), "sender:", sender);
+
+        this.notifySession({
+          type: "redditUserShowedInterestInUser",
+          trigger: "user-page-view",
+          username,
+          startTime,
+        });
+      }
+    };
+
+    browser.runtime.onMessage.addListener(onMessage);
+
+    return () => browser.runtime.onMessage.removeListener(onMessage);
+  }
+
   protected handleExtensionConnection(port: chrome.runtime.Port) {
     switch (PortName.parse(port.name).base) {
       case VAULTONOMY_RPC_PORT_NAME.base:
@@ -133,6 +200,7 @@ export class BackgroundService {
         "Stopping Vaultonomy Background JSONRPC server/client for port",
         port,
       );
+      this.sessions.delete(session);
       session.disconnect();
     };
     retroactivePortDisconnection.addRetroactiveDisconnectListener(
@@ -140,6 +208,7 @@ export class BackgroundService {
       disconnect,
     );
 
+    this.sessions.add(session);
     return disconnect;
   }
 
