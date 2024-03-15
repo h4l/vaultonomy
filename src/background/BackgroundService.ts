@@ -2,11 +2,13 @@ import { PortName } from "../PortName";
 import { log as _log } from "../logging";
 import { RedditProvider } from "../reddit/reddit-interaction-client";
 import { AsyncConnector } from "../rpc/connections";
+import { Stop } from "../types";
 import { VAULTONOMY_RPC_PORT as VAULTONOMY_RPC_PORT_NAME } from "../vaultonomy-rpc-spec";
 import { browser } from "../webextension";
 import { retroactivePortDisconnection } from "../webextensions/retroactivePortDisconnection";
 import { RedditTabObserver } from "./RedditTabObserver";
 import { VaultonomyBackgroundServiceSession } from "./VaultonomyBackgroundServiceSession";
+import { redditTabUrlPatterns } from "./isReditTab";
 import { redditTabConnector } from "./tab-connector";
 import { DefaultRedditTabProvider } from "./tab-providers";
 
@@ -35,6 +37,59 @@ export class BackgroundService {
 
     this.tabObserver = new RedditTabObserver();
     this.tabObserver.start();
+
+    // TODO: refactor to use start()/stop() pattern to help when testing
+    const stop: Stop[] = [];
+
+    stop.push(this.ensureContentScriptsRunningAfterInstall());
+  }
+
+  /**
+   * Listen for the extension being installed or updated and inject content scripts.
+   *
+   * We do this to make extension user interaction work right away in reddit
+   * tabs. Normally a tab needs to be refreshed before the declarative content
+   * scripts defined in our manifest.json get (re-)installed by the browser.
+   */
+  private ensureContentScriptsRunningAfterInstall(): Stop {
+    const onInstalled = (_details: chrome.runtime.InstalledDetails): void => {
+      this.injectUserInterestDetectionContentScriptInOpenRedditTabs().catch(
+        (error): void => {
+          log.error(
+            "startHandlingUserInterestUserScriptInjection on extension install/update failed:",
+            error,
+          );
+        },
+      );
+    };
+
+    browser.runtime.onInstalled.addListener(onInstalled);
+
+    return () => browser.runtime.onInstalled.removeListener(onInstalled);
+  }
+
+  protected async injectUserInterestDetectionContentScriptInOpenRedditTabs(): Promise<void> {
+    const results = await Promise.allSettled(
+      (await browser.tabs.query({ url: redditTabUrlPatterns() })).map((tab) => {
+        chrome.scripting.executeScript({
+          target: { tabId: tab.id! },
+          files: ["reddit-detect-user-interest-contentscript.js"],
+        });
+      }),
+    );
+
+    const failed = results.filter(
+      (r): r is PromiseRejectedResult => r.status === "rejected",
+    );
+    if (failed.length > 0) {
+      const cause = failed[0].reason;
+      const msg = `injectUserInterestDetectionContentScriptInOpenRedditTabs failed to inject into ${failed.length}/${results.length} tabs`;
+      log.error(msg, cause);
+      throw new Error(msg, { cause });
+    }
+    log.info(
+      `injectUserInterestDetectionContentScriptInOpenRedditTabs updated content script in ${results.length} tabs`,
+    );
   }
 
   protected handleExtensionConnection(port: chrome.runtime.Port) {
