@@ -18,6 +18,12 @@
     "service_worker": "background.js",
     "type": "module"
   },
+  "content_scripts": [
+    {
+      "matches": ["https://www.reddit.com/*", "https://new.reddit.com/*"],
+      "js": ["reddit-detect-user-interest-contentscript.js"]
+    }
+  ],
   "web_accessible_resources": [
     {
       "resources": ["*.ttf", "*.js", "*.js.map", "*.html"],

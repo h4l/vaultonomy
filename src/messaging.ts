@@ -1,7 +1,17 @@
 import { z } from "zod";
 
+import { redditUsername } from "./reddit/types";
+
 // TODO create a way for the dev-server to register itself to receive messages
 // from the background service worker.
+
+export const InterestInUserEvent = z.object({
+  type: z.literal("redditUserShowedInterestInUser"),
+  username: redditUsername,
+  startTime: z.number(),
+  trigger: z.enum(["user-link-hover", "user-page-view"]),
+});
+export type InterestInUserEvent = z.infer<typeof InterestInUserEvent>;
 
 /**
  * Sent by the UI running in our dev-server to subscribe to messages from the

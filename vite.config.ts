@@ -1,6 +1,5 @@
 import replace from "@rollup/plugin-replace";
 import react from "@vitejs/plugin-react-swc";
-import path from "path";
 import { defineConfig } from "vite";
 import { nodePolyfills } from "vite-plugin-node-polyfills";
 
@@ -17,6 +16,7 @@ export default defineConfig({
     lib: {
       entry: {
         reddit: "src/reddit-entry.ts",
+        "reddit-detect-user-interest": "src/reddit/ui/detect-user-interest.ts",
         background: "src/background-entry.ts",
         ui: "src/ui-entry.tsx",
       },

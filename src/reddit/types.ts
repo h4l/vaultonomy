@@ -23,3 +23,5 @@ export const AnyRedditUserProfile = z.discriminatedUnion("isSuspended", [
   RedditUserProfile,
 ]);
 export type AnyRedditUserProfile = z.infer<typeof AnyRedditUserProfile>;
+
+export const redditUsername = z.string().regex(/^[\w-]{1,20}$/);

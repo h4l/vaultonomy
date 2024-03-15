@@ -77,6 +77,7 @@ export type RequiredNonNullable<T> = {
 };
 
 export type Unbind = () => void;
+export type Stop = Unbind;
 export type Disconnect = Unbind;
 
 export function isPromise(value: unknown): value is Promise<unknown>;
