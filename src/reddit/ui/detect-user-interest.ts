@@ -1,11 +1,19 @@
 import { assert } from "../../assert";
 import { log as _log } from "../../logging";
-import type { InterestInUserEvent } from "../../messaging";
+import type {
+  InterestInUserEvent,
+  UserLinkInteractionEvent,
+} from "../../messaging";
 import { Stop, Unbind } from "../../types";
 import { browser } from "../../webextension";
 
 const interestInUserEvent = "vaultonomy:interest-in-user";
-type InterestInUser = { username: string; startTime: number };
+type InterestInUser = {
+  interest: "interested" | "disinterested";
+  dwellTime: number;
+  username: string;
+  startTime: number;
+};
 const userUrlPattern =
   /^https:\/\/(?:www|new)\.reddit\.com\/u(?:ser)?\/([\w-]{1,20})\/?$/;
 
@@ -50,12 +58,19 @@ function reportInterestInUser({ shutdown }: { shutdown: Stop }): Unbind {
 
     try {
       browser.runtime.sendMessage({
-        type: "redditUserShowedInterestInUser",
+        type: "userLinkInteraction",
+        interest: detail.interest,
         username: detail.username,
         startTime: detail.startTime,
-        trigger: "user-link-hover",
-      } satisfies InterestInUserEvent);
-      log.debug("Reported interest in user", detail.username);
+        dwellTime: detail.dwellTime,
+      } satisfies UserLinkInteractionEvent);
+      log.debug(
+        "Reported interest in user ",
+        detail.username,
+        "for",
+        detail.dwellTime,
+        "ms",
+      );
     } catch (error) {
       if (String(error).includes("Extension context invalidated")) {
         log.debug("Stopping due to extension context invalidation");
@@ -76,14 +91,16 @@ type UserLink = {
   startTime: number;
   el: HTMLAnchorElement;
   username: string;
-  stop?: Unbind;
+  stop?: (reason: "blur" | "shutdown") => void;
   stopped: boolean;
 };
 
 function detectInterestInUserFromUserLinkInteraction({
-  hoverInterestTime = 500,
+  updateInterval = 100,
+  updateCount = 5,
 }: {
-  hoverInterestTime?: number;
+  updateInterval?: number;
+  updateCount?: number;
 } = {}): Unbind {
   let currentUserLink: UserLink | undefined;
 
@@ -100,7 +117,7 @@ function detectInterestInUserFromUserLinkInteraction({
     if (!userUrl) return;
     const username = userUrl[1];
 
-    if (currentUserLink) currentUserLink.stop && currentUserLink.stop();
+    if (currentUserLink) currentUserLink.stop && currentUserLink.stop("blur");
     const state: UserLink = (currentUserLink = {
       startTime: Date.now(),
       el: containingAnchor,
@@ -110,41 +127,68 @@ function detectInterestInUserFromUserLinkInteraction({
 
     hoverLog.debug("mouse entered link to", username);
 
-    let timeout: NodeJS.Timeout | undefined = undefined;
-    const confirmInterest = () => {
-      hoverLog.debug("mouse remained within link to", username);
-      state.stop!();
+    let timer: NodeJS.Timeout | undefined = undefined;
+    let currentUpdateCount = 0;
+    const notifyInterested = () => {
+      const dwellTime = Date.now() - state.startTime;
+      hoverLog.debug(
+        "mouse remained within link to",
+        username,
+        "for",
+        dwellTime,
+        "ms",
+      );
       window.dispatchEvent(
         new CustomEvent<InterestInUser>(interestInUserEvent, {
-          detail: { username, startTime: state.startTime },
+          detail: {
+            interest: "interested",
+            username,
+            startTime: state.startTime,
+            dwellTime: Date.now() - state.startTime,
+          },
         }),
       );
+      currentUpdateCount++;
+      if (currentUpdateCount >= updateCount) clearInterval(timer);
     };
     // The mouse must remain within the element for a minimum duration.
     // Confirm interest after this duration.
-    timeout = setTimeout(confirmInterest, hoverInterestTime);
+    timer = setInterval(notifyInterested, updateInterval);
 
     // Cancel without indicating interest if the mouse leaves before the min duration.
+    // TODO: should we debounce leaves?
     const onLeaveAnchor = () => {
-      state.stop!();
+      state.stop!("blur");
       hoverLog.debug(
         "mouse left link to",
         username,
-        "before min duration elapsed",
+        `after ${Date.now() - state.startTime}ms, ${currentUpdateCount} ${updateInterval}ms interest intervals`,
       );
     };
     containingAnchor.addEventListener("mouseleave", onLeaveAnchor);
 
-    state.stop = () => {
+    state.stop = (reason: "blur" | "shutdown") => {
       state.stopped = true;
-      clearTimeout(timeout);
+      clearInterval(timer);
       containingAnchor.removeEventListener("mouseleave", onLeaveAnchor);
+      if (currentUpdateCount > 0 && reason !== "shutdown") {
+        window.dispatchEvent(
+          new CustomEvent<InterestInUser>(interestInUserEvent, {
+            detail: {
+              interest: "disinterested",
+              username,
+              startTime: state.startTime,
+              dwellTime: Date.now() - state.startTime,
+            },
+          }),
+        );
+      }
     };
   }
   document.addEventListener("mouseover", onMouseOver);
 
   return () => {
     document.removeEventListener("mouseover", onMouseOver);
-    if (currentUserLink?.stop) currentUserLink.stop();
+    if (currentUserLink?.stop) currentUserLink.stop("shutdown");
   };
 }

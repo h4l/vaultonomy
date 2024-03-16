@@ -1,6 +1,6 @@
 import { PortName } from "../PortName";
 import { log as _log } from "../logging";
-import { InterestInUserEvent } from "../messaging";
+import { InterestInUserEvent, UserLinkInteractionEvent } from "../messaging";
 import { RedditProvider } from "../reddit/reddit-interaction-client";
 import { AsyncConnector } from "../rpc/connections";
 import { Stop } from "../types";
@@ -130,8 +130,7 @@ export class BackgroundService {
       startTime,
     }: UserPageTabActivatedEvent) => {
       this.notifySession({
-        type: "redditUserShowedInterestInUser",
-        trigger: "user-page-view",
+        type: "userPageInteraction",
         username,
         startTime,
       });
@@ -156,18 +155,13 @@ export class BackgroundService {
       sender: chrome.runtime.MessageSender,
       _sendResponse: (response?: any) => void,
     ): void => {
-      const parsedMsg = InterestInUserEvent.safeParse(message);
+      const parsedMsg = UserLinkInteractionEvent.safeParse(message);
 
       if (parsedMsg.success) {
         const { type, username, startTime } = parsedMsg.data;
         log.debug(type, username, new Date(startTime), "sender:", sender);
 
-        this.notifySession({
-          type: "redditUserShowedInterestInUser",
-          trigger: "user-page-view",
-          username,
-          startTime,
-        });
+        this.notifySession(parsedMsg.data);
       }
     };
 

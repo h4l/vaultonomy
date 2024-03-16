@@ -1,7 +1,10 @@
 import { z } from "zod";
 
 import { PortName } from "./PortName";
-import { InterestInUserEvent } from "./messaging";
+import {
+  UserLinkInteractionEvent,
+  UserPageInteractionEvent,
+} from "./messaging";
 import { defineMethod } from "./rpc/typing";
 
 export const VAULTONOMY_RPC_PORT = new PortName("vaultonomy-rpc");
@@ -31,7 +34,8 @@ export const RedditTabBecameUnavailableEvent = z.object({
 export const VaultonomyBackgroundEvent = z.discriminatedUnion("type", [
   RedditTabBecameAvailableEvent,
   RedditTabBecameUnavailableEvent,
-  InterestInUserEvent,
+  UserLinkInteractionEvent,
+  UserPageInteractionEvent,
 ]);
 export type VaultonomyBackgroundEvent = z.infer<
   typeof VaultonomyBackgroundEvent

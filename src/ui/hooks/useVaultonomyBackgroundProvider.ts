@@ -70,8 +70,16 @@ export function useVaultonomyBackgroundConnection() {
       () => onRedditNotLoggedOut(),
     );
 
-    const stopOninterestInUser = createdProvider.emitter.on(
-      "interestInUser",
+    const stopOnUserLinkInteraction = createdProvider.emitter.on(
+      "userLinkInteraction",
+      (event) => {
+        if (event.interest === "interested" && event.dwellTime > 450) {
+          setAutomaticUserSearchUsername(event.username);
+        }
+      },
+    );
+    const stopOnUserPageInteraction = createdProvider.emitter.on(
+      "userPageInteraction",
       (event) => setAutomaticUserSearchUsername(event.username),
     );
 
@@ -80,7 +88,8 @@ export function useVaultonomyBackgroundConnection() {
       stopAvailabilityStatus();
       stopRequestFailed();
       stopRequestSucceeded();
-      stopOninterestInUser();
+      stopOnUserLinkInteraction();
+      stopOnUserPageInteraction();
       createdProvider.disconnect();
       removeProvider(createdProvider);
       removeRedditProvider(createdProvider.redditProvider);

@@ -2,7 +2,11 @@ import { JSONRPCServer, JSONRPCServerAndClient } from "json-rpc-2.0";
 import { Emitter, createNanoEvents } from "nanoevents";
 
 import { assertUnreachable } from "../../assert";
-import { InterestInUserEvent } from "../../messaging";
+import {
+  InterestInUserEvent,
+  UserLinkInteractionEvent,
+  UserPageInteractionEvent,
+} from "../../messaging";
 import {
   AnyRedditProviderError,
   RedditProvider,
@@ -35,7 +39,8 @@ export interface RedditTabConnectionEvents {
   availabilityStatus: (
     event: RedditTabBecameAvailableEvent | RedditTabBecameUnavailableEvent,
   ) => void;
-  interestInUser: (event: InterestInUserEvent) => void;
+  userLinkInteraction: (event: UserLinkInteractionEvent) => void;
+  userPageInteraction: (event: UserPageInteractionEvent) => void;
 }
 
 export class VaultonomyBackgroundProvider {
@@ -146,8 +151,11 @@ export class VaultonomyBackgroundProvider {
           case "redditTabBecameUnavailable":
             this.markRedditUnavailable();
             break;
-          case "redditUserShowedInterestInUser":
-            this.emitter.emit("interestInUser", event);
+          case "userLinkInteraction":
+            this.emitter.emit(event.type, event);
+            break;
+          case "userPageInteraction":
+            this.emitter.emit(event.type, event);
             break;
           default:
             assertUnreachable(event);
