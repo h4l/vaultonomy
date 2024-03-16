@@ -73,6 +73,7 @@ export function useVaultonomyBackgroundConnection() {
         } else {
           onRedditNotLoggedOut();
         }
+        log.warn("Reddit Provider request failed:", e);
       },
     );
     const stopRequestSucceeded = createdProvider.redditProvider.emitter.on(
