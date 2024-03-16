@@ -4,44 +4,51 @@ import {
   RedditProvider,
   RedditProviderError,
 } from "../../reddit/reddit-interaction-client";
-import {
-  ErrorCode,
-  RedditUserProfile,
-} from "../../reddit/reddit-interaction-spec";
+import { ErrorCode } from "../../reddit/reddit-interaction-spec";
 import { AnyRedditUserProfile } from "../../reddit/types";
-import { RequiredNonNullable } from "../../types";
 import { useVaultonomyStore } from "../state/useVaultonomyStore";
 import { useRedditProvider } from "./useRedditProvider";
+import { normaliseUsername } from "./useSearchForUser";
 
 export type UseRedditUserProfileParameters = { username: string | undefined };
 
 export type GetRedditUserProfileQueryOptions =
   UseRedditUserProfileParameters & {
-    session: { userId: string } | undefined;
     redditProvider: RedditProvider | undefined;
   };
 
+type EnabledOptions = {
+  username: string;
+  redditProvider: RedditProvider;
+};
+
 function isEnabled(
   options: GetRedditUserProfileQueryOptions,
-): options is RequiredNonNullable<GetRedditUserProfileQueryOptions> {
-  return !!(options.redditProvider && options.session && options.username);
+): options is EnabledOptions {
+  return !!(options.redditProvider && options.username);
 }
-
-// TODO: we don't need a session to fetch another user's profile
 
 export function getRedditUserProfileQueryOptions(
   options: GetRedditUserProfileQueryOptions,
 ) {
   return queryOptions({
-    queryKey: ["RedditProvider", "UserProfile", options.username],
+    queryKey: [
+      "RedditProvider",
+      "UserProfile",
+      options.username === undefined ?
+        undefined
+      : normaliseUsername(options.username),
+    ],
     async queryFn(): Promise<AnyRedditUserProfile | null> {
       if (!isEnabled(options)) throw new Error("not enabled");
-      const { redditProvider, session, username } = options;
+      const { redditProvider, username } = options;
       try {
-        return await redditProvider.getUserProfile({
-          session,
-          username,
-        });
+        const profile = await redditProvider.getUserProfile({ username });
+        if (!profile.isSuspended && profile.accountIconFullBodyURL) {
+          // Pre-fetch the account icon URL to the browser cache
+          new Image().src = profile.accountIconFullBodyURL;
+        }
+        return profile;
       } catch (error) {
         if (
           error instanceof RedditProviderError &&
@@ -60,13 +67,11 @@ export function getRedditUserProfileQueryOptions(
 export function useRedditUserProfile({
   username,
 }: Partial<UseRedditUserProfileParameters>) {
-  const currentUserId = useVaultonomyStore((s) => s.currentUserId);
   const { redditProvider } = useRedditProvider();
 
   const options = {
     redditProvider: redditProvider ?? undefined,
-    session: currentUserId ? { userId: currentUserId } : undefined,
-    username,
+    username: username?.toLowerCase(),
   };
   return useQuery({
     ...getRedditUserProfileQueryOptions(options),

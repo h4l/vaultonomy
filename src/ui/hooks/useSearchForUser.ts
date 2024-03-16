@@ -11,13 +11,17 @@ import { Config, useConfig } from "wagmi";
 import { getEnsAddressQueryOptions, getEnsTextQueryOptions } from "wagmi/query";
 
 import { assert, assertUnreachable } from "../../assert";
+import { log } from "../../logging";
 import { RedditProvider } from "../../reddit/reddit-interaction-client";
 import { RequiredNonNullable } from "../../types";
 import { Result } from "../state/createVaultonomyStore";
 import { useVaultonomyStore } from "../state/useVaultonomyStore";
 import { useRedditProvider } from "./useRedditProvider";
 import { getRedditUserProfileQueryOptions } from "./useRedditUserProfile";
-import { getRedditUserVaultQueryOptions } from "./useRedditUserVault";
+import {
+  getRedditUserVaultQueryOptions,
+  prefetchRedditUserVault,
+} from "./useRedditUserVault";
 
 export type UseSearchForUserOptions = {
   query: ValidParsedQuery | undefined;
@@ -59,7 +63,6 @@ type SearchForUser = { username: string };
 export type SearchForUserResult = Result<SearchForUser, SearchForUserError>;
 
 type GetSearchForUserQueryOptions = UseSearchForUserOptions & {
-  session: { userId: string } | undefined;
   redditProvider: RedditProvider | null | undefined;
   queryClient: QueryClient;
   wagmiConfig: Config;
@@ -110,15 +113,45 @@ export function parseQuery(rawQuery: string): ParsedQuery {
   return parseUsername(query);
 }
 
-function parseUsername(query: string): UsernameQuery | InvalidParsedQuery {
+export function parseUsername(
+  query: string,
+): UsernameQuery | InvalidParsedQuery {
   if (/^[\w-]+$/.test(query)) {
     if (query.length > 20) {
       return { type: "invalid-query", reason: "username-length" };
     }
-    return { type: "username", value: query.toLowerCase() };
+    return { type: "username", value: normaliseUsername(query) };
   }
 
   return { type: "invalid-query", reason: "username" };
+}
+
+export function normaliseUsername(username: string): string {
+  return username.toLowerCase();
+}
+
+export function normaliseQuery(query: ParsedQuery): ParsedQuery {
+  try {
+    if (query.type === "username") {
+      const normalisedUsername = normaliseUsername(query.value);
+      return normalisedUsername === query.value ?
+          query
+        : { type: "username", value: normalisedUsername };
+    } else if (query.type === "address") {
+      const normalisedAddress = getAddress(query.value);
+      return normalisedAddress === query.value ?
+          query
+        : { type: "address", value: normalisedAddress };
+    } else if (query.type === "ens-name") {
+      const normalisedEnsName = normalize(query.value);
+      return normalisedEnsName === query.value ?
+          query
+        : { type: "ens-name", value: normalisedEnsName };
+    }
+  } catch (cause) {
+    throw new Error("Failed to normalise invalid query", { cause });
+  }
+  return query;
 }
 
 export function parsedQueryEqual(a: ParsedQuery, b: ParsedQuery): boolean {
@@ -151,19 +184,17 @@ async function searchForUser({
 
 async function searchForUserByUsername({
   query,
-  session,
   redditProvider,
   queryClient,
 }: {
   query: UsernameQuery;
 } & Pick<
   SearchForUserOptions,
-  "session" | "redditProvider" | "queryClient"
+  "redditProvider" | "queryClient"
 >): Promise<SearchForUserResult> {
   const result = await queryClient.fetchQuery(
     getRedditUserProfileQueryOptions({
       redditProvider,
-      session,
       username: query.value,
     }),
   );
@@ -258,7 +289,6 @@ async function searchForUserByEnsNameAddress({
 
 async function searchForUserByEnsNameTxtRecord({
   query,
-  session,
   redditProvider,
   queryClient,
   wagmiConfig,
@@ -283,7 +313,6 @@ async function searchForUserByEnsNameTxtRecord({
       query: validated,
       queryClient,
       redditProvider,
-      session,
     });
     if (user.result === "ok") return user;
   }
@@ -300,13 +329,13 @@ async function searchForUserByEnsNameTxtRecord({
 function isEnabled(
   options: GetSearchForUserQueryOptions,
 ): options is RequiredNonNullable<GetSearchForUserQueryOptions> {
-  return !!(options.redditProvider && options.session && options.query);
+  return !!(options.redditProvider && options.query);
 }
 
 export function getSearchForUserQueryKey(
   query: ValidParsedQuery | undefined,
 ): QueryKey {
-  return ["SearchForUser", query];
+  return ["SearchForUser", query ? normaliseQuery(query) : undefined];
 }
 
 export function getSearchForUserQueryOptions({
@@ -318,26 +347,57 @@ export function getSearchForUserQueryOptions({
     queryKey: getSearchForUserQueryKey(options.query),
     async queryFn() {
       if (!isEnabled(options)) throw new Error("not enabled");
+
+      // If we're searching for a username and it matches we'll subsequently
+      // request the user's value by username, so we can start doing that now to
+      // speed up vault loading. (No point in pre-fetching an address query, as
+      // they request a vault by address anyway.)
+      if (options.query.type === "username") {
+        prefetchRedditUserVault({
+          query: options.query,
+          queryClient: options.queryClient,
+          redditProvider: options.redditProvider,
+        });
+      }
+
       return await searchForUser(options);
     },
+    throwOnError: (e) => {
+      log.error("search for user failed:", e);
+      return false;
+    },
     enabled: isEnabled(options),
+    // TODO: tune this value
+    staleTime: 1000 * 60 * 5,
   });
 }
 
 export function useSearchForUser({ query }: UseSearchForUserOptions) {
   const queryClient = useQueryClient();
   const wagmiConfig = useConfig();
-  const currentUserId = useVaultonomyStore((s) => s.currentUserId);
   const { redditProvider } = useRedditProvider();
 
   const options: GetSearchForUserQueryOptions = {
     query,
     queryClient,
     redditProvider,
-    session: currentUserId ? { userId: currentUserId } : undefined,
     wagmiConfig,
   };
   return useQuery({
     ...getSearchForUserQueryOptions(options),
   });
+}
+
+export async function prefetchSearchForUser(
+  options: UseSearchForUserOptions & GetSearchForUserQueryOptions,
+): Promise<void> {
+  if (!isEnabled(options)) {
+    log.warn("Cannot prefetch SearchForUser: options not enabled");
+    return;
+  }
+
+  log.debug("prefetchSearchForUser", options.query.value);
+  return options.queryClient.prefetchQuery(
+    getSearchForUserQueryOptions(options),
+  );
 }

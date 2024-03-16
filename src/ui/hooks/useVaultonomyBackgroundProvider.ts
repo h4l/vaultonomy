@@ -1,4 +1,6 @@
+import { useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
+import { useConfig } from "wagmi";
 
 import { assert, assertUnreachable } from "../../assert";
 import { log } from "../../logging";
@@ -6,8 +8,16 @@ import { ErrorCode } from "../../reddit/reddit-interaction-spec";
 import { CouldNotConnect } from "../../rpc/connections";
 import { useVaultonomyStore } from "../state/useVaultonomyStore";
 import { createVaultonomyBackgroundProvider } from "./createVaultonomyBackgroundProvider";
+import {
+  getSearchForUserQueryKey,
+  parseQuery,
+  parseUsername,
+  prefetchSearchForUser,
+} from "./useSearchForUser";
 
 export function useVaultonomyBackgroundConnection() {
+  const queryClient = useQueryClient();
+  const wagmiConfig = useConfig();
   const [
     isOnDevServer,
     setProvider,
@@ -73,6 +83,17 @@ export function useVaultonomyBackgroundConnection() {
     const stopOnUserLinkInteraction = createdProvider.emitter.on(
       "userLinkInteraction",
       (event) => {
+        if (event.interest === "interested") {
+          const query = parseUsername(event.username);
+          if (query.type === "username") {
+            prefetchSearchForUser({
+              query,
+              queryClient,
+              redditProvider: createdProvider.redditProvider,
+              wagmiConfig,
+            });
+          }
+        }
         if (event.interest === "interested" && event.dwellTime > 450) {
           setAutomaticUserSearchUsername(event.username);
         }

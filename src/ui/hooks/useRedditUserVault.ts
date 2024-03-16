@@ -1,13 +1,14 @@
-import { queryOptions, useQuery } from "@tanstack/react-query";
+import { QueryClient, queryOptions, useQuery } from "@tanstack/react-query";
 
+import { log } from "../../logging";
 import type {
   RedditUserVault,
   GetRedditUserVaultQueryOptions as RpcQueryOptions,
 } from "../../reddit/api-client";
 import { RedditProvider } from "../../reddit/reddit-interaction-client";
 import { RequiredNonNullable } from "../../types";
-import { useVaultonomyStore } from "../state/useVaultonomyStore";
 import { useRedditProvider } from "./useRedditProvider";
+import { normaliseQuery } from "./useSearchForUser";
 
 export type UseRedditUserVaultParameters = RpcQueryOptions;
 
@@ -26,7 +27,11 @@ export function getRedditUserVaultQueryOptions(
   options: GetRedditUserVaultQueryOptions,
 ) {
   return queryOptions({
-    queryKey: ["RedditProvider", "UserVault", options.query],
+    queryKey: [
+      "RedditProvider",
+      "UserVault",
+      options.query ? normaliseQuery(options.query) : undefined,
+    ],
     async queryFn(): Promise<RedditUserVault | null> {
       if (!isEnabled(options)) throw new Error("not enabled");
       const { redditProvider, query } = options;
@@ -41,15 +46,23 @@ export function useRedditUserVault({
 }: {
   query: UseRedditUserVaultParameters | undefined;
 }) {
-  const currentUserId = useVaultonomyStore((s) => s.currentUserId);
   const { redditProvider } = useRedditProvider();
 
   const fullOptions = {
     redditProvider: redditProvider ?? undefined,
-    session: currentUserId ? { userId: currentUserId } : undefined,
     query,
   };
   return useQuery({
     ...getRedditUserVaultQueryOptions(fullOptions),
   });
+}
+
+export async function prefetchRedditUserVault({
+  queryClient,
+  ...options
+}: {
+  queryClient: QueryClient;
+} & RequiredNonNullable<GetRedditUserVaultQueryOptions>): Promise<void> {
+  log.debug("prefetchRedditUserVault", options.query);
+  await queryClient.prefetchQuery(getRedditUserVaultQueryOptions(options));
 }
