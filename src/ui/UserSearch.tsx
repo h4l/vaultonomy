@@ -29,19 +29,19 @@ export function UserSearch(): JSX.Element {
   const [
     searchForUserQuery,
     setSearchForUserQuery,
-    automaticUserSearchQuery,
-    clearAutomaticUserSearchUsername,
+    userOfInterest,
+    userOfInterestQuery,
+    setUserOfInterest,
   ] = useVaultonomyStore((store) => {
-    const automaticUserSearchQuery = parseQuery(
-      store.automaticUserSearchUsername ?? "",
+    const userOfInterestQuery = parseQuery(
+      store.userOfInterest?.rawUsernameQuery ?? "",
     );
     return [
       store.searchForUserQuery,
       store.setSearchForUserQuery,
-      automaticUserSearchQuery.type === "username" ?
-        automaticUserSearchQuery
-      : undefined,
-      store.clearAutomaticUserSearchUsername,
+      store.userOfInterest,
+      userOfInterestQuery.type === "username" ? userOfInterestQuery : undefined,
+      store.setUserOfInterest,
     ];
   });
 
@@ -50,12 +50,10 @@ export function UserSearch(): JSX.Element {
   >();
 
   const search = useSearchForUser({
-    query: currentQuery ?? automaticUserSearchQuery,
+    query: currentQuery ?? userOfInterestQuery,
   });
   const resultUsername = search?.data?.value?.username;
-  const resultUserProfile = useRedditUserProfile({
-    username: resultUsername,
-  });
+  const resultUserProfile = useRedditUserProfile({ username: resultUsername });
 
   const resultUserVault = useRedditUserVault({
     query:
@@ -99,12 +97,25 @@ export function UserSearch(): JSX.Element {
         />
       </div>
       <SearchForm
+        inputPlaceholder={
+          userOfInterest && !currentQuery ?
+            userOfInterest.rawUsernameQuery
+          : undefined
+        }
         defaultRawQuery={searchForUserQuery}
         onQuery={({ rawQuery, parsedQuery }) => {
           setSearchForUserQuery(rawQuery);
           setCurrentQuery(
             parsedQuery.type === "invalid-query" ? undefined : parsedQuery,
           );
+
+          // Clear the automatic user search when the input is cleared
+          if (
+            parsedQuery.type === "invalid-query" &&
+            parsedQuery.reason === "empty"
+          ) {
+            setUserOfInterest(null);
+          }
         }}
         activity={activity}
         notFoundError={search.data?.error}
@@ -139,12 +150,14 @@ type Activity =
   | "data-revalidating";
 
 function SearchForm({
+  inputPlaceholder,
   defaultRawQuery,
   onQuery,
   activity,
   notFoundError,
   errorMessages = [],
 }: {
+  inputPlaceholder?: string;
   defaultRawQuery: string | undefined;
   onQuery: (options: { rawQuery: string; parsedQuery: ParsedQuery }) => void;
   activity: Activity;
@@ -299,7 +312,7 @@ function SearchForm({
               "text-lg",
               // "autofill:shadow-[inset_0_0_0px_100px_rgb(255_255_0_/_0.5)]",
             ].join(" ")}
-            placeholder="Username, 0x… or .eth address"
+            placeholder={inputPlaceholder ?? "Username, 0x… or .eth address"}
           />
           <div className="absolute inset-y-0 left-0 flex items-center pl-4">
             <button

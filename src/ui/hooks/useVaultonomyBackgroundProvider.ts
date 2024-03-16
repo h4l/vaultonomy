@@ -26,7 +26,7 @@ export function useVaultonomyBackgroundConnection() {
     removeRedditProvider,
     onRedditLoggedOut,
     onRedditNotLoggedOut,
-    setAutomaticUserSearchUsername,
+    setUserOfInterest,
   ] = useVaultonomyStore((s) => [
     s.isOnDevServer,
     s.setProvider,
@@ -35,7 +35,7 @@ export function useVaultonomyBackgroundConnection() {
     s.removeRedditProvider,
     s.onRedditLoggedOut,
     s.onRedditNotLoggedOut,
-    s.setAutomaticUserSearchUsername,
+    s.setUserOfInterest,
   ]);
   useEffect(() => {
     let stopped = false;
@@ -95,13 +95,13 @@ export function useVaultonomyBackgroundConnection() {
           }
         }
         if (event.interest === "interested" && event.dwellTime > 450) {
-          setAutomaticUserSearchUsername(event.username);
+          setUserOfInterest({ rawUsernameQuery: event.username });
         }
       },
     );
     const stopOnUserPageInteraction = createdProvider.emitter.on(
       "userPageInteraction",
-      (event) => setAutomaticUserSearchUsername(event.username),
+      (event) => setUserOfInterest({ rawUsernameQuery: event.username }),
     );
 
     return () => {

@@ -62,8 +62,7 @@ export type VaultonomyStateActions = {
   setSearchForUserQuery(rawQuery: string): void;
   setHasHydrated(hasHydrated: boolean): void;
   setLastScrollPosition(lastScrollPosition: number | null): void;
-  setAutomaticUserSearchUsername(username: string): void;
-  clearAutomaticUserSearchUsername(): void;
+  setUserOfInterest(userOfInterest: { rawUsernameQuery: string } | null): void;
 };
 
 export enum PairingChecklist {
@@ -98,7 +97,7 @@ export type VaultonomyStateData = {
   /** One of the pairings that has been signed and submitted to register the address. */
   pinnedPairing: PairingId | null;
   searchForUserQuery: string;
-  automaticUserSearchUsername: string | null;
+  userOfInterest: { rawUsernameQuery: string } | null;
   lastScrollPosition: number | null;
 };
 
@@ -109,7 +108,7 @@ type PersistedVaultonomyStateData = Pick<
   | "pairingInterest"
   | "pinnedPairing"
   | "searchForUserQuery"
-  | "automaticUserSearchUsername"
+  | "userOfInterest"
   | "lastScrollPosition"
 >;
 
@@ -150,7 +149,7 @@ export const createVaultonomyStore = (
           pairings: {},
           pinnedPairing: null,
           searchForUserQuery: "",
-          automaticUserSearchUsername: null,
+          userOfInterest: null,
           lastScrollPosition: null,
           // actions
           setHasHydrated(hasHydrated: boolean): void {
@@ -248,18 +247,15 @@ export const createVaultonomyStore = (
           setLastScrollPosition(lastScrollPosition) {
             set({ lastScrollPosition });
           },
-          setAutomaticUserSearchUsername(automaticUserSearchUsername: string) {
-            set({ automaticUserSearchUsername });
-          },
-          clearAutomaticUserSearchUsername() {
-            set({ automaticUserSearchUsername: null });
+          setUserOfInterest(userOfInterest) {
+            set({ userOfInterest });
           },
         };
         return state;
       },
       {
         name: "vaultonomy-ui-state",
-        version: 5,
+        version: 6,
         partialize(store): PersistedVaultonomyStateData {
           return {
             currentUserId: store.currentUserId,
@@ -267,7 +263,7 @@ export const createVaultonomyStore = (
             pairingInterest: store.pairingInterest,
             pinnedPairing: store.pinnedPairing,
             searchForUserQuery: store.searchForUserQuery,
-            automaticUserSearchUsername: store.automaticUserSearchUsername,
+            userOfInterest: store.userOfInterest,
             lastScrollPosition: store.lastScrollPosition,
           };
         },
