@@ -11,6 +11,7 @@ import {
 } from "json-rpc-2.0";
 
 import { HTTPResponseError } from "../errors/http";
+import { tabCloseWarningMiddleware } from "../rpc/middleware";
 import { SessionManager, createCachedSessionManager } from "./SessionManager";
 import {
   createAddressOwnershipChallenge,
@@ -80,6 +81,9 @@ export function createServerSession<
   const service = new JSONRPCServer<ServerParams>({
     errorListener: () => undefined,
   });
+
+  service.applyMiddleware(tabCloseWarningMiddleware());
+
   const defaultMapErrorToJSONRPCErrorResponse =
     service.mapErrorToJSONRPCErrorResponse;
   service.mapErrorToJSONRPCErrorResponse = (
