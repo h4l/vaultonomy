@@ -23,3 +23,11 @@ export const InterestInUserEvent = z.discriminatedUnion("type", [
   UserPageInteractionEvent,
 ]);
 export type InterestInUserEvent = z.infer<typeof InterestInUserEvent>;
+
+export const BackgroundServiceStartedEvent = z.object({
+  type: z.literal("backgroundServiceStarted"),
+  startTime: z.number().positive(),
+});
+export type BackgroundServiceStartedEvent = z.infer<
+  typeof BackgroundServiceStartedEvent
+>;

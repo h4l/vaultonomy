@@ -1,12 +1,22 @@
 import { PortName } from "../PortName";
 import { log as _log } from "../logging";
-import { InterestInUserEvent, UserLinkInteractionEvent } from "../messaging";
+import {
+  BackgroundServiceStartedEvent,
+  InterestInUserEvent,
+  UserLinkInteractionEvent,
+  UserPageInteractionEvent,
+} from "../messaging";
 import { RedditProvider } from "../reddit/reddit-interaction-client";
 import { AsyncConnector } from "../rpc/connections";
 import { Stop } from "../types";
-import { VAULTONOMY_RPC_PORT as VAULTONOMY_RPC_PORT_NAME } from "../vaultonomy-rpc-spec";
+import {
+  TaggedEvent,
+  TaggedVaultonomyBackgroundEvent,
+  VAULTONOMY_RPC_PORT as VAULTONOMY_RPC_PORT_NAME,
+} from "../vaultonomy-rpc-spec";
 import { browser } from "../webextension";
 import { retroactivePortDisconnection } from "../webextensions/retroactivePortDisconnection";
+import { EventLog } from "./EventLog";
 import {
   InterestInUserFromUserPageViewObserver,
   UserPageTabActivatedEvent,
@@ -26,6 +36,8 @@ export class BackgroundService {
   private readonly tabObserver: RedditTabObserver;
   private readonly sessions: Set<VaultonomyBackgroundServiceSession> =
     new Set();
+  private readonly notificationLog: EventLog<TaggedVaultonomyBackgroundEvent> =
+    new EventLog((event) => event);
   protected toStop: Stop[] = [];
 
   constructor() {
@@ -48,6 +60,7 @@ export class BackgroundService {
   start(): void {
     if (this.#isStarted) return;
     this.#isStarted = true;
+    const startTime = Date.now();
 
     this.toStop = [];
 
@@ -57,6 +70,23 @@ export class BackgroundService {
     this.toStop.push(this.startNotifyInterestInUsersFromUserPageViews());
     this.toStop.push(this.ensureContentScriptsRunningAfterInstall());
     this.tabObserver.start();
+
+    browser.runtime
+      .sendMessage({
+        type: "backgroundServiceStarted",
+        startTime,
+      } satisfies BackgroundServiceStartedEvent)
+      .catch((e) => {
+        // This happens when no browser.runtime.onMessage listeners are
+        // registered, which happens when no UIs are open.
+        if (
+          /Could not establish connection|Receiving end does not exist/i.test(
+            `${e}`,
+          )
+        )
+          return;
+        log.warn("sendMessage failed", e);
+      });
   }
 
   stop(): void {
@@ -119,7 +149,10 @@ export class BackgroundService {
   }
 
   private notifySession(event: InterestInUserEvent) {
-    for (const session of this.sessions) session.notifyInterestInUser(event);
+    const eventContext = this.notificationLog.register(event);
+
+    for (const session of this.sessions)
+      session.notifyInterestInUser(eventContext);
   }
 
   private startNotifyInterestInUsersFromUserPageViews(): Stop {
@@ -211,11 +244,12 @@ export class BackgroundService {
       this.tabConnector,
     );
 
-    const session = new VaultonomyBackgroundServiceSession(
+    const session = new VaultonomyBackgroundServiceSession({
       port,
       redditProvider,
-      this.tabObserver,
-    );
+      redditTabObserver: this.tabObserver,
+      eventLog: this.notificationLog.events,
+    });
 
     const disconnect = () => {
       log.debug(

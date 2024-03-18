@@ -1,10 +1,7 @@
 import { z } from "zod";
 
 import { PortName } from "./PortName";
-import {
-  UserLinkInteractionEvent,
-  UserPageInteractionEvent,
-} from "./messaging";
+import { InterestInUserEvent } from "./messaging";
 import { defineMethod } from "./rpc/typing";
 
 export const VAULTONOMY_RPC_PORT = new PortName("vaultonomy-rpc");
@@ -31,11 +28,28 @@ export const RedditTabBecameUnavailableEvent = z.object({
   type: z.literal("redditTabBecameUnavailable"),
 });
 
+function createTaggedEventSchema<T extends z.ZodTypeAny>(eventSchema: T) {
+  return z.object({
+    type: z.literal("tagged"),
+    senderId: z.string().min(1),
+    order: z.number().nonnegative(),
+    event: eventSchema,
+  });
+}
+export type TaggedEvent<T> = z.infer<
+  ReturnType<typeof createTaggedEventSchema<z.Schema<T>>>
+>;
+
+export const TaggedVaultonomyBackgroundEvent =
+  createTaggedEventSchema(InterestInUserEvent);
+export type TaggedVaultonomyBackgroundEvent = z.infer<
+  typeof TaggedVaultonomyBackgroundEvent
+>;
+
 export const VaultonomyBackgroundEvent = z.discriminatedUnion("type", [
   RedditTabBecameAvailableEvent,
   RedditTabBecameUnavailableEvent,
-  UserLinkInteractionEvent,
-  UserPageInteractionEvent,
+  TaggedVaultonomyBackgroundEvent,
 ]);
 export type VaultonomyBackgroundEvent = z.infer<
   typeof VaultonomyBackgroundEvent
@@ -56,4 +70,10 @@ export const VaultonomyGetRedditTabAvailability = defineMethod({
   name: "vaultonomy_getRedditTabAvailability",
   params: z.null(),
   returns: RedditTabAvailability,
+});
+
+export const VaultonomyGetUiNotifications = defineMethod({
+  name: "vaultonomy_getUiNotifications",
+  params: z.null(),
+  returns: z.array(TaggedVaultonomyBackgroundEvent),
 });

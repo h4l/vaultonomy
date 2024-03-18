@@ -8,7 +8,6 @@ import {
 } from "json-rpc-2.0";
 
 import { log } from "../logging";
-import { InterestInUserEvent } from "../messaging";
 import { RedditProvider } from "../reddit/reddit-interaction-client";
 import {
   ErrorCode,
@@ -18,15 +17,17 @@ import {
   RedditGetUserVault,
   RedditRegisterAddressWithAccount,
 } from "../reddit/reddit-interaction-spec";
-import { CouldNotConnect, Disconnect } from "../rpc/connections";
+import { CouldNotConnect } from "../rpc/connections";
 import { createRCPMethodCaller } from "../rpc/typing";
 import {
   bindPortToJSONRPCServerAndClient,
   createPortSendRequestFn,
 } from "../rpc/webextension-port-json-rpc";
 import {
+  TaggedVaultonomyBackgroundEvent,
   VaultonomyBackgroundEvent,
   VaultonomyGetRedditTabAvailability,
+  VaultonomyGetUiNotifications,
   VaultonomyUiNotify,
 } from "../vaultonomy-rpc-spec";
 import { retroactivePortDisconnection } from "../webextensions/retroactivePortDisconnection";
@@ -66,17 +67,30 @@ function redditDisconnectedError(): JSONRPCErrorException {
  * connection active).
  */
 export class VaultonomyBackgroundServiceSession {
+  private readonly port: chrome.runtime.Port;
+  private readonly redditProvider: RedditProvider;
+  private readonly redditTabObserver: RedditTabObserver;
   private disconnected: boolean = false;
   private readonly jsonrpc: JSONRPCServerAndClient;
   private readonly vaultonomyUi: VaultonomyUiProvider;
   private readonly unbindFromPort: Unbind;
   private readonly unbindAvailabilityChanged: Unbind;
+  private readonly eventLog: ReadonlyArray<TaggedVaultonomyBackgroundEvent>;
 
-  constructor(
-    private readonly port: chrome.runtime.Port,
-    private redditProvider: RedditProvider,
-    private redditTabObserver: RedditTabObserver,
-  ) {
+  constructor({
+    port,
+    ...options
+  }: {
+    port: chrome.runtime.Port;
+    redditProvider: RedditProvider;
+    redditTabObserver: RedditTabObserver;
+    eventLog: ReadonlyArray<TaggedVaultonomyBackgroundEvent>;
+  }) {
+    this.port = port;
+    this.redditProvider = options.redditProvider;
+    this.redditTabObserver = options.redditTabObserver;
+    this.eventLog = options.eventLog;
+
     this.disconnected = retroactivePortDisconnection.hasDisconnected(port);
     retroactivePortDisconnection.addRetroactiveDisconnectListener(port, () => {
       this.disconnect();
@@ -152,6 +166,13 @@ export class VaultonomyBackgroundServiceSession {
       }),
     );
 
+    server.addMethod(
+      VaultonomyGetUiNotifications.name,
+      VaultonomyGetUiNotifications.signature.implement(async () => {
+        return [...this.eventLog];
+      }),
+    );
+
     // The UI needs to send requests to Reddit. We have the RedditProvider which
     // translates method calls into reddit_* JSON RPC requests.
     // src/reddit/reddit-interaction-server.ts implements an RPC server that
@@ -212,7 +233,9 @@ export class VaultonomyBackgroundServiceSession {
     }
   }
 
-  async notifyInterestInUser(event: InterestInUserEvent): Promise<void> {
+  async notifyInterestInUser(
+    event: TaggedVaultonomyBackgroundEvent,
+  ): Promise<void> {
     await this.vaultonomyUi.notify(event);
   }
 

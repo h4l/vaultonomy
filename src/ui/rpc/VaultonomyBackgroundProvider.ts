@@ -2,8 +2,9 @@ import { JSONRPCServer, JSONRPCServerAndClient } from "json-rpc-2.0";
 import { Emitter, createNanoEvents } from "nanoevents";
 
 import { assertUnreachable } from "../../assert";
+import { log as _log } from "../../logging";
 import {
-  InterestInUserEvent,
+  BackgroundServiceStartedEvent,
   UserLinkInteractionEvent,
   UserPageInteractionEvent,
 } from "../../messaging";
@@ -21,12 +22,18 @@ import {
 } from "../../rpc/connections";
 import { createRCPMethodCaller } from "../../rpc/typing";
 import { createJSONRPCServerAndClientPortConnector } from "../../rpc/webextension-port-json-rpc";
-import { Unbind } from "../../types";
+import { Stop, Unbind } from "../../types";
 import {
   RedditTabAvailability,
+  TaggedVaultonomyBackgroundEvent,
   VaultonomyGetRedditTabAvailability,
+  VaultonomyGetUiNotifications,
   VaultonomyUiNotify,
 } from "../../vaultonomy-rpc-spec";
+import { browser } from "../../webextension";
+import { SynchronisingEventEmitter } from "./SynchronisingEventEmitter";
+
+const log = _log.getLogger("ui/rpc/VaultonomyBackgroundProvider");
 
 export type RedditTabBecameAvailableEvent = {
   type: "redditTabBecameAvailable";
@@ -49,7 +56,8 @@ export class VaultonomyBackgroundProvider {
   private readonly managedServerAndClient: ManagedConnection<JSONRPCServerAndClient>;
   public readonly redditProvider: RedditProvider;
   private redditWasAvailableOnLastUpdate: boolean | undefined = undefined;
-  private stopObservingRedditRequestOutcomes: Unbind;
+  private synchronisingEventEmitter: SynchronisingEventEmitter<TaggedVaultonomyBackgroundEvent>;
+  private toStop: Stop[] = [];
 
   constructor(portConnector: Connector<chrome.runtime.Port>) {
     this.managedServerAndClient =
@@ -59,6 +67,7 @@ export class VaultonomyBackgroundProvider {
           createServer: this.createServer.bind(this),
         }),
       );
+    this.toStop.push(() => this.managedServerAndClient.stop());
 
     const managedClient = mapConnection(
       this.managedServerAndClient,
@@ -71,6 +80,12 @@ export class VaultonomyBackgroundProvider {
     });
     this.getRedditTabAvailability = () => getRedditTabAvailability(null);
 
+    const getUiNotifications = createRCPMethodCaller({
+      method: VaultonomyGetUiNotifications,
+      managedClient,
+    });
+    this.getUiNotifications = () => getUiNotifications(null);
+
     this.redditProvider = new RedditProvider({
       managedClient,
       stopManagedClientOnDisconnect: false,
@@ -81,8 +96,37 @@ export class VaultonomyBackgroundProvider {
     // the notifications should pre-empt actual request failures and successes,
     // but there may be edge cases where we can't connect to a Reddit tab, e.g.
     // if the injected content script has failed for some reason.
-    this.stopObservingRedditRequestOutcomes =
-      this.inferRedditAvailabilityFromRequestOutcomes();
+    this.toStop.push(this.inferRedditAvailabilityFromRequestOutcomes());
+
+    this.synchronisingEventEmitter = new SynchronisingEventEmitter({
+      getEventLog: async () => this.getUiNotifications(),
+      emitEvent: (event) => {
+        event.event.type === "userLinkInteraction" ?
+          this.emitter.emit(event.event.type, event.event)
+        : this.emitter.emit(event.event.type, event.event);
+      },
+    });
+
+    this.toStop.push(this.startListeningForBackgroundServiceStarted());
+  }
+
+  private startListeningForBackgroundServiceStarted(): Stop {
+    const onMessage = (message: unknown): void => {
+      const result = BackgroundServiceStartedEvent.safeParse(message);
+      if (!result.success) return;
+      log.debug("Synchronising events from newly-started background service");
+      this.synchronisingEventEmitter.syncLoggedEvents();
+    };
+
+    if (browser?.runtime?.onMessage) {
+      browser.runtime.onMessage.addListener(onMessage);
+
+      return () => browser.runtime.onMessage.removeListener(onMessage);
+    } else {
+      // When running on the devserver we don't have access to most extension
+      // APIs, but this event is not essential.
+      return () => {};
+    }
   }
 
   get isRedditAvailable(): boolean {
@@ -151,11 +195,8 @@ export class VaultonomyBackgroundProvider {
           case "redditTabBecameUnavailable":
             this.markRedditUnavailable();
             break;
-          case "userLinkInteraction":
-            this.emitter.emit(event.type, event);
-            break;
-          case "userPageInteraction":
-            this.emitter.emit(event.type, event);
+          case "tagged":
+            this.synchronisingEventEmitter.emitSoon(event);
             break;
           default:
             assertUnreachable(event);
@@ -178,8 +219,9 @@ export class VaultonomyBackgroundProvider {
     else this.markRedditUnavailable();
   }
 
+  getUiNotifications: () => Promise<Array<TaggedVaultonomyBackgroundEvent>>;
+
   disconnect(): void {
-    this.managedServerAndClient.stop();
-    this.stopObservingRedditRequestOutcomes();
+    for (const stop of this.toStop) stop();
   }
 }
