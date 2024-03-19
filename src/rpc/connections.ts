@@ -116,6 +116,7 @@ class MappedManagedConnection<T extends object, U extends object>
     this.connection.stop();
     this.#unbindUpstreamDisconnected();
     this.#unbindUpstreamStopped();
+    this.emitter.emit("stopped");
   }
 
   disconnect(instance: U): void {
@@ -232,11 +233,13 @@ export class ReconnectingAsyncManagedConnection<T extends object>
     });
 
     state.connection = connection;
-    state.disconnect = disconnect;
-
-    if (state.disconnected) {
+    state.disconnect = () => {
       disconnect();
       this.emitter.emit("disconnected", connection);
+    };
+
+    if (state.disconnected) {
+      state.disconnect();
       throw new CouldNotConnect("disconnected while connecting");
     }
 
@@ -248,6 +251,15 @@ export class ReconnectingAsyncManagedConnection<T extends object>
 
   getConnection(): Promise<T> {
     if (this.isStopped) return Promise.reject(new CouldNotConnect("stopped"));
+
+    // Don't re-use an existing connection if it's been disconnected
+    if (this.futureConnection) {
+      const state = this.asyncConnectionState.get(this.futureConnection);
+      if (state?.disconnected) {
+        this.futureConnection = undefined;
+      }
+    }
+
     if (!this.futureConnection) {
       // all calls getConnection() calls share the same connection. Multiple
       // instances of this class sharing the same AsyncConnector must be used if
