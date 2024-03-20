@@ -236,7 +236,21 @@ export const createVaultonomyStore = (
             };
           },
           setPinnedPairing(pinnedPairing: PairingId | null): void {
-            set({ pinnedPairing });
+            if (pinnedPairing === null) {
+              set((store) => {
+                if (!store.pinnedPairing) return store;
+
+                const key = encodePairingStateKey(store.pinnedPairing);
+                const pairings = { ...store.pairings };
+                delete pairings[key];
+                return {
+                  pinnedPairing: null,
+                  pairings,
+                };
+              });
+            } else {
+              set({ pinnedPairing });
+            }
           },
           setCurrentUserId(currentUserId: string | null): void {
             set({ currentUserId });
