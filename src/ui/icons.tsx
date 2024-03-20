@@ -206,17 +206,23 @@ export function BlockIcon(props: {
   );
 }
 
+/**
+ * `padding` adds padding around the logo consistent with the Google Fonts
+ * icons.
+ */
 export function GitHubLogo({
   className,
   officialColours = false,
+  padding = true,
 }: {
   className?: string;
   officialColours?: boolean;
+  padding?: boolean;
 }): JSX.Element {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 98 96"
+      viewBox={padding ? "-10 -11 108 107" : "0 0 98 96"}
       className={twMerge(
         officialColours ? "dark:text-white text-[#24292f]" : undefined,
         className,
