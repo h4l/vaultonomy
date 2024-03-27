@@ -4,18 +4,24 @@ import {
   BackgroundServiceStartedEvent,
   InterestInUserEvent,
   UserLinkInteractionEvent,
-  UserPageInteractionEvent,
 } from "../messaging";
 import { RedditProvider } from "../reddit/reddit-interaction-client";
 import { AsyncConnector } from "../rpc/connections";
+import {
+  VaultonomyUserPreferencesStore,
+  createPreferencesStore,
+} from "../settings/VaultonomySettings";
 import { Stop } from "../types";
 import {
-  TaggedEvent,
   TaggedVaultonomyBackgroundEvent,
   VAULTONOMY_RPC_PORT as VAULTONOMY_RPC_PORT_NAME,
 } from "../vaultonomy-rpc-spec";
 import { browser } from "../webextension";
 import { retroactivePortDisconnection } from "../webextensions/retroactivePortDisconnection";
+import {
+  ActionContextMenu,
+  bindActionContextMenuToSettingsStore,
+} from "./ActionContextMenu";
 import { EventLog } from "./EventLog";
 import {
   InterestInUserFromUserPageViewObserver,
@@ -34,6 +40,8 @@ type Disconnect = () => void;
 export class BackgroundService {
   private readonly tabConnector: AsyncConnector<chrome.runtime.Port>;
   private readonly tabObserver: RedditTabObserver;
+  private readonly actionContextMenu: ActionContextMenu;
+  private readonly userPrefsStore: VaultonomyUserPreferencesStore;
   private readonly sessions: Set<VaultonomyBackgroundServiceSession> =
     new Set();
   private readonly notificationLog: EventLog<TaggedVaultonomyBackgroundEvent> =
@@ -43,6 +51,8 @@ export class BackgroundService {
   constructor() {
     this.tabConnector = redditTabConnector(new DefaultRedditTabProvider());
     this.tabObserver = new RedditTabObserver();
+    this.actionContextMenu = new ActionContextMenu();
+    this.userPrefsStore = createPreferencesStore();
   }
 
   #isStarted: boolean = false;
@@ -69,6 +79,19 @@ export class BackgroundService {
     this.toStop.push(this.startNotifyInterestInUsersFromUserLinkInteraction());
     this.toStop.push(this.startNotifyInterestInUsersFromUserPageViews());
     this.toStop.push(this.ensureContentScriptsRunningAfterInstall());
+
+    this.actionContextMenu.start();
+    this.toStop.push(() => this.actionContextMenu.stop());
+    this.userPrefsStore.start();
+    this.toStop.push(() => this.userPrefsStore.stop());
+    this.toStop.push(
+      bindActionContextMenuToSettingsStore({
+        contextMenu: this.actionContextMenu,
+        settingsStore: this.userPrefsStore,
+        sync: "from-settings",
+      }),
+    );
+
     this.tabObserver.start();
 
     browser.runtime
@@ -249,6 +272,7 @@ export class BackgroundService {
       redditProvider,
       redditTabObserver: this.tabObserver,
       eventLog: this.notificationLog.events,
+      userPrefsStore: this.userPrefsStore,
     });
 
     const disconnect = () => {

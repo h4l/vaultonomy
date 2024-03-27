@@ -23,10 +23,13 @@ import {
   bindPortToJSONRPCServerAndClient,
   createPortSendRequestFn,
 } from "../rpc/webextension-port-json-rpc";
+import { hasGlobalRedditTabScriptingPermission } from "../settings/PermissionsSettings";
+import { VaultonomyUserPreferencesStore } from "../settings/VaultonomySettings";
 import {
   TaggedVaultonomyBackgroundEvent,
   VaultonomyBackgroundEvent,
   VaultonomyGetRedditTabAvailability,
+  VaultonomyGetSettings,
   VaultonomyGetUiNotifications,
   VaultonomyUiNotify,
 } from "../vaultonomy-rpc-spec";
@@ -76,6 +79,7 @@ export class VaultonomyBackgroundServiceSession {
   private readonly unbindFromPort: Unbind;
   private readonly unbindAvailabilityChanged: Unbind;
   private readonly eventLog: ReadonlyArray<TaggedVaultonomyBackgroundEvent>;
+  private readonly userPrefsStore: VaultonomyUserPreferencesStore;
 
   constructor({
     port,
@@ -85,11 +89,13 @@ export class VaultonomyBackgroundServiceSession {
     redditProvider: RedditProvider;
     redditTabObserver: RedditTabObserver;
     eventLog: ReadonlyArray<TaggedVaultonomyBackgroundEvent>;
+    userPrefsStore: VaultonomyUserPreferencesStore;
   }) {
     this.port = port;
     this.redditProvider = options.redditProvider;
     this.redditTabObserver = options.redditTabObserver;
     this.eventLog = options.eventLog;
+    this.userPrefsStore = options.userPrefsStore;
 
     this.disconnected = retroactivePortDisconnection.hasDisconnected(port);
     retroactivePortDisconnection.addRetroactiveDisconnectListener(port, () => {
@@ -170,6 +176,23 @@ export class VaultonomyBackgroundServiceSession {
       VaultonomyGetUiNotifications.name,
       VaultonomyGetUiNotifications.signature.implement(async () => {
         return [...this.eventLog];
+      }),
+    );
+
+    server.addMethod(
+      VaultonomyGetSettings.name,
+      VaultonomyGetSettings.signature.implement(async () => {
+        const [preferences, hasGlobalScripting] = await Promise.all([
+          this.userPrefsStore.getProperties(),
+          hasGlobalRedditTabScriptingPermission(),
+        ]);
+
+        return {
+          preferences,
+          permissions: {
+            redditTabAccess: hasGlobalScripting ? "all" : "activeTab",
+          },
+        };
       }),
     );
 
