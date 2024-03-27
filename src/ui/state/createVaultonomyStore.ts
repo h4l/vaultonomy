@@ -51,8 +51,6 @@ export type VaultonomyStateActions = {
    */
   setProvider(provider: VaultonomyBackgroundProvider): void;
   removeProvider(provider?: VaultonomyBackgroundProvider): void;
-  setRedditProvider(redditProvider: RedditProvider): void;
-  removeRedditProvider(redditProvider?: RedditProvider): void;
   onRedditLoggedOut(): void;
   onRedditNotLoggedOut(): void;
   updatePairingState(id: PairingId): UpdatePairingStateFunction;
@@ -87,7 +85,6 @@ export type VaultonomyStateData = {
   hasHydrated: boolean;
   isOnDevServer: boolean;
   provider: VaultonomyBackgroundProvider | null;
-  redditProvider: RedditProvider | null;
   redditWasLoggedOut: boolean | null;
   /** The userId of the most recently seen Reddit user profile. */
   currentUserId: string | null;
@@ -142,7 +139,6 @@ export const createVaultonomyStore = (
           hasHydrated: false,
           isOnDevServer,
           provider: provider ?? null,
-          redditProvider: null,
           redditWasLoggedOut: null,
           currentUserId: null,
           pairingInterest: null,
@@ -179,36 +175,6 @@ export const createVaultonomyStore = (
                 return store;
               }
               return { provider: null };
-            });
-          },
-          setRedditProvider(redditProvider: RedditProvider): void {
-            set((store) => {
-              if (store.redditProvider) {
-                if (store.redditProvider === redditProvider) return store;
-                log.warn(
-                  "setRedditProvider is replacing an existing redditProvider",
-                  store.redditProvider,
-                  redditProvider,
-                );
-              }
-              return { redditProvider };
-            });
-          },
-          removeRedditProvider(redditProvider?: RedditProvider): void {
-            set((store) => {
-              if (
-                redditProvider &&
-                store.redditProvider &&
-                store.redditProvider !== redditProvider
-              ) {
-                log.warn(
-                  "removeRedditProvider is not removing existing redditProvider as it's not the expected value",
-                  store.redditProvider,
-                  redditProvider,
-                );
-                return store;
-              }
-              return { redditProvider: null };
             });
           },
           onRedditLoggedOut() {

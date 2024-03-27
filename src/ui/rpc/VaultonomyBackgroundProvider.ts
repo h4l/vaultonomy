@@ -216,11 +216,9 @@ export class VaultonomyBackgroundProvider {
     return server;
   }
 
-  /**
-   * This is protected as it seems unlikely that the UI needs to call it directly.
-   */
-  protected readonly getRedditTabAvailability: () => Promise<RedditTabAvailability>;
+  readonly getRedditTabAvailability: () => Promise<RedditTabAvailability>;
 
+  // TODO: maybe remove this and rely on useRedditTabAvailability query
   async requestAvailabilityStatus(): Promise<void> {
     const { available } = await this.getRedditTabAvailability();
     if (available) this.markRedditAvailable();
