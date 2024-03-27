@@ -27,7 +27,9 @@ import {
   RedditTabAvailability,
   TaggedVaultonomyBackgroundEvent,
   VaultonomyGetRedditTabAvailability,
+  VaultonomyGetSettings,
   VaultonomyGetUiNotifications,
+  VaultonomySettings,
   VaultonomyUiNotify,
 } from "../../vaultonomy-rpc-spec";
 import { browser } from "../../webextension";
@@ -85,6 +87,12 @@ export class VaultonomyBackgroundProvider {
       managedClient,
     });
     this.getUiNotifications = () => getUiNotifications(null);
+
+    const getSettings = createRCPMethodCaller({
+      method: VaultonomyGetSettings,
+      managedClient,
+    });
+    this.getSettings = () => getSettings(null);
 
     this.redditProvider = new RedditProvider({
       managedClient,
@@ -220,6 +228,8 @@ export class VaultonomyBackgroundProvider {
   }
 
   getUiNotifications: () => Promise<Array<TaggedVaultonomyBackgroundEvent>>;
+
+  getSettings: () => Promise<VaultonomySettings>;
 
   disconnect(): void {
     for (const stop of this.toStop) stop();
