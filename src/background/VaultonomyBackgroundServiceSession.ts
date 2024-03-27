@@ -54,10 +54,10 @@ class VaultonomyUiProvider {
   notify: (event: VaultonomyBackgroundEvent) => Promise<null>;
 }
 
-function redditDisconnectedError(): JSONRPCErrorException {
+function redditNotConnectedError(): JSONRPCErrorException {
   return new JSONRPCErrorException(
     "No Reddit tab is connected, cannot forward request.",
-    ErrorCode.REDDIT_TAB_DISCONNECTED,
+    ErrorCode.REDDIT_TAB_NOT_CONNECTED,
   );
 }
 
@@ -156,7 +156,7 @@ export class VaultonomyBackgroundServiceSession {
       // RedditProvider creates Port connections to a Reddit tab as needed. This
       // can fail (throwing CouldNotConnect) if no Reddit tabs are available.
       if (error instanceof CouldNotConnect) {
-        return defaultMapError(id, redditDisconnectedError());
+        return defaultMapError(id, redditNotConnectedError());
       }
 
       return defaultMapError(id, error);

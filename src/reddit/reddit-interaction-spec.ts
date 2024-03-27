@@ -28,9 +28,12 @@ export const REDDIT_INTERACTION_PORT_NAME = new PortName("reddit-interaction");
 
 export enum ErrorCode {
   USER_NOT_LOGGED_IN = 1,
-  REDDIT_TAB_DISCONNECTED = 2,
-  WRONG_USER = 3,
-  NOT_FOUND = 4,
+  // tab was not available to start request
+  REDDIT_TAB_NOT_CONNECTED = 2,
+  // tab was available but closed during request
+  REDDIT_TAB_DISCONNECTED = 3,
+  WRONG_USER = 4,
+  NOT_FOUND = 5,
 }
 const errorCodeValues: Set<string | ErrorCode> = new Set(
   Object.values(ErrorCode),

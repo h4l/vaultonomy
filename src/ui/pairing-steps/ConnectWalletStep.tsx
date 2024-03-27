@@ -53,7 +53,8 @@ function ConnectToReddit({
   if (
     !redditAccount.isRedditAvailable ||
     (redditAccount.error instanceof RedditProviderError &&
-      redditAccount.error.type === ErrorCode.REDDIT_TAB_DISCONNECTED)
+      (redditAccount.error.type === ErrorCode.REDDIT_TAB_NOT_CONNECTED ||
+        redditAccount.error.type === ErrorCode.REDDIT_TAB_DISCONNECTED))
   ) {
     return (
       <StepAction

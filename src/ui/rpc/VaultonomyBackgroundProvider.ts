@@ -145,7 +145,7 @@ export class VaultonomyBackgroundProvider {
       "requestFailed",
       (error: AnyRedditProviderError) => {
         if (error instanceof RedditProviderError) {
-          if (error.type === ErrorCode.REDDIT_TAB_DISCONNECTED) {
+          if (error.type === ErrorCode.REDDIT_TAB_NOT_CONNECTED) {
             this.markRedditUnavailable();
           } else {
             // Any other ErrorCode indicates our request got to a reddit tab and

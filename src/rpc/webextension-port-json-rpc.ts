@@ -1,5 +1,6 @@
 import {
   JSONRPCClient,
+  JSONRPCErrorException,
   JSONRPCRequest,
   JSONRPCResponse,
   JSONRPCServer,
@@ -37,6 +38,19 @@ function ensureNotPreviouslyBound(
   bindings.set(port, serverOrClient);
 }
 
+/**
+ * Check if an error is caused by a Port connection being lost while a request
+ * was ongoing.
+ */
+export function isDisconnectedError(e: JSONRPCErrorException): boolean {
+  return (
+    e.code === 0 &&
+    (e.message.startsWith(CLIENT_UNBOUND_MESSAGE) ||
+      e.message.startsWith(PORT_DISCONNECTED_MESSAGE) ||
+      e.message.startsWith(SERVERANDCLIENT_UNBOUND_MESSAGE))
+  );
+}
+
 export function bindPortToJSONRPCServer({
   port,
   server,
@@ -64,6 +78,9 @@ export function createPortSendRequestFn(
   };
 }
 
+const PORT_DISCONNECTED_MESSAGE = "Port is disconnected";
+const CLIENT_UNBOUND_MESSAGE = "JSONRPCClient was unbound from Port";
+
 export function bindPortToJSONRPCClient({
   port,
   client,
@@ -82,7 +99,7 @@ export function bindPortToJSONRPCClient({
     disconnected = true;
   };
   const onDisconnect = () => {
-    unbind("Port is disconnected");
+    unbind(PORT_DISCONNECTED_MESSAGE);
   };
   const onMessage = (message: unknown) => {
     client.receive(message as JSONRPCResponse);
@@ -96,9 +113,12 @@ export function bindPortToJSONRPCClient({
   port.onMessage.addListener(onMessage);
 
   return () => {
-    unbind("JSONRPCClient was unbound from Port");
+    unbind(`${CLIENT_UNBOUND_MESSAGE} at ${new Date().toISOString()}`);
   };
 }
+
+const SERVERANDCLIENT_UNBOUND_MESSAGE =
+  "JSONRPCServerAndClient was unbound from Port";
 
 export function bindPortToJSONRPCServerAndClient({
   port,
@@ -118,7 +138,7 @@ export function bindPortToJSONRPCServerAndClient({
     disconnected = true;
   };
   const onDisconnect = () => {
-    unbind("Port is disconnected");
+    unbind(PORT_DISCONNECTED_MESSAGE);
   };
   const onMessage = (message: unknown) => {
     serverAndClient.receiveAndSend(message);
@@ -132,7 +152,7 @@ export function bindPortToJSONRPCServerAndClient({
   port.onMessage.addListener(onMessage);
 
   return () => {
-    unbind("JSONRPCServerAndClient was unbound from Port");
+    unbind(SERVERANDCLIENT_UNBOUND_MESSAGE);
   };
 }
 

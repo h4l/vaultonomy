@@ -102,9 +102,10 @@ describe("bindPortToJSONRPCClient()", () => {
     const response2 = client.request("greet", "hi");
     unbind();
     // pending responses are cancelled after unbinding
-    await expect(response2).rejects.toEqual(
-      new JSONRPCErrorException("JSONRPCClient was unbound from Port", 0),
-    );
+    await expect(response2).rejects.toThrow(JSONRPCErrorException),
+      await expect(response2).rejects.toThrow(
+        /JSONRPCClient was unbound from Port/,
+      );
     port.receiveMessage(createJSONRPCSuccessResponse(1, "hi to you too"));
     await sleep();
     expect(client.receive).toHaveBeenCalledTimes(1); // still only 1

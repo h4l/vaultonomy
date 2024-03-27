@@ -1,14 +1,13 @@
 import { JSONRPCClient, JSONRPCErrorException } from "json-rpc-2.0";
-import { Emitter, createNanoEvents } from "nanoevents";
+import { createNanoEvents, Emitter } from "nanoevents";
 
 import { VaultonomyError } from "../VaultonomyError";
+import { log } from "../logging";
 import {
   AnyManagedConnection,
   AsyncConnector,
-  AsyncManagedConnection,
   Connector,
   Disconnect,
-  ManagedConnection,
   ReconnectingAsyncManagedConnection,
   ReconnectingManagedConnection,
 } from "../rpc/connections";
@@ -16,6 +15,7 @@ import { createRCPMethodCaller } from "../rpc/typing";
 import {
   createJSONRPCClientPortConnector,
   createJSONRPCClientPortConnectorAsync,
+  isDisconnectedError,
 } from "../rpc/webextension-port-json-rpc";
 import {
   AccountVaultAddress,
@@ -24,6 +24,7 @@ import {
 } from "./api-client";
 import {
   ErrorCode,
+  isErrorCode,
   RedditCreateAddressOwnershipChallenge,
   RedditCreateAddressOwnershipChallengeParams,
   RedditGetAccountVaultAddresses,
@@ -37,7 +38,6 @@ import {
   RedditRegisterAddressWithAccount,
   RedditRegisterAddressWithAccountParams,
   RedditUserProfile,
-  isErrorCode,
 } from "./reddit-interaction-spec";
 import { AnyRedditUserProfile } from "./types";
 
@@ -65,6 +65,19 @@ export abstract class AnyRedditProviderError extends VaultonomyError {
       return new RedditProviderError({
         type: error.code,
         message: error.message,
+        cause: error,
+      });
+    }
+    if (isDisconnectedError(error)) {
+      log.debug(
+        `Reddit RPC request failed at ${
+          new Date().toISOString()
+        } due to tab disconnecting during request:`,
+        error,
+      );
+      return new RedditProviderError({
+        type: ErrorCode.REDDIT_TAB_DISCONNECTED,
+        message: `Reddit tab closed during request [${crypto.randomUUID()}]`,
         cause: error,
       });
     }
@@ -137,17 +150,19 @@ export class RedditProvider {
     this.willStopManagedClientOnDisconnect = stopManagedClientOnDisconnect;
     this.managedClient = managedClient;
     this.managedClientEventUnbinders = [
-      this.managedClient.emitter.on("disconnected", () =>
-        this.emitter.emit("disconnected"),
+      this.managedClient.emitter.on(
+        "disconnected",
+        () => this.emitter.emit("disconnected"),
       ),
-      this.managedClient.emitter.on("stopped", () =>
-        this.emitter.emit("disconnected"),
+      this.managedClient.emitter.on(
+        "stopped",
+        () => this.emitter.emit("disconnected"),
       ),
     ];
 
     const trackErrors = <A extends any[], R>(
       f: (...args: A) => Promise<R>,
-    ): ((...args: A) => Promise<R>) => {
+    ): (...args: A) => Promise<R> => {
       return async (...args) => {
         try {
           const response = await f(...args);
