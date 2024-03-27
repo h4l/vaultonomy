@@ -3,6 +3,7 @@ import { z } from "zod";
 import { PortName } from "./PortName";
 import { InterestInUserEvent } from "./messaging";
 import { defineMethod } from "./rpc/typing";
+import { VaultonomyUserPreferences } from "./settings/VaultonomySettings";
 
 export const VAULTONOMY_RPC_PORT = new PortName("vaultonomy-rpc");
 
@@ -76,4 +77,18 @@ export const VaultonomyGetUiNotifications = defineMethod({
   name: "vaultonomy_getUiNotifications",
   params: z.null(),
   returns: z.array(TaggedVaultonomyBackgroundEvent),
+});
+
+export const VaultonomySettings = z.object({
+  preferences: VaultonomyUserPreferences,
+  permissions: z.object({
+    redditTabAccess: z.enum(["all", "activeTab"]),
+  }),
+});
+export type VaultonomySettings = z.infer<typeof VaultonomySettings>;
+
+export const VaultonomyGetSettings = defineMethod({
+  name: "vaultonomy_getSettings",
+  params: z.null(),
+  returns: VaultonomySettings,
 });
