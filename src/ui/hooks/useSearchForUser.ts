@@ -362,10 +362,6 @@ export function getSearchForUserQueryOptions({
 
       return await searchForUser(options);
     },
-    throwOnError: (e) => {
-      log.error("search for user failed:", e);
-      return false;
-    },
     enabled: isEnabled(options),
     // TODO: tune this value
     staleTime: 1000 * 60 * 5,
