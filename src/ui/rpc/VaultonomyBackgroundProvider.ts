@@ -57,7 +57,6 @@ export class VaultonomyBackgroundProvider {
 
   private readonly managedServerAndClient: ManagedConnection<JSONRPCServerAndClient>;
   public readonly redditProvider: RedditProvider;
-  private redditWasAvailableOnLastUpdate: boolean | undefined = undefined;
   private synchronisingEventEmitter: SynchronisingEventEmitter<TaggedVaultonomyBackgroundEvent>;
   private toStop: Stop[] = [];
 
@@ -137,10 +136,6 @@ export class VaultonomyBackgroundProvider {
     }
   }
 
-  get isRedditAvailable(): boolean {
-    return !!this.redditWasAvailableOnLastUpdate;
-  }
-
   /**
    * Detect whether a Reddit tab is connected by observing RedditProvider
    * interactions.
@@ -174,8 +169,6 @@ export class VaultonomyBackgroundProvider {
   }
 
   private markRedditAvailable(): void {
-    if (this.redditWasAvailableOnLastUpdate === true) return;
-    this.redditWasAvailableOnLastUpdate = true;
     this.emitter.emit("availabilityStatus", {
       type: "redditTabBecameAvailable",
       redditProvider: this.redditProvider,
@@ -183,8 +176,6 @@ export class VaultonomyBackgroundProvider {
   }
 
   private markRedditUnavailable(): void {
-    if (this.redditWasAvailableOnLastUpdate === false) return;
-    this.redditWasAvailableOnLastUpdate = false;
     this.emitter.emit("availabilityStatus", {
       type: "redditTabBecameUnavailable",
     });
