@@ -7,6 +7,7 @@ import {
 } from "json-rpc-2.0";
 import { getAddress } from "viem";
 
+import { dateParseStrict } from "../../__tests__/testing.utils";
 import { HTTPResponseError } from "../../errors/http";
 import type { SessionManager } from "../SessionManager";
 import {
@@ -19,7 +20,7 @@ import {
   RedditGetUserVaultParams,
 } from "../reddit-interaction-spec";
 import { RedditUserProfile } from "../types";
-import { redditEIP712Challenge } from "./api-client.fixtures";
+import { RedditEIP712Challenges } from "./api-client.fixtures";
 import { anonUser, loggedInUser, userProfile } from "./page-data.fixtures";
 
 jest.useFakeTimers();
@@ -52,6 +53,14 @@ jest.unstable_mockModule<typeof originalApiclient>(
   },
 );
 
+type CrossOriginFrontendModule = typeof import("../../cross-origin/frontend");
+jest.unstable_mockModule<CrossOriginFrontendModule>(
+  "./src/cross-origin/frontend.ts",
+  () => ({
+    fetchCrossOrigin: jest.fn<CrossOriginFrontendModule["fetchCrossOrigin"]>(),
+  }),
+);
+
 function mockResponse(status: number = 500): Response {
   return { status } satisfies Partial<Response> as Response;
 }
@@ -66,6 +75,8 @@ const {
   getRedditUserProfile,
 } = await import("../api-client");
 
+const { fetchCrossOrigin } = await import("../../cross-origin/frontend");
+
 describe("createServerSession()", () => {
   let server: JSONRPCServer;
   let client: JSONRPCClient;
@@ -77,7 +88,7 @@ describe("createServerSession()", () => {
     jest.mocked(sessionManager.getPageData).mockResolvedValue(loggedInUser());
     jest
       .mocked(createAddressOwnershipChallenge)
-      .mockResolvedValueOnce(redditEIP712Challenge());
+      .mockResolvedValueOnce(RedditEIP712Challenges().example);
     jest.mocked(registerAddressWithAccount).mockResolvedValue(undefined);
     jest.mocked(getRedditUserVault).mockRejectedValue("not mocked");
     jest.mocked(getRedditAccountVaultAddresses).mockResolvedValue([]);
@@ -196,7 +207,7 @@ describe("createServerSession()", () => {
       );
 
       expect(RedditEIP712Challenge.safeParse(response).success).toBeTruthy();
-      expect(response).toEqual(redditEIP712Challenge());
+      expect(response).toEqual(RedditEIP712Challenges().example);
       expect(createAddressOwnershipChallenge).toBeCalledTimes(1);
     });
 
@@ -248,6 +259,12 @@ describe("createServerSession()", () => {
 
       await expect(resp).resolves.toBeNull();
       expect(registerAddressWithAccount).toBeCalledTimes(1);
+      expect(registerAddressWithAccount).toBeCalledWith({
+        fetch: fetchCrossOrigin,
+        authToken: "secret",
+        address: "0x" + "0".repeat(40),
+        challengeSignature: "0x" + "0".repeat(130),
+      });
     });
 
     test("responds with error if logged-in user does not match userId param", async () => {
@@ -288,26 +305,20 @@ describe("createServerSession()", () => {
     const vault = (): RedditUserVault => ({
       address: "0x67F63690530782B716477733a085ce7A8310bc4C",
       userId: "exampleUserId",
-      username: "exampleUserName",
       isActive: true,
     });
 
-    test.each<RedditGetUserVaultParams["query"]>([
-      { type: "username", value: "exampleUserName" },
-      { type: "address", value: "0x67F63690530782B716477733a085ce7A8310bc4C" },
-      { type: "address", value: "0x67f63690530782b716477733a085ce7a8310bc4c" },
-    ])("handles valid request", async (query) => {
+    test("handles valid request", async () => {
       jest.mocked(getRedditUserVault).mockResolvedValueOnce(vault());
-      const resp = client.request("reddit_getUserVault", { query });
+      const resp = client.request("reddit_getUserVault", {
+        query: { userId: "exampleUserId" },
+      } satisfies RedditGetUserVaultParams);
 
       await expect(resp).resolves.toEqual(vault());
       expect(getRedditUserVault).toBeCalledTimes(1);
       expect(getRedditUserVault).toBeCalledWith({
-        // addresses get normalised to checksum addresses
-        query:
-          query.type === "address" ?
-            { type: "address", value: getAddress(query.value) }
-          : query,
+        fetch: fetchCrossOrigin,
+        userId: "exampleUserId",
         authToken: "secret",
       });
     });
@@ -323,7 +334,7 @@ describe("createServerSession()", () => {
         );
 
       const resp = client.request("reddit_getUserVault", {
-        query: { type: "username", value: "otheruser" },
+        query: { userId: "exampleUserId" },
       });
       await expect(resp).rejects.toEqual(
         new JSONRPCErrorException("getRedditUserVault failed", 0),
@@ -335,9 +346,8 @@ describe("createServerSession()", () => {
     const addresses = (): Array<AccountVaultAddress> => [
       {
         address: "0x5318810BD26f9209c3d4ff22891F024a2b0A739a",
-        createdAt: 1704694321215,
+        createdAt: dateParseStrict("2023-02-04T11:12:36.000000+0000"),
         isActive: true,
-        modifiedAt: 1704694321215,
       },
     ];
 
@@ -354,6 +364,7 @@ describe("createServerSession()", () => {
       await expect(resp).resolves.toEqual(addresses());
       expect(getRedditAccountVaultAddresses).toBeCalledTimes(1);
       expect(getRedditAccountVaultAddresses).toBeCalledWith({
+        fetch: fetchCrossOrigin,
         authToken: "secret",
       });
     });

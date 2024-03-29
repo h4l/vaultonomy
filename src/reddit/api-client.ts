@@ -2,13 +2,61 @@
  * This module provides client operations for the parts of Reddit's (internal)
  * API we need to use.
  */
-import { getAddress } from "viem";
+import { Address, Hex } from "viem";
 import { z } from "zod";
 
 import { HTTPResponseError } from "../errors/http";
-import { log } from "../logging";
-import { EthAddress, EthHexSignature, RawEthAddress } from "../types";
-import { AnyRedditUserProfile, RedditUserProfile } from "./types";
+import {
+  EthAddress,
+  EthHexSignature,
+  RawEthAddress,
+  parseJSON,
+} from "../types";
+import { AnyRedditUserProfile } from "./types";
+
+export type FetchSubset = (
+  url: string,
+  options: {
+    method: "GET" | "POST";
+    headers: Record<string, string>;
+    body?: string;
+  },
+) => Promise<Response>;
+
+const APIOptions = z.object({
+  fetch: (z.any() as z.ZodType<FetchSubset>).optional().default(() => fetch),
+  authToken: z.string(),
+});
+type APIOptions = z.infer<typeof APIOptions>;
+
+const RedditEIP712ChallengeMessage = z.object({
+  address: RawEthAddress,
+  expiresAt: z.string(),
+  nonce: z.string(),
+  redditUserName: z.string(),
+});
+
+const RedditEIP712ChallengeDomain = z.object({
+  chainId: z.string(),
+  name: z.literal("reddit"),
+  salt: z.string(),
+  // Note: verifyingContract is normally a contract address, but there's a
+  // quirk in Reddit's data. They provide an empty string for this value, but
+  // the verifyingContract field is not actually included in their domain
+  // type, so the field is ignored when parsing this JSON representation of
+  // the EIP712 structured data.
+  verifyingContract: z.string().nullish(),
+  version: z.string(),
+});
+const RedditEIP712ChallengeTypes = z.object({
+  Challenge: z.object({ name: z.string(), type: z.string() }).array(),
+  EIP712Domain: z.tuple([
+    z.object({ name: z.literal("name"), type: z.literal("string") }),
+    z.object({ name: z.literal("chainId"), type: z.literal("uint256") }),
+    z.object({ name: z.literal("version"), type: z.literal("string") }),
+    z.object({ name: z.literal("salt"), type: z.literal("string") }),
+  ]),
+});
 
 // TODO: review how strictly we validate the challenge structure.
 // We need to be sure that we're presenting a challenge for Reddit, so it
@@ -17,50 +65,75 @@ import { AnyRedditUserProfile, RedditUserProfile } from "./types";
 // We should probably only loosely validate the challenge here, and allow more
 // precise validation closer to the UI, where errors can be better handled.
 export const RedditEIP712Challenge = z.object({
-  domain: z.object({
-    chainId: z.string(),
-    name: z.literal("reddit"),
-    salt: z.string(),
-    // Note: verifyingContract is normally a contract address, but there's a
-    // quirk in Reddit's data. They provide an empty string for this value, but
-    // the verifyingContract field is not actually included in their domain
-    // type, so the field is ignored when parsing this JSON representation of
-    // the EIP712 structured data.
-    verifyingContract: z.string().nullish(),
-    version: z.string(),
-  }),
-  message: z.object({
-    address: RawEthAddress,
-    expiresAt: z.string(),
-    nonce: z.string(),
-    redditUserName: z.string(),
-  }),
+  domain: RedditEIP712ChallengeDomain,
+  message: RedditEIP712ChallengeMessage,
   primaryType: z.literal("Challenge"),
-  types: z.object({
-    Challenge: z.object({ name: z.string(), type: z.string() }).array(),
-    EIP712Domain: z.tuple([
-      z.object({ name: z.literal("name"), type: z.literal("string") }),
-      z.object({ name: z.literal("chainId"), type: z.literal("uint256") }),
-      z.object({ name: z.literal("version"), type: z.literal("string") }),
-      z.object({ name: z.literal("salt"), type: z.literal("string") }),
-    ]),
-  }),
+  types: RedditEIP712ChallengeTypes,
 });
 export type RedditEIP712Challenge = z.infer<typeof RedditEIP712Challenge>;
 
-const ChallengeResponse = z.object({
-  payload: RedditEIP712Challenge,
+const GetVaultRegistrationChallengeResponse = z.object({
+  data: z.object({
+    vault: z.object({
+      registrationChallenge: z.object({
+        payload: z.object({
+          // The domain and message values are supposed to be object values, but
+          // they are JSON-encoded strings in the API response. Because this is
+          // non-standard, we support both the normal EIP-712 object value, or
+          // the re-encoded JSON string that the API uses, as it seems like the
+          // kind of thing they might undo.
+          domain: RedditEIP712ChallengeDomain.or(
+            z.string().transform(parseJSON).pipe(RedditEIP712ChallengeDomain),
+          ),
+          message: RedditEIP712ChallengeMessage.or(
+            z.string().transform(parseJSON).pipe(RedditEIP712ChallengeMessage),
+          ),
+          primaryType: z.literal("Challenge"),
+          // I guess the people that implemented this API didn't know that
+          // this is data in EIP-712 format with quite a specific structure 🙃
+          // The types' capitalisation is messed up, so we need to normalise it
+          // back to what EIP-712 requires. Type names are camelCase not
+          // CamelCase. Type values are UPPERCASE not lowercase.
+          types: z
+            .record(
+              z.string().toLowerCase(), // we'll fix this in transform
+              z
+                .object({
+                  name: z.string(),
+                  type: z.string().toLowerCase(),
+                })
+                .array(),
+            )
+            .transform((arg) => ({
+              Challenge: arg.challenge,
+              EIP712Domain: arg.eip712domain,
+            }))
+            .pipe(RedditEIP712ChallengeTypes),
+        }),
+      }),
+    }),
+  }),
 });
 
-const APIOptions = z.object({
-  authToken: z.string(),
-});
-type APIOptions = z.infer<typeof APIOptions>;
+const GetVaultRegistrationChallengeQuery = (address: Address) =>
+  JSON.stringify({
+    extensions: {
+      persistedQuery: {
+        sha256Hash:
+          "8289463da9d631b4f715b6ab6f97d2a7ac59dc8ed2bd005a3b6f5d96dab57be5",
+        version: 1,
+      },
+    },
+    operationName: "GetVaultRegistrationChallenge",
+    variables: {
+      address: address.toLowerCase(),
+      provider: "ethereum",
+    },
+  });
 
 const CreateAddressOwnershipChallengeOptions = APIOptions.extend({
   /** The Ethereum address to be associated. */
   address: EthAddress,
-  timestamp: z.number().optional(),
 });
 type CreateAddressOwnershipChallengeOptions = z.infer<
   typeof CreateAddressOwnershipChallengeOptions
@@ -77,45 +150,67 @@ type CreateAddressOwnershipChallengeOptions = z.infer<
  * the link.
  */
 export async function createAddressOwnershipChallenge(
-  options: CreateAddressOwnershipChallengeOptions,
+  options: z.input<typeof CreateAddressOwnershipChallengeOptions>,
 ): Promise<RedditEIP712Challenge> {
-  const { address, timestamp, authToken } =
+  const { fetch, address, authToken } =
     CreateAddressOwnershipChallengeOptions.parse(options);
-  const params = new URLSearchParams({
-    request_timestamp: `${timestamp ?? Date.now()}`,
-  });
-  const response = await fetch(
-    `https://meta-api.reddit.com/crypto/ethereum/challenges?${params}`,
-    {
-      method: "POST",
-      headers: {
-        authorization: `Bearer ${authToken}`,
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        address: address.toLowerCase(),
-        challengeType: "registration-challenge-EIP712",
-      }),
+
+  const response = await fetch("https://gql-fed.reddit.com/", {
+    method: "POST",
+    headers: {
+      accept: "application/json",
+      authorization: `Bearer ${authToken}`,
+      "content-type": "application/json",
     },
-  );
+    body: GetVaultRegistrationChallengeQuery(address),
+  });
   if (!response.ok) {
     throw new HTTPResponseError(
       `HTTP request to create address ownership challenge failed`,
       { response },
     );
   }
-  const body = ChallengeResponse.parse(await response.json());
-  return body.payload;
+  const body = GetVaultRegistrationChallengeResponse.parse(
+    await response.json(),
+  );
+  return body.data.vault.registrationChallenge.payload;
 }
 
 const RegisterAddressWithAccountOptions = APIOptions.extend({
   address: EthAddress,
   challengeSignature: EthHexSignature,
-  timestamp: z.number().optional(),
 });
 type RegisterAddressWithAccountOptions = z.infer<
   typeof RegisterAddressWithAccountOptions
 >;
+
+const RegisterVaultAddressResponse = z.object({
+  data: z.object({
+    registerVaultAddress: z.object({
+      errors: z.any(),
+      ok: z.boolean().nullish(),
+    }),
+  }),
+});
+
+const RegisterVaultAddressQuery = (address: Address, signature: Hex) =>
+  JSON.stringify({
+    extensions: {
+      persistedQuery: {
+        sha256Hash:
+          "396dab0e8ce1d8ffbc4f149b554c7548d6b995fa64c1f0e3e675758ff6e84448",
+        version: 1,
+      },
+    },
+    operationName: "RegisterVaultAddress",
+    variables: {
+      input: {
+        address: address.toLowerCase(),
+        provider: "ethereum",
+        signature,
+      },
+    },
+  });
 
 /** Link an Eth address with a Reddit account.
  *
@@ -123,210 +218,176 @@ type RegisterAddressWithAccountOptions = z.infer<
  * created by & obtained from createAddressOwnershipChallenge().
  */
 export async function registerAddressWithAccount(
-  options: RegisterAddressWithAccountOptions,
+  options: z.input<typeof RegisterAddressWithAccountOptions>,
 ): Promise<void> {
-  const { address, challengeSignature, authToken, timestamp } =
+  const { fetch, address, challengeSignature, authToken } =
     RegisterAddressWithAccountOptions.parse(options);
-  const params = new URLSearchParams({
-    request_timestamp: `${timestamp ?? Date.now()}`,
-  });
-  const response = await fetch(
-    `https://meta-api.reddit.com/crypto/ethereum/registrations?${params}`,
-    {
-      method: "POST",
-      headers: {
-        authorization: `Bearer ${authToken}`,
-        "content-type": "application/json",
-      },
-      body: JSON.stringify({
-        address: address.toLowerCase(),
-        registrationType: "crypto-registration-EIP712",
-        signature: challengeSignature,
-      }),
+
+  const response = await fetch("https://gql-fed.reddit.com/", {
+    method: "POST",
+    headers: {
+      accept: "application/json",
+      authorization: `Bearer ${authToken}`,
+      "content-type": "application/json",
     },
-  );
+    body: RegisterVaultAddressQuery(address, challengeSignature),
+  });
+
   if (!response.ok) {
     throw new HTTPResponseError(
       `HTTP request to register address with account failed`,
       { response },
     );
   }
+
+  const body = RegisterVaultAddressResponse.parse(await response.json());
+  if (body.data.registerVaultAddress.ok) return;
+
+  throw new HTTPResponseError(
+    `HTTP request to register address with account received successful ` +
+      `response with error in response body: ${body.data.registerVaultAddress.errors}`,
+    { response },
+  );
 }
 
-export const GetRedditUserVaultQueryOptions = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("username"), value: z.string() }),
-  z.object({ type: z.literal("address"), value: EthAddress }),
-]);
+export const GetRedditUserVaultQueryOptions = z.object({
+  userId: z.string(),
+});
 export type GetRedditUserVaultQueryOptions = z.infer<
   typeof GetRedditUserVaultQueryOptions
 >;
 
-export const GetRedditUserVaultOptions = APIOptions.extend({
-  query: GetRedditUserVaultQueryOptions,
-});
+export const GetRedditUserVaultOptions = APIOptions.extend(
+  GetRedditUserVaultQueryOptions.shape,
+);
 export type GetRedditUserVaultOptions = z.infer<
   typeof GetRedditUserVaultOptions
 >;
 
-const RawVault = z.object({
-  active: z.boolean(),
-  address: EthAddress,
-  provider: z.string(),
-  userId: z.string(),
-  username: z.string(),
-});
-type RawVault = z.infer<typeof RawVault>;
-const CryptoContactsResponse = z.object({
-  contacts: z.record(z.string(), RawVault.array()).optional(),
-});
-
 export const RedditUserVault = z.object({
   address: EthAddress,
   userId: z.string(),
-  username: z.string(),
-  isActive: z.boolean().nullish(),
+  isActive: z.boolean(),
 });
 export type RedditUserVault = z.infer<typeof RedditUserVault>;
 
-export async function getRedditUserVault(
-  options: GetRedditUserVaultOptions,
-): Promise<RedditUserVault | undefined> {
-  const {
-    authToken,
-    query: { type, value },
-  } = GetRedditUserVaultOptions.parse(options);
+const GetUserVaultQueryResponse = z.object({
+  data: z.object({
+    vault: z.object({
+      contact: RedditUserVault.nullable(),
+    }),
+  }),
+});
+type GetUserVaultQueryResponse = z.infer<typeof GetUserVaultQueryResponse>;
 
-  const matchValue = value.toLowerCase();
-  const queryValue = type === "address" ? getAddress(value) : matchValue;
-
-  // The API supports multiple values separated by , as well as querying by
-  // username and address simultaneously. However we don't need this, so I'm
-  // only exposing single value queries.
-  const params = new URLSearchParams({
-    [type === "address" ? "addresses" : "usernames"]: queryValue,
-  });
-  const response = await fetch(
-    `https://meta-api.reddit.com/crypto-contacts?${params}`,
-    {
-      method: "GET",
-      headers: {
-        authorization: `Bearer ${authToken}`,
-        "content-type": "application/json",
+const GetUserVaultQuery = (userId: string) =>
+  JSON.stringify({
+    extensions: {
+      persistedQuery: {
+        sha256Hash:
+          "a2ca9a4361d8511ce75609b34844229e5691bfc3936c6fe029439f8426d33084",
+        version: 1,
       },
     },
-  );
-  // API returns 404 when looking up suspended accounts
-  if (response.status === 404) {
-    log.info(
-      "getRedditUserVault(): treating 404 response as no vault: ",
-      params,
-    );
-    return undefined;
-  }
+    operationName: "GetUserVault",
+    variables: {
+      provider: "ethereum",
+      userId: userId,
+    },
+  });
+
+export async function getRedditUserVault(
+  options: z.input<typeof GetRedditUserVaultOptions>,
+): Promise<RedditUserVault | undefined> {
+  const { fetch, authToken, userId } = GetRedditUserVaultOptions.parse(options);
+
+  const response = await fetch("https://gql-fed.reddit.com/", {
+    method: "POST",
+    headers: {
+      accept: "application/json",
+      authorization: `Bearer ${authToken}`,
+      "content-type": "application/json",
+    },
+    body: GetUserVaultQuery(userId),
+  });
   if (!response.ok) {
     throw new HTTPResponseError(
       `HTTP request to get vault address of reddit user failed`,
       { response },
     );
   }
-  const body = CryptoContactsResponse.parse(await response.json());
+  const body = GetUserVaultQueryResponse.parse(await response.json());
 
-  let matchingVault: RawVault | undefined;
-  // This is a little more involved than is probably necessary, but worth being
-  // cautious given the undocumented nature of this API. Generally there'll be
-  // a single vault value in the response for the way we search with a single
-  // query value.
-  for (const rawVaults of Object.values(body.contacts ?? {})) {
-    for (const rawVault of rawVaults) {
-      if (
-        !(
-          (type === "username" &&
-            matchValue === rawVault.username.toLowerCase()) ||
-          (type === "address" && matchValue == rawVault.address.toLowerCase())
-        )
-      )
-        continue;
-      if (rawVault.provider !== "ethereum") continue;
-      if (rawVault.active) {
-        matchingVault = rawVault;
-        break;
-      }
-      matchingVault = rawVault;
-      // continue searching in case there's an active vault
-    }
-  }
-  if (!matchingVault) return undefined;
-  return {
-    address: matchingVault.address,
-    userId: matchingVault.userId,
-    username: matchingVault.username,
-    isActive: matchingVault.active,
-  };
+  return body.data.vault.contact ?? undefined;
 }
-
-const AccountVaultAddressesResponse = z.object({
-  // The response omits the top-level addresses prop for accounts with no vault.
-  addresses: z
-    .object({
-      ethereum: z
-        .array(
-          z
-            .object({
-              address: EthAddress,
-              createdAt: z.number(),
-              modifiedAt: z.number().nullish(),
-              isActive: z.boolean().nullish(),
-            })
-            .nullish(),
-        )
-        .nullish(),
-    })
-    .nullish(),
-});
 
 export const AccountVaultAddress = z.object({
   address: EthAddress,
-  // Keep dates as timestamps, as we need to serialise them as JSON again anyway
-  createdAt: z.number(),
-  // This response used to not provide modifiedAt. It now includes it and seems
-  // to default to createdAt. Not sure in what events (if any) cause it to
-  // change. Should try re-pairing and old address and see if it results in a
-  // new entry, or if the existing address has its modifiedAt date changed.
-  modifiedAt: z.number().nullable(),
+  createdAt: z.number().nonnegative(),
   isActive: z.boolean(),
 });
 export type AccountVaultAddress = z.infer<typeof AccountVaultAddress>;
 
-export async function getRedditAccountVaultAddresses(
-  options: APIOptions,
-): Promise<Array<AccountVaultAddress>> {
-  const { authToken } = APIOptions.parse(options);
-  const response = await fetch(
-    `https://meta-api.reddit.com/users/me?fields=addresses`,
-    {
-      method: "GET",
-      headers: {
-        authorization: `Bearer ${authToken}`,
-        "content-type": "application/json",
-      },
+const GetAllVaultsQuery = JSON.stringify({
+  extensions: {
+    persistedQuery: {
+      sha256Hash:
+        "2ab376466d1a57a79f0ffb2b6cbdd0ead3c3b26cbdcf352c1360c1df60ed12cb",
+      version: 1,
     },
-  );
+  },
+  operationName: "GetAllVaults",
+  variables: {
+    provider: "ethereum",
+  },
+});
+
+const GetAllVaultsQueryResponse = z.object({
+  data: z.object({
+    vault: z.object({
+      addresses: z
+        .object({
+          address: EthAddress,
+          createdAt: z
+            .string()
+            .datetime({ offset: true })
+            .transform(Date.parse),
+          isActive: z.boolean(),
+          provider: z.string().nullish(),
+        })
+        .array(),
+    }),
+  }),
+});
+
+export async function getRedditAccountVaultAddresses(
+  options: z.input<typeof APIOptions>,
+): Promise<Array<AccountVaultAddress>> {
+  const { fetch, authToken } = APIOptions.parse(options);
+  const response = await fetch(`https://gql-fed.reddit.com/`, {
+    method: "POST",
+    headers: {
+      accept: "application/json",
+      authorization: `Bearer ${authToken}`,
+      "content-type": "application/json",
+    },
+    body: GetAllVaultsQuery,
+  });
   if (!response.ok) {
     throw new HTTPResponseError(
       `HTTP request to get reddit account vault addresses failed`,
       { response },
     );
   }
-  const body = AccountVaultAddressesResponse.parse(await response.json());
+  const body = GetAllVaultsQueryResponse.parse(await response.json());
   const addresses: Array<AccountVaultAddress> = [];
 
-  for (const rawAddress of Object.values(body.addresses?.ethereum ?? [])) {
-    if (!rawAddress) continue;
+  for (const rawAddress of body.data.vault.addresses) {
+    if (rawAddress?.provider !== "ethereum") continue;
     addresses.push({
       address: rawAddress.address,
       createdAt: rawAddress.createdAt,
-      modifiedAt: rawAddress.modifiedAt ?? null,
-      isActive: rawAddress.isActive ?? false,
+      isActive: rawAddress.isActive,
     });
   }
   return addresses;
@@ -364,9 +425,10 @@ type UserProfileResponse = z.infer<typeof UserProfileResponse>;
  * Get the profile of a user other than the session's user.
  */
 export async function getRedditUserProfile(
-  options: GetRedditUserProfileOptions,
+  options: z.input<typeof GetRedditUserProfileOptions>,
 ): Promise<AnyRedditUserProfile> {
-  const { username, authToken } = GetRedditUserProfileOptions.parse(options);
+  const { fetch, username, authToken } =
+    GetRedditUserProfileOptions.parse(options);
   const response = await fetch(
     `https://oauth.reddit.com/user/${encodeURIComponent(username)}/about.json`,
     {

@@ -1,138 +1,209 @@
 import { RedditEIP712Challenge } from "../api-client";
 
-export const redditEIP712Challenge = (): RedditEIP712Challenge => ({
-  domain: {
-    chainId: "0x1",
-    name: "reddit",
-    salt: "reddit-sIvILoedIcisHANTEmpE",
-    verifyingContract: "",
-    version: "1",
-  },
-  message: {
-    address: "0x0000000000000000000000000000000000000000",
-    expiresAt: "2023-01-01T00:00:00Z",
-    nonce: "fkldsfjlksdafj",
-    redditUserName: "example",
-  },
-  primaryType: "Challenge",
-  types: {
-    Challenge: [
-      {
-        name: "address",
-        type: "address",
+export const GetVaultRegistrationChallengeResponses = () =>
+  ({
+    example: {
+      data: {
+        vault: {
+          registrationChallenge: {
+            payload: {
+              domain:
+                '{"chainId": "0x1", "name": "reddit", "salt": "reddit-sIvILoedIcisHANTEmpE", "verifyingContract": "", "version": "1"}',
+              message:
+                '{"address": "0xbc10830df34d3bf10d934f008a191f3a85b4dd51", "expiresAt": "2024-03-29T04:24:59Z", "nonce": "b9a5a9151606ca9cc7ccb40d513b2865f40a7834a5214889ed9515f188e77c14", "redditUserName": "carbonatedcamel"}',
+              primaryType: "Challenge",
+              types: {
+                challenge: [
+                  {
+                    name: "address",
+                    type: "ADDRESS",
+                  },
+                  {
+                    name: "nonce",
+                    type: "STRING",
+                  },
+                  {
+                    name: "expiresAt",
+                    type: "STRING",
+                  },
+                  {
+                    name: "redditUserName",
+                    type: "STRING",
+                  },
+                ],
+                eip712Domain: [
+                  {
+                    name: "name",
+                    type: "STRING",
+                  },
+                  {
+                    name: "chainId",
+                    type: "UINT256",
+                  },
+                  {
+                    name: "version",
+                    type: "STRING",
+                  },
+                  {
+                    name: "salt",
+                    type: "STRING",
+                  },
+                ],
+              },
+            },
+          },
+        },
       },
-      {
-        name: "nonce",
-        type: "string",
-      },
-      {
-        name: "expiresAt",
-        type: "string",
-      },
-      {
-        name: "redditUserName",
-        type: "string",
-      },
-    ],
-    EIP712Domain: [
-      {
-        name: "name",
-        type: "string",
-      },
-      {
-        name: "chainId",
-        type: "uint256",
-      },
-      {
-        name: "version",
-        type: "string",
-      },
-      {
-        name: "salt",
-        type: "string",
-      },
-    ],
-  },
+    },
+  }) as const;
+
+export const RedditEIP712Challenges = () => ({
+  example: {
+    domain: {
+      chainId: "0x1",
+      name: "reddit",
+      salt: "reddit-sIvILoedIcisHANTEmpE",
+      verifyingContract: "",
+      version: "1",
+    },
+    message: {
+      address: "0xbc10830df34d3bf10d934f008a191f3a85b4dd51",
+      expiresAt: "2024-03-29T04:24:59Z",
+      nonce: "b9a5a9151606ca9cc7ccb40d513b2865f40a7834a5214889ed9515f188e77c14",
+      redditUserName: "carbonatedcamel",
+    },
+    primaryType: "Challenge",
+    types: {
+      Challenge: [
+        {
+          name: "address",
+          type: "address",
+        },
+        {
+          name: "nonce",
+          type: "string",
+        },
+        {
+          name: "expiresAt",
+          type: "string",
+        },
+        {
+          name: "redditUserName",
+          type: "string",
+        },
+      ],
+      EIP712Domain: [
+        {
+          name: "name",
+          type: "string",
+        },
+        {
+          name: "chainId",
+          type: "uint256",
+        },
+        {
+          name: "version",
+          type: "string",
+        },
+        {
+          name: "salt",
+          type: "string",
+        },
+      ],
+    },
+  } satisfies RedditEIP712Challenge,
 });
 
-export const MetaApiMeAddressResponses = {
-  empty: (): ReadonlyArray<Record<string, unknown>> => [
-    {},
-    {
-      pointsDocsBaseUrl:
-        "meta.redditmedia.com/public/all/mobile_copy/crypto/20200515/",
-    },
-    {
-      addresses: null,
-      pointsDocsBaseUrl:
-        "meta.redditmedia.com/public/all/mobile_copy/crypto/20200515/",
-    },
-    {
-      addresses: {},
-      pointsDocsBaseUrl:
-        "meta.redditmedia.com/public/all/mobile_copy/crypto/20200515/",
-    },
-    {
-      addresses: {
-        ethereum: null,
+export const RegisterVaultAddressResponses = () => ({
+  example: {
+    data: {
+      registerVaultAddress: {
+        errors: null,
+        ok: true,
       },
-      pointsDocsBaseUrl:
-        "meta.redditmedia.com/public/all/mobile_copy/crypto/20200515/",
     },
-    {
-      addresses: {
-        ethereum: [],
+  },
+  // This is speculative, I've not triggered real error response yet
+  error: {
+    data: {
+      registerVaultAddress: {
+        errors: "oops",
       },
-      pointsDocsBaseUrl:
-        "meta.redditmedia.com/public/all/mobile_copy/crypto/20200515/",
     },
-    {
-      addresses: {
-        ethereum: [null],
-      },
-      pointsDocsBaseUrl:
-        "meta.redditmedia.com/public/all/mobile_copy/crypto/20200515/",
-    },
-    {
-      addresses: {
-        ethereum: [],
-      },
-      pointsDocsBaseUrl:
-        "meta.redditmedia.com/public/all/mobile_copy/crypto/20200515/",
-    },
-  ],
-  single: (): Record<string, unknown> => ({
-    addresses: {
-      ethereum: [
-        {
-          address: "0x5318810BD26f9209c3d4ff22891F024a2b0A739a",
-          createdAt: 1704694321215,
-          isActive: true,
-          modifiedAt: 1704694321215,
+  },
+});
+export const GetUserVaultQueryResponses = () =>
+  ({
+    noVault: {
+      data: {
+        vault: {
+          contact: null,
         },
-      ],
+      },
     },
-    pointsDocsBaseUrl:
-      "meta.redditmedia.com/public/all/mobile_copy/crypto/20200515/",
-  }),
-  multi: (): Record<string, unknown> => ({
-    addresses: {
-      ethereum: [
-        {
-          address: "0x2bBA0433D7D798981d08EC4aC93d3bd301F3b4Bd",
-          createdAt: 1675509156828,
+    hasVault: {
+      data: {
+        vault: {
+          contact: {
+            address: "0xbc10830dF34D3bf10d934f008A191F3a85B4DD51",
+            isActive: true,
+            userId: "t2_4h7kj7wob",
+          },
         },
-        {
-          address: "0x5d70d1DdA55C6EC028de8de42395Be1Cf43F0815",
-          createdAt: 1676029402882,
-          isActive: true,
-        },
-      ],
+      },
     },
-    pointsDocsBaseUrl:
-      "meta.redditmedia.com/public/all/mobile_copy/crypto/20200515/",
-  }),
-} as const;
+  }) as const;
+
+export const GetAllVaultsQueryResponses = () =>
+  ({
+    none: {
+      data: {
+        vault: {
+          addresses: [],
+        },
+      },
+    },
+    single: {
+      data: {
+        vault: {
+          addresses: [
+            {
+              address: "0xA5C590Ab4f9d1E75a77a41e00f50113B0806F280",
+              createdAt: "2024-02-18T07:32:19.000000+0000",
+              isActive: true,
+              provider: "ethereum",
+            },
+          ],
+        },
+      },
+    },
+    multiple: {
+      data: {
+        vault: {
+          addresses: [
+            {
+              address: "0x2bBA0433D7D798981d08EC4aC93d3bd301F3b4Bd",
+              createdAt: "2023-02-04T11:12:36.000000+0000",
+              isActive: false,
+              provider: "ethereum",
+            },
+            {
+              address: "0x5d70d1DdA55C6EC028de8de42395Be1Cf43F0815",
+              createdAt: "2023-02-10T11:43:22.000000+0000",
+              isActive: false,
+              provider: "ethereum",
+            },
+            {
+              address: "0xA5C590Ab4f9d1E75a77a41e00f50113B0806F280",
+              createdAt: "2024-02-18T07:32:19.000000+0000",
+              isActive: true,
+              provider: "ethereum",
+            },
+          ],
+        },
+      },
+    },
+  }) as const;
 
 export const oauthRedditUserAboutResponseSuspended = () =>
   ({

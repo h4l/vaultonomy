@@ -1,4 +1,4 @@
-import { Address, checksumAddress, getAddress, isAddress } from "viem";
+import { Address, Hex, getAddress, isAddress } from "viem";
 import { z } from "zod";
 
 function transformAddress(
@@ -58,8 +58,8 @@ export type HexString = `0x${string}`;
 
 export const EthHexSignature = z
   .string()
-  .regex(/^0x[0-9a-f]{130}$/, "Invalid hex signature string")
-  .transform((s) => s.toLowerCase());
+  .regex(/^0x[0-9a-f]{130}$/i, "Invalid hex signature string")
+  .transform((s) => s.toLowerCase() as Hex);
 
 export type RecursivePartial<T> = {
   [P in keyof T]?: T[P] extends (infer U)[] ? RecursivePartial<U>[]
@@ -88,4 +88,19 @@ export function isPromise(value: any): boolean {
     "then" in value &&
     typeof value.then === "function"
   );
+}
+
+/**
+ * A Zod parse function to parse a string as JSON.
+ */
+export function parseJSON(arg: string, ctx: z.RefinementCtx): unknown {
+  try {
+    return JSON.parse(arg);
+  } catch (e) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: `invalid JSON: ${e}`,
+    });
+    return z.NEVER;
+  }
 }

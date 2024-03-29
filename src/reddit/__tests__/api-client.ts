@@ -1,11 +1,10 @@
 import { jest } from "@jest/globals";
 
+import { dateParseStrict } from "../../__tests__/testing.utils";
 import { assert } from "../../assert";
 import { HTTPResponseError } from "../../errors/http";
 import {
   AccountVaultAddress,
-  GetRedditUserVaultOptions,
-  RedditUserVault,
   createAddressOwnershipChallenge,
   getRedditAccountVaultAddresses,
   getRedditUserProfile,
@@ -14,38 +13,41 @@ import {
 } from "../api-client";
 import { SuspendedRedditUserProfile } from "../types";
 import {
-  MetaApiMeAddressResponses,
+  GetAllVaultsQueryResponses,
+  GetUserVaultQueryResponses,
+  GetVaultRegistrationChallengeResponses,
+  RedditEIP712Challenges,
+  RegisterVaultAddressResponses,
   oauthRedditUserAboutResponse,
   oauthRedditUserAboutResponseSuspended,
-  redditEIP712Challenge,
 } from "./api-client.fixtures";
 import { userProfile } from "./page-data.fixtures";
-
-const exampleChallenge = redditEIP712Challenge;
 
 describe("createAddressOwnershipChallenge()", () => {
   test("handles successful request", async () => {
     const fetch = jest.spyOn(globalThis, "fetch").mockResolvedValueOnce({
       ok: true,
-      status: 201,
-      json: async () => ({ payload: exampleChallenge() }),
+      status: 200,
+      json: async () => GetVaultRegistrationChallengeResponses().example,
     } as Response);
 
     const resp = await createAddressOwnershipChallenge({
-      address: "0x0000000000000000000000000000000000000000",
-      timestamp: 42,
+      address: "0xbc10830dF34D3bf10d934f008A191F3a85B4DD51",
       authToken: "secret",
     });
 
     expect(fetch).toHaveBeenCalledTimes(1);
-    expect(resp).toEqual(exampleChallenge());
+    expect(resp).toEqual(RedditEIP712Challenges().example);
     const [fetchUrl, fetchOptions] = fetch.mock.calls[0];
     const fetchHeaders = fetchOptions?.headers as Partial<
       Record<string, string>
     >;
-    expect(fetchUrl).toMatchInlineSnapshot(
-      `"https://meta-api.reddit.com/crypto/ethereum/challenges?request_timestamp=42"`,
-    );
+    expect(fetchUrl).toEqual("https://gql-fed.reddit.com/");
+    expect(JSON.parse(String(fetchOptions?.body)).variables).toEqual({
+      address: "0xbc10830df34d3bf10d934f008a191f3a85b4dd51",
+      provider: "ethereum",
+    });
+    expect(fetchOptions?.method).toEqual("POST");
     expect(fetchHeaders?.authorization).toEqual("Bearer secret");
     expect(fetchHeaders?.["content-type"]).toEqual("application/json");
   });
@@ -60,7 +62,6 @@ describe("createAddressOwnershipChallenge()", () => {
     const [result] = await Promise.allSettled([
       createAddressOwnershipChallenge({
         address: "0x0000000000000000000000000000000000000000",
-        timestamp: 42,
         authToken: "secret",
       }),
     ]);
@@ -76,16 +77,15 @@ describe("registerAddressWithAccount()", () => {
   test("handles successful request", async () => {
     const fetch = jest.spyOn(globalThis, "fetch").mockResolvedValueOnce({
       ok: true,
-      status: 204,
-      json: async () => ({ payload: exampleChallenge() }),
+      status: 200,
+      json: async () => RegisterVaultAddressResponses().example,
     } as Response);
 
     await expect(
       registerAddressWithAccount({
-        address: "0x0000000000000000000000000000000000000000",
+        address: "0xbc10830dF34D3bf10d934f008A191F3a85B4DD51",
         challengeSignature:
-          "0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
-        timestamp: 42,
+          "0xAa000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000fF",
         authToken: "secret",
       }),
     ).resolves.toBeUndefined();
@@ -95,11 +95,31 @@ describe("registerAddressWithAccount()", () => {
     const fetchHeaders = fetchOptions?.headers as Partial<
       Record<string, string>
     >;
-    expect(fetchUrl).toEqual(
-      "https://meta-api.reddit.com/crypto/ethereum/registrations?request_timestamp=42",
-    );
+    expect(fetchUrl).toEqual("https://gql-fed.reddit.com/");
+    expect(JSON.parse(String(fetchOptions?.body))?.variables?.input).toEqual({
+      address: "0xbc10830df34d3bf10d934f008a191f3a85b4dd51",
+      provider: "ethereum",
+      signature:
+        "0xaa000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000ff",
+    });
     expect(fetchHeaders?.authorization).toEqual("Bearer secret");
     expect(fetchHeaders?.["content-type"]).toEqual("application/json");
+  });
+
+  test("handles request with successful HTTP response but error in body", async () => {
+    const fetch = jest.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => RegisterVaultAddressResponses().error,
+    } as Response);
+
+    const result = registerAddressWithAccount({
+      address: "0xbc10830dF34D3bf10d934f008A191F3a85B4DD51",
+      challengeSignature:
+        "0xAa000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000fF",
+      authToken: "secret",
+    });
+    await expect(result).rejects.toThrow(/error in response body: oops/);
   });
 
   test("handles unsuccessful response", async () => {
@@ -114,7 +134,6 @@ describe("registerAddressWithAccount()", () => {
         address: "0x0000000000000000000000000000000000000000",
         challengeSignature:
           "0x0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
-        timestamp: 42,
         authToken: "secret",
       }),
     ]);
@@ -127,198 +146,39 @@ describe("registerAddressWithAccount()", () => {
 });
 
 describe("getRedditUserVault()", () => {
-  type Query = GetRedditUserVaultOptions["query"];
-  const expectedResponseBody = () => ({
-    contacts: {
-      exampleUserId: [
-        {
-          active: true,
-          address: "0x67F63690530782B716477733a085ce7A8310bc4C",
-          provider: "ethereum",
-          userId: "exampleUserId",
-          username: "exampleUserName",
-        },
-      ],
-    },
-  });
-
-  test.each<Query>([
-    { type: "username", value: "exampleusername" },
-    { type: "username", value: "EXAMPLEUSERNAME" },
-    { type: "address", value: "0x67f63690530782b716477733a085ce7a8310bc4c" },
-    { type: "address", value: "0x67F63690530782B716477733a085ce7A8310bc4C" },
-  ])(
-    "handles successful request for account with an address",
-    async (query) => {
-      const fetch = jest.spyOn(globalThis, "fetch").mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => expectedResponseBody(),
-      } as Response);
-      const params: GetRedditUserVaultOptions = {
-        query,
-        authToken: "secret",
-      };
-
-      const expected: RedditUserVault = {
-        address: "0x67F63690530782B716477733a085ce7A8310bc4C",
-        userId: "exampleUserId",
-        username: "exampleUserName",
-        isActive: true,
-      };
-      await expect(getRedditUserVault(params)).resolves.toEqual(expected);
-
-      expect(fetch).toHaveBeenCalledTimes(1);
-      const [fetchUrl, fetchOptions] = fetch.mock.calls[0];
-      const fetchHeaders = fetchOptions?.headers as Partial<
-        Record<string, string>
-      >;
-      if (query.type === "username") {
-        expect(fetchUrl).toEqual(
-          "https://meta-api.reddit.com/crypto-contacts?usernames=exampleusername",
-        );
-      } else {
-        expect(fetchUrl).toEqual(
-          "https://meta-api.reddit.com/crypto-contacts?addresses=0x67F63690530782B716477733a085ce7A8310bc4C",
-        );
-      }
-      expect(fetchHeaders?.authorization).toEqual("Bearer secret");
-      expect(fetchHeaders?.["content-type"]).toEqual("application/json");
-    },
-  );
-
-  test.each<{ query: Query; expected: "A" | "B" | "C" }>([
+  test.each([
+    { response: GetUserVaultQueryResponses().noVault, expected: undefined },
     {
-      query: {
-        type: "address",
-        value: "0x0000000000000000000000000000000000000004",
+      response: GetUserVaultQueryResponses().hasVault,
+      expected: {
+        address: "0xbc10830dF34D3bf10d934f008A191F3a85B4DD51",
+        isActive: true,
+        userId: "t2_4h7kj7wob",
       },
-      expected: "A",
     },
-    { query: { type: "username", value: "exampleusername2" }, expected: "B" },
-    { query: { type: "username", value: "exampleusername3" }, expected: "C" },
-  ])(
-    "returns address for requested username if response contains edge case results",
-    async ({ query, expected }) => {
-      const expectedValues: Record<"A" | "B" | "C", RedditUserVault> = {
-        A: {
-          address: "0x0000000000000000000000000000000000000004",
-          userId: "exampleUserId2",
-          username: "exampleUserName2",
-          isActive: false,
-        },
-        B: {
-          address: "0x0000000000000000000000000000000000000005",
-          userId: "exampleUserId2",
-          username: "exampleUserName2",
-          isActive: true,
-        },
-        C: {
-          address: "0x0000000000000000000000000000000000000006",
-          userId: "exampleUserId3",
-          username: "exampleusername3",
-          isActive: false,
-        },
-      };
-      const expectedValue = expectedValues[expected];
-      assert(expectedValue);
-
-      jest.spyOn(globalThis, "fetch").mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => ({
-          contacts: {
-            exampleUserId1: [
-              // This user has an address matching the other user but on a
-              // different provider. (Possible in theory with contract wallets
-              // not associated with a private key.)
-              {
-                active: true,
-                address: "0x0000000000000000000000000000000000000004",
-                provider: "randochain",
-                userId: "exampleUserId1",
-                username: "exampleusername1",
-              },
-              {
-                active: true,
-                address: "0x0000000000000000000000000000000000000001",
-                provider: "ethereum",
-                userId: "exampleUserId1",
-                username: "exampleusername1",
-              },
-            ],
-            exampleUserId2: [
-              // We ignore non-ethereum provider vaults and prefer active over
-              // inactive. However direct queries for inactive addresses return
-              // the inactive vault. (In reality a query for an inactive vault
-              // address does not also return the active vault in the same
-              // response.)
-              {
-                active: false,
-                address: "0x0000000000000000000000000000000000000002",
-                provider: "ethereum",
-                userId: "exampleUserId2",
-                username: "exampleUserName2",
-              },
-              {
-                active: true,
-                address: "0x0000000000000000000000000000000000000003",
-                provider: "randochain",
-                userId: "exampleUserId2",
-                username: "exampleUserName2",
-              },
-              {
-                active: false,
-                address: "0x0000000000000000000000000000000000000004",
-                provider: "ethereum",
-                userId: "exampleUserId2",
-                username: "exampleUserName2",
-              },
-              {
-                active: true,
-                address: "0x0000000000000000000000000000000000000005",
-                provider: "ethereum",
-                userId: "exampleUserId2",
-                username: "exampleUserName2",
-              },
-            ],
-            exampleUserId3: [
-              // User with only an inactive vault.
-              {
-                active: false,
-                address: "0x0000000000000000000000000000000000000006",
-                provider: "ethereum",
-                userId: "exampleUserId3",
-                username: "exampleusername3",
-              },
-            ],
-          },
-        }),
-      } as Response);
-
-      const resp = getRedditUserVault({
-        query,
-        authToken: "secret",
-      } as GetRedditUserVaultOptions);
-
-      await expect(resp).resolves.toEqual(expectedValues[expected]);
-    },
-  );
-
-  test("treats 404 (when requesting for a suspended user) as no vault", async () => {
-    // API 404s when requesting a suspended user's vault
-    jest.spyOn(globalThis, "fetch").mockResolvedValueOnce({
-      ok: false,
-      status: 404,
-      json: async () => ({ error: "nothing to see here" }),
+  ] as const)("handles successful request", async ({ response, expected }) => {
+    const fetch = jest.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => response,
     } as Response);
 
     await expect(
       getRedditUserVault({
-        query: { type: "username", value: "metamask" },
+        userId: "t2_4h7kj7wob",
         authToken: "secret",
       }),
-    ).resolves.toBeUndefined();
+    ).resolves.toEqual(expected);
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    const [fetchUrl, fetchOptions] = fetch.mock.calls[0];
+    const fetchHeaders = fetchOptions?.headers as Partial<
+      Record<string, string>
+    >;
+    expect(fetchUrl).toEqual("https://gql-fed.reddit.com/");
+    expect(fetchOptions?.method).toEqual("POST");
+    expect(fetchHeaders?.authorization).toEqual("Bearer secret");
+    expect(fetchHeaders?.["content-type"]).toEqual("application/json");
   });
 
   test("handles unsuccessful response", async () => {
@@ -330,7 +190,7 @@ describe("getRedditUserVault()", () => {
 
     const [result] = await Promise.allSettled([
       getRedditUserVault({
-        query: { type: "username", value: "exampleusername" },
+        userId: "t2_foo",
         authToken: "secret",
       }),
     ]);
@@ -343,69 +203,53 @@ describe("getRedditUserVault()", () => {
 });
 
 describe("getRedditAccountVaultAddresses()", () => {
-  test.each(MetaApiMeAddressResponses.empty())(
-    "handles successful request for account with no vault history",
-    async (response) => {
-      jest.spyOn(globalThis, "fetch").mockResolvedValueOnce({
-        ok: true,
-        status: 200,
-        json: async () => response,
-      } as Response);
-
-      await expect(
-        getRedditAccountVaultAddresses({
-          authToken: "secret",
-        }),
-      ).resolves.toEqual([]);
+  test.each([
+    {
+      response: GetAllVaultsQueryResponses().none,
+      expected: [],
     },
-  );
-
-  test("handles successful request for account with one vault", async () => {
+    {
+      response: GetAllVaultsQueryResponses().single,
+      expected: [
+        {
+          address: "0xA5C590Ab4f9d1E75a77a41e00f50113B0806F280",
+          createdAt: dateParseStrict("2024-02-18T07:32:19.000000+0000"),
+          isActive: true,
+        },
+      ],
+    },
+    {
+      response: GetAllVaultsQueryResponses().multiple,
+      expected: [
+        {
+          address: "0x2bBA0433D7D798981d08EC4aC93d3bd301F3b4Bd",
+          createdAt: dateParseStrict("2023-02-04T11:12:36.000000+0000"),
+          isActive: false,
+        },
+        {
+          address: "0x5d70d1DdA55C6EC028de8de42395Be1Cf43F0815",
+          createdAt: dateParseStrict("2023-02-10T11:43:22.000000+0000"),
+          isActive: false,
+        },
+        {
+          address: "0xA5C590Ab4f9d1E75a77a41e00f50113B0806F280",
+          createdAt: dateParseStrict("2024-02-18T07:32:19.000000+0000"),
+          isActive: true,
+        },
+      ],
+    },
+  ] as const)("handles successful request", async ({ response, expected }) => {
     jest.spyOn(globalThis, "fetch").mockResolvedValueOnce({
       ok: true,
       status: 200,
-      json: async () => MetaApiMeAddressResponses.single(),
+      json: async () => response,
     } as Response);
 
     await expect(
       getRedditAccountVaultAddresses({
         authToken: "secret",
       }),
-    ).resolves.toEqual<Array<AccountVaultAddress>>([
-      {
-        address: "0x5318810BD26f9209c3d4ff22891F024a2b0A739a",
-        createdAt: 1704694321215,
-        isActive: true,
-        modifiedAt: 1704694321215,
-      },
-    ]);
-  });
-
-  test("handles successful request for account with multiple vaults", async () => {
-    jest.spyOn(globalThis, "fetch").mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      json: async () => MetaApiMeAddressResponses.multi(),
-    } as Response);
-
-    await expect(
-      getRedditAccountVaultAddresses({
-        authToken: "secret",
-      }),
-    ).resolves.toEqual<Array<AccountVaultAddress>>([
-      {
-        address: "0x2bBA0433D7D798981d08EC4aC93d3bd301F3b4Bd",
-        createdAt: 1675509156828,
-        modifiedAt: null,
-        isActive: false,
-      },
-      {
-        address: "0x5d70d1DdA55C6EC028de8de42395Be1Cf43F0815",
-        createdAt: 1676029402882,
-        modifiedAt: null,
-        isActive: true,
-      },
-    ]);
+    ).resolves.toEqual<ReadonlyArray<AccountVaultAddress>>(expected);
   });
 });
 

@@ -1,5 +1,4 @@
 import { expect, jest } from "@jest/globals";
-import { Mock } from "jest-mock";
 import {
   createJSONRPCErrorResponse,
   createJSONRPCSuccessResponse,
@@ -7,6 +6,7 @@ import {
 
 import { MockPort } from "../../__tests__/webextension.mock";
 
+import { dateParseStrict } from "../../__tests__/testing.utils";
 import { assert } from "../../assert";
 import { Connector } from "../../rpc/connections";
 import { AccountVaultAddress, RedditUserVault } from "../api-client";
@@ -17,9 +17,8 @@ import {
 import {
   ErrorCode,
   RedditGetUserProfileParams,
-  RedditGetUserVaultParams,
 } from "../reddit-interaction-spec";
-import { redditEIP712Challenge } from "./api-client.fixtures";
+import { RedditEIP712Challenges } from "./api-client.fixtures";
 import { loggedInUser } from "./page-data.fixtures";
 
 describe("RedditProvider()", () => {
@@ -122,9 +121,9 @@ describe("RedditProvider()", () => {
         address: `0x${"0".repeat(40)}`,
       });
       port.receiveMessage(
-        createJSONRPCSuccessResponse(1, redditEIP712Challenge()),
+        createJSONRPCSuccessResponse(1, RedditEIP712Challenges().example),
       );
-      await expect(resp).resolves.toEqual(redditEIP712Challenge());
+      await expect(resp).resolves.toEqual(RedditEIP712Challenges().example);
     });
 
     test("registerAddressWithAccount()", async () => {
@@ -141,26 +140,21 @@ describe("RedditProvider()", () => {
       const vault = (): RedditUserVault => ({
         address: "0x67F63690530782B716477733a085ce7A8310bc4C",
         userId: "exampleUserId",
-        username: "exampleUserName",
         isActive: true,
       });
 
-      test.each<RedditGetUserVaultParams["query"]>([
-        { type: "username", value: "example" },
-        {
-          type: "address",
-          value: "0x67F63690530782B716477733a085ce7A8310bc4C",
-        },
-      ])("handles vault response", async (query) => {
-        const resp = reddit.getUserVault({ query });
+      test("handles vault response", async () => {
+        const resp = reddit.getUserVault({
+          query: { userId: "exampleUserId" },
+        });
         port.receiveMessage(createJSONRPCSuccessResponse(1, vault()));
         await expect(resp).resolves.toEqual(vault());
       });
 
-      test.each<RedditGetUserVaultParams["query"]>([
-        { type: "username", value: "example" },
-      ])("handles no-vault response", async (query) => {
-        const resp = reddit.getUserVault({ query });
+      test("handles no-vault response", async () => {
+        const resp = reddit.getUserVault({
+          query: { userId: "exampleUserId" },
+        });
         port.receiveMessage(createJSONRPCSuccessResponse(1, null));
         await expect(resp).resolves.toBeNull();
       });
@@ -172,10 +166,9 @@ describe("RedditProvider()", () => {
       });
       const addresses = (): Array<AccountVaultAddress> => [
         {
-          address: "0x5318810BD26f9209c3d4ff22891F024a2b0A739a",
-          createdAt: 1704694321215,
+          address: "0xA5C590Ab4f9d1E75a77a41e00f50113B0806F280",
           isActive: true,
-          modifiedAt: 1704694321215,
+          createdAt: dateParseStrict("2024-02-18T07:32:19.000000+0000"),
         },
       ];
       port.receiveMessage(createJSONRPCSuccessResponse(1, addresses()));
