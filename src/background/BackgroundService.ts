@@ -1,4 +1,5 @@
 import { PortName } from "../PortName";
+import { handleFetchCrossOriginMessages } from "../cross-origin/background";
 import { log as _log } from "../logging";
 import {
   BackgroundServiceStartedEvent,
@@ -74,6 +75,8 @@ export class BackgroundService {
 
     this.toStop = [];
 
+    this.toStop.push(handleFetchCrossOriginMessages());
+
     this.toStop.push(this.startHandlingActionButtonClicks());
     this.toStop.push(this.startHandlingExtensionConnections());
     this.toStop.push(this.startNotifyInterestInUsersFromUserLinkInteraction());
@@ -106,8 +109,9 @@ export class BackgroundService {
           /Could not establish connection|Receiving end does not exist/i.test(
             `${e}`,
           )
-        )
+        ) {
           return;
+        }
         log.warn("sendMessage failed", e);
       });
   }
@@ -174,8 +178,9 @@ export class BackgroundService {
   private notifySession(event: InterestInUserEvent) {
     const eventContext = this.notificationLog.register(event);
 
-    for (const session of this.sessions)
+    for (const session of this.sessions) {
       session.notifyInterestInUser(eventContext);
+    }
   }
 
   private startNotifyInterestInUsersFromUserPageViews(): Stop {
