@@ -19,11 +19,7 @@
     "activeTab",
     "contextMenus"
   ],
-  "host_permissions": [
-    "https://www.reddit.com/*",
-    "https://new.reddit.com/*",
-    "https://gql-fed.reddit.com/*"
-  ],
+  "host_permissions": ["https://www.reddit.com/*", "https://new.reddit.com/*"],
   "background": {
     "service_worker": "background.js",
     "type": "module"

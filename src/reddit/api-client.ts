@@ -14,19 +14,7 @@ import {
 } from "../types";
 import { AnyRedditUserProfile } from "./types";
 
-export type FetchSubset = (
-  url: string,
-  options: {
-    method: "GET" | "POST";
-    headers: Record<string, string>;
-    body?: string;
-  },
-) => Promise<Response>;
-
-const APIOptions = z.object({
-  fetch: (z.any() as z.ZodType<FetchSubset>).optional().default(() => fetch),
-  authToken: z.string(),
-});
+const APIOptions = z.object({ authToken: z.string() });
 type APIOptions = z.infer<typeof APIOptions>;
 
 const RedditEIP712ChallengeMessage = z.object({
@@ -152,7 +140,7 @@ type CreateAddressOwnershipChallengeOptions = z.infer<
 export async function createAddressOwnershipChallenge(
   options: z.input<typeof CreateAddressOwnershipChallengeOptions>,
 ): Promise<RedditEIP712Challenge> {
-  const { fetch, address, authToken } =
+  const { address, authToken } =
     CreateAddressOwnershipChallengeOptions.parse(options);
 
   const response = await fetch("https://gql-fed.reddit.com/", {
@@ -220,7 +208,7 @@ const RegisterVaultAddressQuery = (address: Address, signature: Hex) =>
 export async function registerAddressWithAccount(
   options: z.input<typeof RegisterAddressWithAccountOptions>,
 ): Promise<void> {
-  const { fetch, address, challengeSignature, authToken } =
+  const { address, challengeSignature, authToken } =
     RegisterAddressWithAccountOptions.parse(options);
 
   const response = await fetch("https://gql-fed.reddit.com/", {
@@ -299,7 +287,7 @@ const GetUserVaultQuery = (userId: string) =>
 export async function getRedditUserVault(
   options: z.input<typeof GetRedditUserVaultOptions>,
 ): Promise<RedditUserVault | undefined> {
-  const { fetch, authToken, userId } = GetRedditUserVaultOptions.parse(options);
+  const { authToken, userId } = GetRedditUserVaultOptions.parse(options);
 
   const response = await fetch("https://gql-fed.reddit.com/", {
     method: "POST",
@@ -363,7 +351,7 @@ const GetAllVaultsQueryResponse = z.object({
 export async function getRedditAccountVaultAddresses(
   options: z.input<typeof APIOptions>,
 ): Promise<Array<AccountVaultAddress>> {
-  const { fetch, authToken } = APIOptions.parse(options);
+  const { authToken } = APIOptions.parse(options);
   const response = await fetch(`https://gql-fed.reddit.com/`, {
     method: "POST",
     headers: {
@@ -427,8 +415,7 @@ type UserProfileResponse = z.infer<typeof UserProfileResponse>;
 export async function getRedditUserProfile(
   options: z.input<typeof GetRedditUserProfileOptions>,
 ): Promise<AnyRedditUserProfile> {
-  const { fetch, username, authToken } =
-    GetRedditUserProfileOptions.parse(options);
+  const { username, authToken } = GetRedditUserProfileOptions.parse(options);
   const response = await fetch(
     `https://oauth.reddit.com/user/${encodeURIComponent(username)}/about.json`,
     {

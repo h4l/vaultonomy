@@ -10,7 +10,6 @@ import {
   createJSONRPCErrorResponse,
 } from "json-rpc-2.0";
 
-import { fetchCrossOrigin } from "../cross-origin/frontend";
 import { HTTPResponseError } from "../errors/http";
 import { tabCloseWarningMiddleware } from "../rpc/middleware";
 import { SessionManager, createCachedSessionManager } from "./SessionManager";
@@ -130,7 +129,6 @@ export function createServerSession<
           params.session.userId,
         );
         return await createAddressOwnershipChallenge({
-          fetch: fetchCrossOrigin,
           authToken: session.auth.token,
           address: params.address,
         });
@@ -145,7 +143,6 @@ export function createServerSession<
         params.session.userId,
       );
       await registerAddressWithAccount({
-        fetch: fetchCrossOrigin,
         authToken: session.auth.token,
         address: params.address,
         challengeSignature: params.challengeSignature,
@@ -160,7 +157,6 @@ export function createServerSession<
       const session = await getUserSession(sessionManager, null);
       return (
         (await getRedditUserVault({
-          fetch: fetchCrossOrigin,
           authToken: session.auth.token,
           userId: query.userId,
         })) ?? null
@@ -175,7 +171,6 @@ export function createServerSession<
         params.session.userId,
       );
       return await getRedditAccountVaultAddresses({
-        fetch: fetchCrossOrigin,
         authToken: session.auth.token,
       });
     }),

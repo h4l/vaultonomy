@@ -5,7 +5,6 @@ import {
   JSONRPCErrorException,
   JSONRPCServer,
 } from "json-rpc-2.0";
-import { getAddress } from "viem";
 
 import { dateParseStrict } from "../../__tests__/testing.utils";
 import { HTTPResponseError } from "../../errors/http";
@@ -53,14 +52,6 @@ jest.unstable_mockModule<typeof originalApiclient>(
   },
 );
 
-type CrossOriginFrontendModule = typeof import("../../cross-origin/frontend");
-jest.unstable_mockModule<CrossOriginFrontendModule>(
-  "./src/cross-origin/frontend.ts",
-  () => ({
-    fetchCrossOrigin: jest.fn<CrossOriginFrontendModule["fetchCrossOrigin"]>(),
-  }),
-);
-
 function mockResponse(status: number = 500): Response {
   return { status } satisfies Partial<Response> as Response;
 }
@@ -74,8 +65,6 @@ const {
   getRedditAccountVaultAddresses,
   getRedditUserProfile,
 } = await import("../api-client");
-
-const { fetchCrossOrigin } = await import("../../cross-origin/frontend");
 
 describe("createServerSession()", () => {
   let server: JSONRPCServer;
@@ -260,7 +249,6 @@ describe("createServerSession()", () => {
       await expect(resp).resolves.toBeNull();
       expect(registerAddressWithAccount).toBeCalledTimes(1);
       expect(registerAddressWithAccount).toBeCalledWith({
-        fetch: fetchCrossOrigin,
         authToken: "secret",
         address: "0x" + "0".repeat(40),
         challengeSignature: "0x" + "0".repeat(130),
@@ -317,7 +305,6 @@ describe("createServerSession()", () => {
       await expect(resp).resolves.toEqual(vault());
       expect(getRedditUserVault).toBeCalledTimes(1);
       expect(getRedditUserVault).toBeCalledWith({
-        fetch: fetchCrossOrigin,
         userId: "exampleUserId",
         authToken: "secret",
       });
@@ -364,7 +351,6 @@ describe("createServerSession()", () => {
       await expect(resp).resolves.toEqual(addresses());
       expect(getRedditAccountVaultAddresses).toBeCalledTimes(1);
       expect(getRedditAccountVaultAddresses).toBeCalledWith({
-        fetch: fetchCrossOrigin,
         authToken: "secret",
       });
     });

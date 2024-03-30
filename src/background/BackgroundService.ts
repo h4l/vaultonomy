@@ -1,5 +1,4 @@
 import { PortName } from "../PortName";
-import { handleFetchCrossOriginMessages } from "../cross-origin/background";
 import { log as _log } from "../logging";
 import {
   BackgroundServiceStartedEvent,
@@ -74,8 +73,6 @@ export class BackgroundService {
     const startTime = Date.now();
 
     this.toStop = [];
-
-    this.toStop.push(handleFetchCrossOriginMessages());
 
     this.toStop.push(this.startHandlingActionButtonClicks());
     this.toStop.push(this.startHandlingExtensionConnections());
