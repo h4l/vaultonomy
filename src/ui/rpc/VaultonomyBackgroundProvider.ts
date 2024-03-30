@@ -50,6 +50,7 @@ export interface RedditTabConnectionEvents {
   ) => void;
   userLinkInteraction: (event: UserLinkInteractionEvent) => void;
   userPageInteraction: (event: UserPageInteractionEvent) => void;
+  settingsChanged: () => void;
 }
 
 export class VaultonomyBackgroundProvider {
@@ -108,9 +109,16 @@ export class VaultonomyBackgroundProvider {
     this.synchronisingEventEmitter = new SynchronisingEventEmitter({
       getEventLog: async () => this.getUiNotifications(),
       emitEvent: (event) => {
-        event.event.type === "userLinkInteraction" ?
-          this.emitter.emit(event.event.type, event.event)
-        : this.emitter.emit(event.event.type, event.event);
+        switch (event.event.type) {
+          case "userLinkInteraction":
+            return this.emitter.emit(event.event.type, event.event);
+          case "userPageInteraction":
+            return this.emitter.emit(event.event.type, event.event);
+          case "settingsChanged":
+            return this.emitter.emit(event.event.type);
+          default:
+            assertUnreachable(event.event);
+        }
       },
     });
 

@@ -4,6 +4,10 @@ import { assert } from "../../assert";
 import { VaultonomySettings } from "../../vaultonomy-rpc-spec";
 import { useVaultonomyStore } from "../state/useVaultonomyStore";
 
+export function getVaultonomySettingsQueryKey() {
+  return ["VaultonomyBackgroundProvider", "getSettings"];
+}
+
 export function useVaultonomySettings<T>({
   select,
 }: {
@@ -11,7 +15,7 @@ export function useVaultonomySettings<T>({
 }) {
   const provider = useVaultonomyStore((s) => s.provider);
   return useQuery({
-    queryKey: ["VaultonomyBackgroundProvider", "getSettings"],
+    queryKey: getVaultonomySettingsQueryKey(),
     queryFn: async () => {
       assert(provider, "query executed when not enabled");
       return await provider.getSettings();

@@ -13,6 +13,7 @@ import {
 } from "../settings/VaultonomySettings";
 import { Stop } from "../types";
 import {
+  SettingsChangedEvent,
   TaggedVaultonomyBackgroundEvent,
   VAULTONOMY_RPC_PORT as VAULTONOMY_RPC_PORT_NAME,
 } from "../vaultonomy-rpc-spec";
@@ -78,6 +79,7 @@ export class BackgroundService {
     this.toStop.push(this.startHandlingExtensionConnections());
     this.toStop.push(this.startNotifyInterestInUsersFromUserLinkInteraction());
     this.toStop.push(this.startNotifyInterestInUsersFromUserPageViews());
+    this.toStop.push(this.startNotifySettingsChangedFromPrefsStoreChanged());
     this.toStop.push(this.ensureContentScriptsRunningAfterInstall());
 
     this.actionContextMenu.start();
@@ -172,7 +174,7 @@ export class BackgroundService {
     );
   }
 
-  private notifySession(event: InterestInUserEvent) {
+  private notifySession(event: InterestInUserEvent | SettingsChangedEvent) {
     const eventContext = this.notificationLog.register(event);
 
     for (const session of this.sessions) {
@@ -226,6 +228,18 @@ export class BackgroundService {
     browser.runtime.onMessage.addListener(onMessage);
 
     return () => browser.runtime.onMessage.removeListener(onMessage);
+  }
+
+  private startNotifySettingsChangedFromPrefsStoreChanged(): Stop {
+    // We don't need to notify what changed, we just re-fetch all settings.
+    const onPropertiesChanged = (): void => {
+      this.notifySession({ type: "settingsChanged" });
+    };
+
+    return this.userPrefsStore.emitter.on(
+      "propertiesChanged",
+      onPropertiesChanged,
+    );
   }
 
   private startHandlingExtensionConnections(): Stop {

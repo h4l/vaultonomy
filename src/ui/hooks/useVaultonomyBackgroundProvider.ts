@@ -7,6 +7,7 @@ import { ErrorCode } from "../../reddit/reddit-interaction-spec";
 import { useVaultonomyStore } from "../state/useVaultonomyStore";
 import { createVaultonomyBackgroundProvider } from "./createVaultonomyBackgroundProvider";
 import { useSyncRedditTabAvailabilityWithProviderNotifications } from "./useRedditTabAvailability";
+import { useReloadSettingsOnProviderNofication } from "./useReloadVaultonomySettingsOnProviderNotification";
 import { parseUsername, prefetchSearchForUser } from "./useSearchForUser";
 
 // FIXME: rename this file to match this fn
@@ -90,4 +91,5 @@ export function useVaultonomyBackgroundConnection() {
   // This needs to happen exactly once, so it makes sense to do it here as the
   // provider is created.
   useSyncRedditTabAvailabilityWithProviderNotifications();
+  useReloadSettingsOnProviderNofication();
 }

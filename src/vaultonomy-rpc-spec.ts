@@ -28,6 +28,10 @@ export const RedditTabBecameAvailableEvent = z.object({
 export const RedditTabBecameUnavailableEvent = z.object({
   type: z.literal("redditTabBecameUnavailable"),
 });
+export const SettingsChangedEvent = z.object({
+  type: z.literal("settingsChanged"),
+});
+export type SettingsChangedEvent = z.infer<typeof SettingsChangedEvent>;
 
 function createTaggedEventSchema<T extends z.ZodTypeAny>(eventSchema: T) {
   return z.object({
@@ -41,8 +45,9 @@ export type TaggedEvent<T> = z.infer<
   ReturnType<typeof createTaggedEventSchema<z.Schema<T>>>
 >;
 
-export const TaggedVaultonomyBackgroundEvent =
-  createTaggedEventSchema(InterestInUserEvent);
+export const TaggedVaultonomyBackgroundEvent = createTaggedEventSchema(
+  InterestInUserEvent.or(SettingsChangedEvent),
+);
 export type TaggedVaultonomyBackgroundEvent = z.infer<
   typeof TaggedVaultonomyBackgroundEvent
 >;
