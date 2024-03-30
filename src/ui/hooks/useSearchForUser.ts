@@ -8,20 +8,15 @@ import {
 import { Address, getAddress, isAddress } from "viem";
 import { normalize } from "viem/ens";
 import { Config, useConfig } from "wagmi";
-import { getEnsAddressQueryOptions, getEnsTextQueryOptions } from "wagmi/query";
+import { getEnsNameQueryOptions, getEnsTextQueryOptions } from "wagmi/query";
 
 import { assert, assertUnreachable } from "../../assert";
 import { log } from "../../logging";
 import { RedditProvider } from "../../reddit/reddit-interaction-client";
 import { RequiredNonNullable } from "../../types";
 import { Result } from "../state/createVaultonomyStore";
-import { useVaultonomyStore } from "../state/useVaultonomyStore";
 import { useRedditProvider } from "./useRedditProvider";
 import { getRedditUserProfileQueryOptions } from "./useRedditUserProfile";
-import {
-  getRedditUserVaultQueryOptions,
-  prefetchRedditUserVault,
-} from "./useRedditUserVault";
 
 export type UseSearchForUserOptions = {
   query: ValidParsedQuery | undefined;
@@ -48,9 +43,8 @@ export type ParsedQuery = ValidParsedQuery | InvalidParsedQuery;
 
 export type NotFoundReason =
   | "username-not-found"
-  | "address-not-a-vault"
+  | "address-has-no-ens-name"
   | "ens-name-has-no-address"
-  | "ens-name-address-not-a-vault"
   | "ens-name-has-no-com-reddit"
   | "ens-name-com-reddit-username-not-found";
 export type SearchForUserNotFoundError = {
@@ -170,17 +164,14 @@ async function searchForUser({
       return await searchForUserByUsername({ query, ...options });
     }
     case "address": {
-      return await searchForUserByVaultAddress({ query, ...options });
+      return await searchForUserByAddressPrimaryEnsName({ query, ...options });
     }
     case "ens-name": {
-      return await searchForUserByEnsName({ query, ...options });
+      return await searchForUserByEnsNameTxtRecord({ query, ...options });
     }
   }
   assertUnreachable(query);
 }
-
-// TODO: normalise username in ENS text, e.g. allow u/foo or https://reddit.com/u/foo
-// maybe in query parser too?
 
 async function searchForUserByUsername({
   query,
@@ -206,85 +197,25 @@ async function searchForUserByUsername({
   return { result: "ok", value: { username: result.username } };
 }
 
-async function searchForUserByVaultAddress({
-  query,
-  redditProvider,
-  queryClient,
-}: {
-  query: AddressQuery;
-} & Pick<
-  SearchForUserOptions,
-  "redditProvider" | "queryClient"
->): Promise<SearchForUserResult> {
+/**
+ * Resolve an address to an ENS name, and search for the ENS name.
+ */
+async function searchForUserByAddressPrimaryEnsName(
+  options: { query: AddressQuery } & SearchForUserOptions,
+): Promise<SearchForUserResult> {
+  const { wagmiConfig, queryClient, query } = options;
   const result = await queryClient.fetchQuery(
-    getRedditUserVaultQueryOptions({
-      redditProvider,
-      query: { type: "address", value: query.value },
-    }),
+    getEnsNameQueryOptions(wagmiConfig, { address: query.value }),
   );
   if (!result)
     return {
       result: "error",
-      error: { type: "not-found", query, tags: ["address-not-a-vault"] },
+      error: { type: "not-found", query, tags: ["address-has-no-ens-name"] },
     };
-  return { result: "ok", value: { username: result.username } };
-}
-
-async function searchForUserByEnsName({
-  ...options
-}: {
-  query: EnsNameQuery;
-} & SearchForUserOptions): Promise<SearchForUserResult> {
-  const [byAddress, byTxtRecord] = await Promise.all([
-    searchForUserByEnsNameAddress(options),
-    searchForUserByEnsNameTxtRecord(options),
-  ]);
-  // Prefer resolving by vault address match, as this has a cryptographic chain,
-  // whereas anyone can create a com.reddit txt record.
-  if (byAddress.result === "ok") return byAddress;
-  if (byTxtRecord.result === "ok") return byTxtRecord;
-
-  assert(byAddress.error.type === "not-found");
-  assert(byTxtRecord.error.type === "not-found");
-  // Merge the not found reasons
-  return {
-    result: "error",
-    error: {
-      type: "not-found",
-      query: options.query,
-      tags: [...byAddress.error.tags, ...byTxtRecord.error.tags],
-    },
-  };
-}
-
-async function searchForUserByEnsNameAddress({
-  query,
-  queryClient,
-  wagmiConfig,
-  ...options
-}: {
-  query: EnsNameQuery;
-} & SearchForUserOptions): Promise<SearchForUserResult> {
-  const address = await queryClient.fetchQuery(
-    getEnsAddressQueryOptions(wagmiConfig, {
-      name: normalize(query.value),
-    }),
-  );
-  if (!address)
-    return {
-      result: "error",
-      error: { type: "not-found", query, tags: ["ens-name-has-no-address"] },
-    };
-  const user = await searchForUserByVaultAddress({
-    query: { type: "address", value: address },
-    queryClient,
+  return searchForUserByEnsNameTxtRecord({
     ...options,
+    query: { type: "ens-name", value: result },
   });
-  if (user.result === "ok") return user;
-  return {
-    result: "error",
-    error: { type: "not-found", query, tags: ["ens-name-address-not-a-vault"] },
-  };
 }
 
 async function searchForUserByEnsNameTxtRecord({
@@ -347,18 +278,6 @@ export function getSearchForUserQueryOptions({
     queryKey: getSearchForUserQueryKey(options.query),
     async queryFn() {
       if (!isEnabled(options)) throw new Error("not enabled");
-
-      // If we're searching for a username and it matches we'll subsequently
-      // request the user's value by username, so we can start doing that now to
-      // speed up vault loading. (No point in pre-fetching an address query, as
-      // they request a vault by address anyway.)
-      if (options.query.type === "username") {
-        prefetchRedditUserVault({
-          query: options.query,
-          queryClient: options.queryClient,
-          redditProvider: options.redditProvider,
-        });
-      }
 
       return await searchForUser(options);
     },

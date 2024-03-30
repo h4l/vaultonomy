@@ -57,7 +57,9 @@ export function UserSearch(): JSX.Element {
 
   const resultUserVault = useRedditUserVault({
     query:
-      resultUsername ? { type: "username", value: resultUsername } : undefined,
+      resultUserProfile.data && !resultUserProfile.data.isSuspended ?
+        { userId: resultUserProfile.data.userID }
+      : undefined,
   });
   const hasVault =
     resultUserVault.isFetched ? !!resultUserVault.data?.address : undefined;
@@ -434,8 +436,8 @@ function RedditUsernameText({
 
 const NOT_FOUND_REASONS: Record<ValidParsedQuery["type"], string> = {
   username: "Nobody on Reddit has this username",
-  address: "Nobody on Reddit has a Vault with this address",
-  "ens-name": "Nobody on Reddit matches this ENS name",
+  address: "This address is not publicly registered to a Reddit user",
+  "ens-name": "This ENS name is not publicly registered to a Reddit user",
 };
 const ENS_NOT_FOUND_DETAIL: Partial<Record<NotFoundReason, ReactNode>> = {
   "ens-name-has-no-address": (
@@ -443,11 +445,7 @@ const ENS_NOT_FOUND_DETAIL: Partial<Record<NotFoundReason, ReactNode>> = {
       It does not point to a <strong>0x…</strong> address
     </>
   ),
-  "ens-name-address-not-a-vault": (
-    <>
-      No Vaults match its <strong>0x…</strong> address
-    </>
-  ),
+  "address-has-no-ens-name": <>It is not linked with an ENS name</>,
   "ens-name-has-no-com-reddit": (
     <>
       It has no <b>com.reddit</b> record

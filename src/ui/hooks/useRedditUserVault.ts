@@ -8,7 +8,6 @@ import type {
 import { RedditProvider } from "../../reddit/reddit-interaction-client";
 import { RequiredNonNullable } from "../../types";
 import { useRedditProvider } from "./useRedditProvider";
-import { normaliseQuery } from "./useSearchForUser";
 
 export type UseRedditUserVaultParameters = RpcQueryOptions;
 
@@ -27,11 +26,7 @@ export function getRedditUserVaultQueryOptions(
   options: GetRedditUserVaultQueryOptions,
 ) {
   return queryOptions({
-    queryKey: [
-      "RedditProvider",
-      "UserVault",
-      options.query ? normaliseQuery(options.query) : undefined,
-    ],
+    queryKey: ["RedditProvider", "UserVault", options.query?.userId],
     async queryFn(): Promise<RedditUserVault | null> {
       if (!isEnabled(options)) throw new Error("not enabled");
       const { redditProvider, query } = options;
