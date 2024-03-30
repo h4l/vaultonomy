@@ -1,10 +1,13 @@
 import { ReactNode, useEffect, useRef, useState } from "react";
 
 import { HelpMessageProps, WithInlineHelp } from "./Help";
+import { Link } from "./Link";
 import { AriaLiveAlert } from "./a11y";
 import { useAnimateOnOffScreen } from "./hooks/useAnimateOnOffScreen";
+import { useRedditTabAvailability } from "./hooks/useRedditTabAvailability";
+import { useVaultonomySettings } from "./hooks/useVaultonomySettings";
 import { ErrorIcon, VaultonomyExtensionIcon } from "./icons";
-import { useVaultonomyStore } from "./state/useVaultonomyStore";
+import { useVaultonomyStoreSingle } from "./state/useVaultonomyStore";
 
 type AlertType = "reddit-logged-out" | "reddit-disconnected";
 
@@ -13,15 +16,13 @@ type AlertType = "reddit-logged-out" | "reddit-disconnected";
  * connected, or being logged out on Reddit.
  */
 export function TopBanner(): JSX.Element {
-  const [loggedOut, redditConnected] = useVaultonomyStore((s) => [
-    s.redditWasLoggedOut,
-    !!s.redditProvider,
-  ]);
+  const redditTabAvailability = useRedditTabAvailability();
+  const loggedOut = useVaultonomyStoreSingle((s) => s.redditWasLoggedOut);
   const [startupDelayElapsed, setStartupDelayElapsed] =
     useState<boolean>(false);
   const alertType: AlertType | null =
     !startupDelayElapsed ? null
-    : !redditConnected ? "reddit-disconnected"
+    : !redditTabAvailability.data?.available ? "reddit-disconnected"
     : loggedOut ? "reddit-logged-out"
     : null;
   const [latestAlert, setLatestAlert] = useState(alertType);
@@ -37,22 +38,7 @@ export function TopBanner(): JSX.Element {
   return (
     <AlertBanner active={alertType !== null}>
       {latestAlert === "reddit-disconnected" ?
-        <AlertMessage
-          headline="No connection to Reddit"
-          subtitle="Open Vaultonomy while viewing a Reddit tab"
-          helpId="not-connected-to-reddit"
-          helpText={() => (
-            <>
-              <p>
-                To manage your Vault, Vaultonomy needs to connect to Reddit on
-                your behalf using a Reddit tab. To respect your privacy,
-                Vaultonomy only requests access to the specific Reddit tab
-                that's active when you click Vaultonomy's extension icon.{" "}
-                <VaultonomyExtensionIcon className="inline w-7" />
-              </p>
-            </>
-          )}
-        />
+        <RedditDisconnectedAlertMessage />
       : latestAlert === "reddit-logged-out" ?
         <AlertMessage
           headline="You're logged out of Reddit"
@@ -71,13 +57,60 @@ export function TopBanner(): JSX.Element {
   );
 }
 
+function RedditDisconnectedAlertMessage() {
+  const redditTabAccess = useVaultonomySettings({
+    select: (settings) => settings.permissions.redditTabAccess,
+  });
+
+  return (
+    <AlertMessage
+      headline="No connection to Reddit"
+      subtitle={
+        redditTabAccess.data === "activeTab" ?
+          <>
+            Vaultonomy's permissions are restricted. Press the{" "}
+            <VaultonomyExtensionIcon className="inline w-6" /> icon on your
+            browser while viewing a Reddit tab to connect.
+          </>
+        : "Open a Reddit tab to use Vaultonomy"
+      }
+      helpId="not-connected-to-reddit"
+      helpText={() => (
+        <>
+          {redditTabAccess.data === "activeTab" ?
+            // TODO tweak message for permission restrictions
+            <p>
+              To manage your Vault, Vaultonomy needs to connect to Reddit on
+              your behalf using a Reddit tab.{" "}
+              <b>
+                Vaultonomy's automatic access to Reddit has been turned off in
+                your browser extension settings.
+              </b>{" "}
+              To give Vaultonomy one-time access, open a Reddit tab and click
+              Vaultonomy's extension icon.{" "}
+              <VaultonomyExtensionIcon className="inline w-7" />
+            </p>
+          : <p>
+              To manage your Vault, Vaultonomy needs to connect to Reddit on
+              your behalf using a Reddit tab. You don't have any Reddit tabs
+              open;{" "}
+              <Link href="https://www.reddit.com/">open a Reddit tab</Link> to
+              use Vaultonomy.
+            </p>
+          }
+        </>
+      )}
+    />
+  );
+}
+
 function AlertMessage({
   headline,
   subtitle,
   ...help
 }: {
   headline: string;
-  subtitle: string;
+  subtitle: ReactNode;
 } & HelpMessageProps): JSX.Element {
   const helpId = help?.helpId ?? help.helpText;
 
@@ -97,7 +130,7 @@ function AlertMessage({
           <ErrorIcon className="absolute -left-12 inline-block" /> {headline}
         </h2>
       </WithInlineHelp>
-      <p className="text-lg">{subtitle}</p>
+      <p className="text-lg mt-2">{subtitle}</p>
       <AriaLiveAlert alertId={helpId} message={headline} />
     </>
   );
