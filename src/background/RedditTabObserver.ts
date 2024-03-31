@@ -2,9 +2,10 @@ import { Emitter, createNanoEvents } from "nanoevents";
 
 import { assert } from "../assert";
 import { log as _log } from "../logging";
-import { Unbind } from "../types";
+import { Stop, Unbind } from "../types";
 import { browser } from "../webextension";
 import { isRedditTab, redditTabUrlPatterns } from "./isReditTab";
+import { startup } from "./startup";
 
 const log = _log.getLogger("background/RedditTabObserver");
 
@@ -28,7 +29,9 @@ export class RedditTabObserver {
   #state: AvailabilityState | undefined;
 
   private observe(): AvailabilityState {
-    let state: (AvailabilityState & { hasFullSnapshot: boolean }) | undefined;
+    const state: Partial<AvailabilityState> & { isReloading: boolean } = {
+      isReloading: false,
+    };
     const availableTabs = new Set<number>();
 
     const syncTab = (tab: chrome.tabs.Tab) => {
@@ -50,8 +53,22 @@ export class RedditTabObserver {
       }
     };
 
+    const reloadTabs = async (triggerName: string) => {
+      if (state.isReloading) return;
+      state.isReloading = true;
+
+      try {
+        const tabs = await browser.tabs.query({ url: redditTabUrlPatterns() });
+        availableTabs.clear();
+        tabs.forEach(syncTab);
+        log.debug(`${availableTabs.size} tabs available at ${triggerName}`);
+      } finally {
+        state.isReloading = false;
+      }
+    };
+
     const reportAvailability = (): Availability | undefined => {
-      if (!state?.hasFullSnapshot) return;
+      if (state.isReloading) return;
       const availability: Availability =
         availableTabs.size === 0 ? "unavailable" : "available";
       if (availability !== state.lastAvailability) {
@@ -83,29 +100,70 @@ export class RedditTabObserver {
       reportAvailability();
     };
 
+    const toStop: Stop[] = [];
+
     browser.tabs.onUpdated.addListener(onTabUpdated);
+    toStop.push(() => browser.tabs.onUpdated.removeListener(onTabUpdated));
+
     browser.tabs.onRemoved.addListener(onTabRemoved);
+    toStop.push(() => browser.tabs.onRemoved.removeListener(onTabRemoved));
 
-    state = {
-      hasFullSnapshot: false,
-      lastAvailability: (async () => {
-        const tabs = await browser.tabs.query({ url: redditTabUrlPatterns() });
-        tabs.forEach(syncTab);
-        assert(state);
-        state.hasFullSnapshot = true;
-        log.debug(`${availableTabs.size} tabs available at start`);
-        const availability = reportAvailability();
+    // When the action button is clicked, we may gain access to the tab if the
+    // user has disabled automatic host access to reddit.
 
-        assert(availability);
-        return availability;
-      })(),
-
-      stop: () => {
-        browser.tabs.onUpdated.removeListener(onTabUpdated);
-        browser.tabs.onRemoved.removeListener(onTabRemoved);
-      },
+    // FIXME: For some reason the action.onClicked event sometimes needs two
+    //  clicks of the action button to trigger. Seems to be related to the
+    //  sidebar already being open.
+    const onActionButtonClicked = (tab: chrome.tabs.Tab): void => {
+      syncTab(tab);
+      reportAvailability();
     };
-    return state;
+
+    assert(!startup.startupFinished);
+    browser.action.onClicked.addListener(onActionButtonClicked);
+    toStop.push(() =>
+      browser.action.onClicked.removeListener(onActionButtonClicked),
+    );
+
+    // When permissions change, we may loose or gain access to tabs if the user
+    // has granted or removed automatic host access to reddit tabs.
+    const patterns = new Set(redditTabUrlPatterns());
+
+    const onPermissionAddedOrRemoved = (
+      permissions: chrome.permissions.Permissions,
+    ) => {
+      if (!permissions.origins?.some((origin) => patterns.has(origin))) return;
+      // permissions.permissions is empty when adding/removing host permissions
+      // Probably as there isn't an explicit permission name for host permissions.
+      reloadTabs("permission change")
+        .catch((e) =>
+          log.error("failed to reload tabs after permission change", e),
+        )
+        .then(reportAvailability);
+    };
+
+    browser.permissions.onAdded.addListener(onPermissionAddedOrRemoved);
+    toStop.push(() =>
+      browser.permissions.onAdded.removeListener(onPermissionAddedOrRemoved),
+    );
+    browser.permissions.onRemoved.addListener(onPermissionAddedOrRemoved);
+    toStop.push(() =>
+      browser.permissions.onRemoved.removeListener(onPermissionAddedOrRemoved),
+    );
+
+    state.lastAvailability = (async () => {
+      await reloadTabs("start");
+      const availability = reportAvailability();
+
+      assert(availability);
+      return availability;
+    })();
+
+    state.stop = () => {
+      for (const stop of toStop) stop();
+    };
+
+    return state as AvailabilityState;
   }
 
   get isStarted(): boolean {
