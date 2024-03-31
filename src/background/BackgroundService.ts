@@ -1,4 +1,5 @@
 import { PortName } from "../PortName";
+import { assert } from "../assert";
 import { log as _log } from "../logging";
 import {
   BackgroundServiceStartedEvent,
@@ -31,6 +32,7 @@ import {
 import { RedditTabObserver } from "./RedditTabObserver";
 import { VaultonomyBackgroundServiceSession } from "./VaultonomyBackgroundServiceSession";
 import { redditTabUrlPatterns } from "./isReditTab";
+import { startup } from "./startup";
 import { redditTabConnector } from "./tab-connector";
 import { DefaultRedditTabProvider } from "./tab-providers";
 
@@ -316,6 +318,7 @@ export class BackgroundService {
       this.ensureSidePanelIsOpenAndDisplayingVaultonomy(tab);
     };
 
+    assert(!startup.startupFinished);
     browser.action.onClicked.addListener(onActionButtonClicked);
 
     return () => browser.action.onClicked.removeListener(onActionButtonClicked);

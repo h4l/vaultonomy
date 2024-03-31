@@ -1,7 +1,7 @@
 import { BackgroundService } from "./background/BackgroundService";
+import { startup } from "./background/startup";
 import { DevModeBackgroundService } from "./devserver/DevModeBackgroundService";
 import { log } from "./logging";
-import { browser } from "./webextension";
 
 /*
 Tab connection strategy
@@ -41,9 +41,13 @@ a user POV.
 
 export function main() {
   log.info("vite env", import.meta.env);
-  if (import.meta.env.MODE === "development") {
-    new DevModeBackgroundService().start();
-  } else {
-    new BackgroundService().start();
+  try {
+    if (import.meta.env.MODE === "development") {
+      new DevModeBackgroundService().start();
+    } else {
+      new BackgroundService().start();
+    }
+  } finally {
+    startup.markStartupFinished();
   }
 }
