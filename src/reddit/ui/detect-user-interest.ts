@@ -15,7 +15,7 @@ type InterestInUser = {
   startTime: number;
 };
 const userUrlPattern =
-  /^https:\/\/(?:www|new)\.reddit\.com\/u(?:ser)?\/([\w-]{1,20})\/?$/;
+  /^https:\/\/(?:www|new|old)\.reddit\.com\/u(?:ser)?\/([\w-]{1,20})\/?$/;
 
 const log = _log.getLogger("reddit/ui");
 const hoverLog = _log.getLogger(

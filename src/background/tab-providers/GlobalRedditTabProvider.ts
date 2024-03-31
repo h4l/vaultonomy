@@ -1,13 +1,12 @@
 import { browser } from "../../webextension";
+import { redditTabUrlPatterns } from "../isReditTab";
 import { TabNotAvailable, TabProvider } from "./types";
 
 export class GlobalRedditTabProvider implements TabProvider {
   async getTab(): Promise<chrome.tabs.Tab> {
     const [window, tabs] = await Promise.all([
       browser.windows.getCurrent(),
-      browser.tabs.query({
-        url: ["https://www.reddit.com/*", "https://new.reddit.com/*"],
-      }),
+      browser.tabs.query({ url: redditTabUrlPatterns() }),
     ]);
 
     // lower is better

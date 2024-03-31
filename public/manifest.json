@@ -19,14 +19,22 @@
     "activeTab",
     "contextMenus"
   ],
-  "host_permissions": ["https://www.reddit.com/*", "https://new.reddit.com/*"],
+  "host_permissions": [
+    "https://www.reddit.com/*",
+    "https://new.reddit.com/*",
+    "https://old.reddit.com/*"
+  ],
   "background": {
     "service_worker": "background.js",
     "type": "module"
   },
   "content_scripts": [
     {
-      "matches": ["https://www.reddit.com/*", "https://new.reddit.com/*"],
+      "matches": [
+        "https://www.reddit.com/*",
+        "https://new.reddit.com/*",
+        "https://old.reddit.com/*"
+      ],
       "js": ["reddit-detect-user-interest-contentscript.js"]
     }
   ],
@@ -35,6 +43,8 @@
       "resources": ["*.js", "*.js.map"],
       "matches": [
         "https://www.reddit.com/*",
+        "https://new.reddit.com/*",
+        "https://old.reddit.com/*",
         "http://vaultonomy.localhost:5173/*"
       ]
     }
