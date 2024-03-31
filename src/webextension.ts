@@ -6,6 +6,18 @@ interface WebExtensionGlobal {
   browser?: typeof chrome;
 }
 
+type PermissionsEvent = chrome.events.Event<
+  (permissions: chrome.permissions.Permissions) => void
+>;
+
+export type WebExtensionAPI = typeof chrome & {
+  permissions: {
+    // @types/chrome lacks removeListener() for these
+    onAdded: PermissionsEvent;
+    onRemoved: PermissionsEvent;
+  };
+};
+
 const webExtensionGlobal = globalThis as WebExtensionGlobal;
 const _browser = webExtensionGlobal.browser ?? webExtensionGlobal.chrome;
 if (!_browser) {
@@ -13,7 +25,7 @@ if (!_browser) {
     "WebExtension API not found on browser or chrome properties of globalThis",
   );
 }
-export const browser: typeof chrome = _browser;
+export const browser = _browser as WebExtensionAPI;
 
 /**
  * A minimal subset of the chrome.storage.StorageArea API.

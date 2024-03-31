@@ -8,6 +8,7 @@ import {
 } from "../messaging";
 import { RedditProvider } from "../reddit/reddit-interaction-client";
 import { AsyncConnector } from "../rpc/connections";
+import { watchGlobalRedditTabScriptingPermission } from "../settings/PermissionsSettings";
 import {
   VaultonomyUserPreferencesStore,
   createPreferencesStore,
@@ -82,6 +83,9 @@ export class BackgroundService {
     this.toStop.push(this.startNotifyInterestInUsersFromUserLinkInteraction());
     this.toStop.push(this.startNotifyInterestInUsersFromUserPageViews());
     this.toStop.push(this.startNotifySettingsChangedFromPrefsStoreChanged());
+    this.toStop.push(
+      this.startNotifyingSettingsChangedFromGlobalRedditPermissionsChange(),
+    );
     this.toStop.push(this.ensureContentScriptsRunningAfterInstall());
 
     this.actionContextMenu.start();
@@ -242,6 +246,16 @@ export class BackgroundService {
       "propertiesChanged",
       onPropertiesChanged,
     );
+  }
+
+  private startNotifyingSettingsChangedFromGlobalRedditPermissionsChange(): Stop {
+    return watchGlobalRedditTabScriptingPermission((hasPermission) => {
+      log.debug(
+        "Global Reddit tab access",
+        hasPermission ? "granted" : "revoked",
+      );
+      this.notifySession({ type: "settingsChanged" });
+    });
   }
 
   private startHandlingExtensionConnections(): Stop {

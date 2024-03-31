@@ -6,7 +6,11 @@ import util from "util";
 
 import { Connector } from "../rpc/connections";
 import { RecursivePartial } from "../types";
-import { StorageAreaClear, StorageAreaGetSetRemove } from "../webextension";
+import {
+  StorageAreaClear,
+  StorageAreaGetSetRemove,
+  WebExtensionAPI,
+} from "../webextension";
 import { createRawPortConnector } from "../webextensions/createRawPortConnector";
 import { retroactivePortDisconnection } from "../webextensions/retroactivePortDisconnection";
 import { nextTickPromise } from "./testing.utils";
@@ -331,20 +335,20 @@ function getDefaultWebextensionMock(
   };
 }
 
-type ThisMock = () => typeof chrome;
+type ThisMock = () => WebExtensionAPI;
 
 export function installWebextensionMock(
   customize?: (
-    browser?: RecursivePartial<typeof chrome>,
-  ) => RecursivePartial<typeof chrome>,
+    browser?: RecursivePartial<WebExtensionAPI>,
+  ) => RecursivePartial<WebExtensionAPI>,
 ) {
-  const thisMock = () => browser as typeof chrome;
+  const thisMock = () => browser as WebExtensionAPI;
   let browser = getDefaultWebextensionMock(thisMock);
   if (customize) browser = customize(browser);
 
   jest.unstable_mockModule<typeof import("../webextension")>(
     "./src/webextension",
-    () => ({ browser: browser as typeof chrome }),
+    () => ({ browser: browser as WebExtensionAPI }),
   );
 }
 
