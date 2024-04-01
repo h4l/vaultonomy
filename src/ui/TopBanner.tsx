@@ -165,7 +165,7 @@ export function AlertBanner({
           "shadow-2xl dark:shadow-2xl-heavy",
         ].join(" ")}
       >
-        <div className="border-b border-neutral-200 dark:border-neutral-750 py-4 flex flex-row justify-center">
+        <div className="border-b border-neutral-200 dark:border-neutral-750 p-4 flex flex-row justify-center">
           <div className="max-w-prose mb-4 pl-12">{children}</div>
         </div>
       </div>
