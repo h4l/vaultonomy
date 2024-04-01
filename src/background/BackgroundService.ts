@@ -159,7 +159,7 @@ export class BackgroundService {
   private async injectUserInterestDetectionContentScriptInOpenRedditTabs(): Promise<void> {
     const results = await Promise.allSettled(
       (await browser.tabs.query({ url: redditTabUrlPatterns() })).map((tab) => {
-        chrome.scripting.executeScript({
+        browser.scripting.executeScript({
           target: { tabId: tab.id! },
           files: ["reddit-detect-user-interest-contentscript.js"],
         });
