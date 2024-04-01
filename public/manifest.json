@@ -52,6 +52,32 @@
   "side_panel": {
     "default_path": "ui.html"
   },
+  "commands": {
+    "next_address_activity_tool": {
+      "suggested_key": {
+        "default": "Alt+N"
+      },
+      "description": "Switch to the next Address Activity Tool"
+    },
+    "prev_address_activity_tool": {
+      "suggested_key": {
+        "default": "Alt+Shift+N"
+      },
+      "description": "Switch to the previous Address Activity Tool"
+    },
+    "next_address_collectables_tool": {
+      "suggested_key": {
+        "default": "Alt+M"
+      },
+      "description": "Switch to the next Address Collectables Tool"
+    },
+    "prev_address_collectables_tool": {
+      "suggested_key": {
+        "default": "Alt+Shift+M"
+      },
+      "description": "Switch to the previous Address Collectables Tool"
+    }
+  },
   "externally_connectable": {
     "matches": ["http://vaultonomy.localhost:5173/*"]
   }

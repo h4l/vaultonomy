@@ -32,6 +32,7 @@ import {
 } from "./InterestInUserFromUserPageViewObserver";
 import { RedditTabObserver } from "./RedditTabObserver";
 import { VaultonomyBackgroundServiceSession } from "./VaultonomyBackgroundServiceSession";
+import { handleCommandEvents } from "./commands";
 import { redditTabUrlPatterns } from "./isReditTab";
 import { startup } from "./startup";
 import { redditTabConnector } from "./tab-connector";
@@ -101,6 +102,7 @@ export class BackgroundService {
     );
 
     this.tabObserver.start();
+    this.toStop.push(handleCommandEvents({ userPrefs: this.userPrefsStore }));
 
     browser.runtime
       .sendMessage({

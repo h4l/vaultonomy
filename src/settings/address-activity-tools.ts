@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { assert } from "../assert";
+
 export const ActivityToolId = z.enum([
   "arkham",
   "blockscan",
@@ -49,4 +51,36 @@ export function orderAddressToolIdByToolName(
   b: AddressToolId,
 ): number {
   return ADDRESS_TOOLS[a].name.localeCompare(ADDRESS_TOOLS[b].name);
+}
+
+const activityTools = Object.keys(ActivityToolId.Values) as ActivityToolId[];
+export function nextActivityTool(
+  current: ActivityToolId,
+  offset: number,
+): ActivityToolId {
+  const result = getValueAtValueIndexOffset(activityTools, current, offset);
+  assert(result);
+  return result;
+}
+
+const collectablesTools = Object.keys(
+  CollectablesToolId.Values,
+) as CollectablesToolId[];
+export function nextCollectablesTool(
+  current: CollectablesToolId,
+  offset: number,
+): CollectablesToolId {
+  const result = getValueAtValueIndexOffset(collectablesTools, current, offset);
+  assert(result);
+  return result;
+}
+
+function getValueAtValueIndexOffset<T>(
+  values: ReadonlyArray<T>,
+  value: T,
+  offset: number,
+): T | undefined {
+  const index = values.indexOf(value);
+  if (index < 0) return undefined;
+  return values.at((index + offset) % values.length);
 }
