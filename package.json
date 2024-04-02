@@ -7,6 +7,7 @@
     "dev": "NODE_ENV=development vite",
     "build": "NODE_ENV=production vite build  --mode production",
     "build-dev": "NODE_ENV=development vite build --mode development",
+    "build-dev-ff": "NODE_ENV=development vite build --mode development-firefox",
     "check": "npm run typecheck && npm run lint",
     "lint": "eslint src *.ts",
     "prettier": "prettier --check src *.ts",
