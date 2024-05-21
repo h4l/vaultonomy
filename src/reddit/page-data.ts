@@ -6,7 +6,7 @@ import { RedditUserProfile } from "./types";
 // Every page seems to contain a script#data element containing the session data
 // we need. But some pages are bigger than others. /premium doesn't have much
 // going on, so it's smaller & faster (than say the homepage).
-export const DEFAULT_PAGE_DATA_URL = "/premium";
+export const DEFAULT_PAGE_DATA_URL = "/coins";
 
 const RawPageData = z.object({
   user: z.object({
