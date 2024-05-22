@@ -1,39 +1,36 @@
 import { browser } from "../webextension";
 
-// Connecting to an extension ID that is not installed fails quickly, but
-// asynchronously. Usually in a 2-3ms, but I've seen 20 once when testing.
-// If we don't get an error within this time we consider the port to be
-// connected, and therefore the extension is installed.
-// This value needs to be reasonably small, as when the extension is installed,
-// the promise can hang for arbitrary durations, and a user will always need to
-// wait this duration.
-const PORT_CONNECT_ERROR_TIMEOUT = 100;
+// We need to delay for a short period after creating a connection before
+// Firefox will start throwing from postMessage if the connection target is not
+// an installed extension. 5ms is enough to work consistently, so 20 seems like
+// a decent balance between being responsive and hedging against random lag.
+const PORT_CONNECT_DELAY = 20;
 
 /**
  * Check if the browser extension with the given extensionId is installed.
  *
  * This implementation uses cross-extension messaging to probe for the
- * extension, and this can take ~100ms to complete, so this should be run in the
+ * extension, and this can take ~20ms complete, so this should be run in the
  * background and the result cached, rather than interactively.
  */
 export async function isExtensionInstalled(
   extensionId: string,
 ): Promise<boolean> {
+  let con: chrome.runtime.Port | undefined;
   try {
-    // sendMessage can block for long periods of time, e.g. Chrome seems to not
-    // wake up the receiving extension if it's not already active.
-    await Promise.race([
-      browser.runtime.sendMessage(extensionId, null),
-      new Promise((resolve) =>
-        setTimeout(() => resolve(undefined), PORT_CONNECT_ERROR_TIMEOUT),
-      ),
-    ]);
-    // We got no error within the timeout — presume connection succeeded and
-    // therefore extension is installed.
+    // When an extension isn't installed, Chrome throws a TypeError from
+    // connect() with message "Invalid extension id: 'xxx'"
+    con = browser.runtime.connect(extensionId);
+    // Firefox creates a Port, but it's disconnected, so it throws Error from
+    // postMessage() with message "Attempt to postMessage on disconnected port"
+    // But it only throws after some delay (presumably time it takes to
+    // internally fail to create a connection).
+    await new Promise((resolve) => setTimeout(resolve, PORT_CONNECT_DELAY));
+    con.postMessage(null);
     return true;
   } catch (e) {
-    // When messaging an extension ID that's not installed, Chrome rejects with:
-    // > Could not establish connection. Receiving end does not exist.
     return false;
+  } finally {
+    if (con) con.disconnect();
   }
 }
