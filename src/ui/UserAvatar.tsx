@@ -1,5 +1,7 @@
 import React, { useId } from "react";
 
+import { useImageSize } from "./hooks/useImageSize";
+
 const IMG_WIDTH = 380;
 const IMG_BELOW = 103;
 const MAX_IMG_HEIGHT = 600;
@@ -18,12 +20,12 @@ export function UserAvatar({
 }) {
   title = title || (avatarUrl ? "User Avatar" : "Placeholder Avatar");
   const id = useId();
-  const [loadedHeight, setLoaded] = React.useState<number | undefined>();
-  const imgHeight = loadedHeight ?? PLACEHOLDER_HEIGHT;
-  const showPlaceholder: boolean = loadedHeight === undefined;
+  const avatarSize = useImageSize(avatarUrl);
+  const imgHeight = avatarSize.loaded ? avatarSize.height : PLACEHOLDER_HEIGHT;
+  const showPlaceholder: boolean = !avatarSize.loaded;
 
   // Avatar images are a fixed width, but variable height, depending on how
-  // tall their headwear. Feet are at the same offset from the btotom. So we
+  // tall their headwear. Feet are at the same offset from the bottom. So we
   // position the image relative to the bottom, not the top.
   const viewHeight = imgHeight - IMG_BELOW;
   const imgY = 0;
@@ -84,9 +86,8 @@ export function UserAvatar({
     >
       <defs aria-hidden="true">
         {avatarUrl ?
-          <UserAvatarImage id={`img${id}`} onLoad={setLoaded} url={avatarUrl} />
+          <UserAvatarImage id={`img${id}`} url={avatarUrl} />
         : undefined}
-        <image id={`img${id}`} href={avatarUrl} />
         <PlaceholderAvatarImage id={`placeholder${id}`} />
         <linearGradient id={`grad-wb-v${id}`} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor="white" />
