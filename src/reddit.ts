@@ -6,6 +6,7 @@ import { bindPortToJSONRPCServer } from "./rpc/webextension-port-json-rpc";
 import { Stop } from "./types";
 import { browser } from "./webextension";
 import { retroactivePortDisconnection } from "./webextensions/retroactivePortDisconnection";
+import { fixFirefoxSandboxUint8Array } from "./webextensions/workarounds";
 
 // We stop the content script if there are 0 connections for this long. Note
 // that this only applies after the background service worker exits, and that
@@ -22,6 +23,8 @@ function start(onIdle: () => void): Stop {
   if (isStarted()) {
     assert(false, "attempted to start() when already started");
   }
+
+  fixFirefoxSandboxUint8Array();
 
   const notifyIdleSoon = () => {
     assert(cancelIdleNotify === undefined);
