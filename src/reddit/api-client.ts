@@ -12,6 +12,7 @@ import {
   RawEthAddress,
   parseJSON,
 } from "../types";
+import { APIError, GqlFedOperation } from "./gql-fed-api";
 import { AnyRedditUserProfile } from "./types";
 
 const APIOptions = z.object({ authToken: z.string() });
@@ -172,33 +173,25 @@ type RegisterAddressWithAccountOptions = z.infer<
   typeof RegisterAddressWithAccountOptions
 >;
 
-const RegisterVaultAddressResponse = z.object({
-  data: z.object({
+const registerAddressWithAccountOp = GqlFedOperation.create({
+  operationName: "RegisterVaultAddress",
+  persistedQuerySha256:
+    "396dab0e8ce1d8ffbc4f149b554c7548d6b995fa64c1f0e3e675758ff6e84448",
+  description: "register address with account",
+  responseDataSchema: z.object({
     registerVaultAddress: z.object({
       errors: z.any(),
       ok: z.boolean().nullish(),
     }),
   }),
+  variablesSchema: z.object({
+    input: z.object({
+      address: EthAddress.transform((s) => s.toLowerCase()),
+      provider: z.literal("ethereum"),
+      signature: EthHexSignature,
+    }),
+  }),
 });
-
-const RegisterVaultAddressQuery = (address: Address, signature: Hex) =>
-  JSON.stringify({
-    extensions: {
-      persistedQuery: {
-        sha256Hash:
-          "396dab0e8ce1d8ffbc4f149b554c7548d6b995fa64c1f0e3e675758ff6e84448",
-        version: 1,
-      },
-    },
-    operationName: "RegisterVaultAddress",
-    variables: {
-      input: {
-        address: address.toLowerCase(),
-        provider: "ethereum",
-        signature,
-      },
-    },
-  });
 
 /** Link an Eth address with a Reddit account.
  *
@@ -208,33 +201,22 @@ const RegisterVaultAddressQuery = (address: Address, signature: Hex) =>
 export async function registerAddressWithAccount(
   options: z.input<typeof RegisterAddressWithAccountOptions>,
 ): Promise<void> {
-  const { address, challengeSignature, authToken } =
-    RegisterAddressWithAccountOptions.parse(options);
+  const {
+    address,
+    challengeSignature: signature,
+    authToken,
+  } = RegisterAddressWithAccountOptions.parse(options);
 
-  const response = await fetch("https://gql-fed.reddit.com/", {
-    method: "POST",
-    headers: {
-      accept: "application/json",
-      authorization: `Bearer ${authToken}`,
-      "content-type": "application/json",
-    },
-    body: RegisterVaultAddressQuery(address, challengeSignature),
+  const data = await registerAddressWithAccountOp.makeRequest({
+    authToken,
+    vars: { input: { address, provider: "ethereum", signature } },
   });
 
-  if (!response.ok) {
-    throw new HTTPResponseError(
-      `HTTP request to register address with account failed`,
-      { response },
-    );
-  }
+  if (data.registerVaultAddress.ok) return;
 
-  const body = RegisterVaultAddressResponse.parse(await response.json());
-  if (body.data.registerVaultAddress.ok) return;
-
-  throw new HTTPResponseError(
-    `HTTP request to register address with account received successful ` +
-      `response with error in response body: ${body.data.registerVaultAddress.errors}`,
-    { response },
+  throw new APIError(
+    `API request to register address with account received successful ` +
+      `response with error in response body: ${data.registerVaultAddress.errors}`,
   );
 }
 

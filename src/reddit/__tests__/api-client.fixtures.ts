@@ -123,13 +123,26 @@ export const RegisterVaultAddressResponses = () => ({
       },
     },
   },
-  // This is speculative, I've not triggered real error response yet
-  error: {
+  // This is speculative (based on there being an errors: null property in
+  // successful responses).
+  speculativeError: {
     data: {
       registerVaultAddress: {
         errors: "oops",
       },
     },
+  },
+  // I've observed this error in practice. (I think this was triggered when
+  // attempting to register an address that was already registered with another
+  // account.)
+  error: {
+    errors: [
+      {
+        message: "Unhandled exception. trace_id: 0000000000000000000",
+        path: ["registerVaultAddress"],
+      },
+    ],
+    data: { registerVaultAddress: null },
   },
 });
 export const GetUserVaultQueryResponses = () =>

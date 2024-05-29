@@ -11,6 +11,7 @@ import {
   getRedditUserVault,
   registerAddressWithAccount,
 } from "../api-client";
+import { APIError } from "../gql-fed-api";
 import { SuspendedRedditUserProfile } from "../types";
 import {
   GetAllVaultsQueryResponses,
@@ -110,6 +111,25 @@ describe("registerAddressWithAccount()", () => {
     const fetch = jest.spyOn(globalThis, "fetch").mockResolvedValueOnce({
       ok: true,
       status: 200,
+      json: async () => RegisterVaultAddressResponses().speculativeError,
+    } as Response);
+
+    const result = registerAddressWithAccount({
+      address: "0xbc10830dF34D3bf10d934f008A191F3a85B4DD51",
+      challengeSignature:
+        "0xAa000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000fF",
+      authToken: "secret",
+    });
+    await expect(result).rejects.toThrow(APIError);
+    await expect(result).rejects.toThrow(
+      "API request to register address with account received successful response with error in response body: oops",
+    );
+  });
+
+  test("handles request with successful HTTP response but GQL error in body", async () => {
+    const fetch = jest.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+      ok: true,
+      status: 200,
       json: async () => RegisterVaultAddressResponses().error,
     } as Response);
 
@@ -119,7 +139,10 @@ describe("registerAddressWithAccount()", () => {
         "0xAa000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000fF",
       authToken: "secret",
     });
-    await expect(result).rejects.toThrow(/error in response body: oops/);
+    await expect(result).rejects.toThrow(APIError);
+    await expect(result).rejects.toThrow(
+      "API request to register address with account did not execute successfully",
+    );
   });
 
   test("handles unsuccessful response", async () => {
