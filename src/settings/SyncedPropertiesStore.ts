@@ -112,7 +112,8 @@ export class SyncedPropertiesStore<PropertiesSchemaT extends z.ZodObject<any>> {
     const properties = { ...(await this.readFromStorage()) };
 
     for (const key in this.cache) {
-      const value = this.cache[key];
+      const value: undefined | z.infer<PropertiesSchemaT>[typeof key] =
+        this.cache[key];
       if (value !== undefined) properties[key] = value;
     }
 
