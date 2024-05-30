@@ -277,22 +277,12 @@ export const AccountVaultAddress = z.object({
 });
 export type AccountVaultAddress = z.infer<typeof AccountVaultAddress>;
 
-const GetAllVaultsQuery = JSON.stringify({
-  extensions: {
-    persistedQuery: {
-      sha256Hash:
-        "2ab376466d1a57a79f0ffb2b6cbdd0ead3c3b26cbdcf352c1360c1df60ed12cb",
-      version: 1,
-    },
-  },
+const getRedditAccountVaultAddressesOp = GqlFedOperation.create({
   operationName: "GetAllVaults",
-  variables: {
-    provider: "ethereum",
-  },
-});
-
-const GetAllVaultsQueryResponse = z.object({
-  data: z.object({
+  persistedQuerySha256:
+    "2ab376466d1a57a79f0ffb2b6cbdd0ead3c3b26cbdcf352c1360c1df60ed12cb",
+  description: "get reddit account vault addresses",
+  responseDataSchema: z.object({
     vault: z.object({
       addresses: z
         .object({
@@ -307,31 +297,24 @@ const GetAllVaultsQueryResponse = z.object({
         .array(),
     }),
   }),
+  variablesSchema: z.object({
+    provider: z.literal("ethereum").default("ethereum"),
+  }),
 });
 
 export async function getRedditAccountVaultAddresses(
   options: z.input<typeof APIOptions>,
 ): Promise<Array<AccountVaultAddress>> {
   const { authToken } = APIOptions.parse(options);
-  const response = await fetch(`https://gql-fed.reddit.com/`, {
-    method: "POST",
-    headers: {
-      accept: "application/json",
-      authorization: `Bearer ${authToken}`,
-      "content-type": "application/json",
-    },
-    body: GetAllVaultsQuery,
+
+  const data = await getRedditAccountVaultAddressesOp.makeRequest({
+    authToken,
+    vars: {},
   });
-  if (!response.ok) {
-    throw new HTTPResponseError(
-      `HTTP request to get reddit account vault addresses failed`,
-      { response },
-    );
-  }
-  const body = GetAllVaultsQueryResponse.parse(await response.json());
+
   const addresses: Array<AccountVaultAddress> = [];
 
-  for (const rawAddress of body.data.vault.addresses) {
+  for (const rawAddress of data.vault.addresses) {
     if (rawAddress?.provider !== "ethereum") continue;
     addresses.push({
       address: rawAddress.address,
