@@ -34,6 +34,10 @@ export enum ErrorCode {
   REDDIT_TAB_DISCONNECTED = 3,
   WRONG_USER = 4,
   NOT_FOUND = 5,
+  // An API call request & response was successful, but Reddit refused or failed
+  // to process to API method. This usually indicates a non-retryable error, but
+  // could be due to a temporary problem on Reddit's side.
+  REDDIT_API_UNSUCCESSFUL = 6,
 }
 const errorCodeValues: Set<string | ErrorCode> = new Set(
   Object.values(ErrorCode),

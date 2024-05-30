@@ -14,6 +14,7 @@ import {
   RedditEIP712Challenge,
   RedditUserVault,
 } from "../api-client";
+import { APIError } from "../gql-fed-api";
 import {
   ErrorCode,
   RedditGetUserVaultParams,
@@ -269,7 +270,7 @@ describe("createServerSession()", () => {
       );
     });
 
-    test("responds with error when API request fails", async () => {
+    test("responds with error when API HTTP request fails", async () => {
       jest
         .mocked(registerAddressWithAccount)
         .mockReset()
@@ -285,6 +286,26 @@ describe("createServerSession()", () => {
       );
       await expect(resp).rejects.toEqual(
         new JSONRPCErrorException("registerAddressWithAccount failed", 0),
+      );
+    });
+
+    test("responds with error when API call completes with error", async () => {
+      jest
+        .mocked(registerAddressWithAccount)
+        .mockReset()
+        .mockRejectedValue(
+          new APIError("Successful HTTP response with body indicating failure"),
+        );
+
+      const resp = client.request(
+        "reddit_registerAddressWithAccount",
+        params(),
+      );
+      await expect(resp).rejects.toEqual(
+        new JSONRPCErrorException(
+          "Reddit responded to API call with data indicating it was unsuccessful",
+          ErrorCode.REDDIT_API_UNSUCCESSFUL,
+        ),
       );
     });
   });

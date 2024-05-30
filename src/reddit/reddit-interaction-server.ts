@@ -20,6 +20,7 @@ import {
   getRedditUserVault,
   registerAddressWithAccount,
 } from "./api-client";
+import { APIError } from "./gql-fed-api";
 import { UserPageData } from "./page-data";
 import {
   ErrorCode,
@@ -98,6 +99,13 @@ export function createServerSession<
           "Reddit API responded with 404",
         );
       }
+    }
+    if (error instanceof APIError) {
+      return createJSONRPCErrorResponse(
+        id,
+        ErrorCode.REDDIT_API_UNSUCCESSFUL,
+        "Reddit responded to API call with data indicating it was unsuccessful",
+      );
     }
     return defaultMapErrorToJSONRPCErrorResponse(id, error);
   };
