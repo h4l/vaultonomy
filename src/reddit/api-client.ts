@@ -62,63 +62,45 @@ export const RedditEIP712Challenge = z.object({
 export type RedditEIP712Challenge = z.infer<typeof RedditEIP712Challenge>;
 
 const GetVaultRegistrationChallengeResponse = z.object({
-  data: z.object({
-    vault: z.object({
-      registrationChallenge: z.object({
-        payload: z.object({
-          // The domain and message values are supposed to be object values, but
-          // they are JSON-encoded strings in the API response. Because this is
-          // non-standard, we support both the normal EIP-712 object value, or
-          // the re-encoded JSON string that the API uses, as it seems like the
-          // kind of thing they might undo.
-          domain: RedditEIP712ChallengeDomain.or(
-            z.string().transform(parseJSON).pipe(RedditEIP712ChallengeDomain),
-          ),
-          message: RedditEIP712ChallengeMessage.or(
-            z.string().transform(parseJSON).pipe(RedditEIP712ChallengeMessage),
-          ),
-          primaryType: z.literal("Challenge"),
-          // I guess the people that implemented this API didn't know that
-          // this is data in EIP-712 format with quite a specific structure 🙃
-          // The types' capitalisation is messed up, so we need to normalise it
-          // back to what EIP-712 requires. Type names are camelCase not
-          // CamelCase. Type values are UPPERCASE not lowercase.
-          types: z
-            .record(
-              z.string().toLowerCase(), // we'll fix this in transform
-              z
-                .object({
-                  name: z.string(),
-                  type: z.string().toLowerCase(),
-                })
-                .array(),
-            )
-            .transform((arg) => ({
-              Challenge: arg.challenge,
-              EIP712Domain: arg.eip712domain,
-            }))
-            .pipe(RedditEIP712ChallengeTypes),
-        }),
+  vault: z.object({
+    registrationChallenge: z.object({
+      payload: z.object({
+        // The domain and message values are supposed to be object values, but
+        // they are JSON-encoded strings in the API response. Because this is
+        // non-standard, we support both the normal EIP-712 object value, or
+        // the re-encoded JSON string that the API uses, as it seems like the
+        // kind of thing they might undo.
+        domain: RedditEIP712ChallengeDomain.or(
+          z.string().transform(parseJSON).pipe(RedditEIP712ChallengeDomain),
+        ),
+        message: RedditEIP712ChallengeMessage.or(
+          z.string().transform(parseJSON).pipe(RedditEIP712ChallengeMessage),
+        ),
+        primaryType: z.literal("Challenge"),
+        // I guess the people that implemented this API didn't know that
+        // this is data in EIP-712 format with quite a specific structure 🙃
+        // The types' capitalisation is messed up, so we need to normalise it
+        // back to what EIP-712 requires. Type names are camelCase not
+        // CamelCase. Type values are UPPERCASE not lowercase.
+        types: z
+          .record(
+            z.string().toLowerCase(), // we'll fix this in transform
+            z
+              .object({
+                name: z.string(),
+                type: z.string().toLowerCase(),
+              })
+              .array(),
+          )
+          .transform((arg) => ({
+            Challenge: arg.challenge,
+            EIP712Domain: arg.eip712domain,
+          }))
+          .pipe(RedditEIP712ChallengeTypes),
       }),
     }),
   }),
 });
-
-const GetVaultRegistrationChallengeQuery = (address: Address) =>
-  JSON.stringify({
-    extensions: {
-      persistedQuery: {
-        sha256Hash:
-          "8289463da9d631b4f715b6ab6f97d2a7ac59dc8ed2bd005a3b6f5d96dab57be5",
-        version: 1,
-      },
-    },
-    operationName: "GetVaultRegistrationChallenge",
-    variables: {
-      address: address.toLowerCase(),
-      provider: "ethereum",
-    },
-  });
 
 const CreateAddressOwnershipChallengeOptions = APIOptions.extend({
   /** The Ethereum address to be associated. */
@@ -127,6 +109,18 @@ const CreateAddressOwnershipChallengeOptions = APIOptions.extend({
 type CreateAddressOwnershipChallengeOptions = z.infer<
   typeof CreateAddressOwnershipChallengeOptions
 >;
+
+const createAddressOwnershipChallengeOp = GqlFedOperation.create({
+  operationName: "GetVaultRegistrationChallenge",
+  persistedQuerySha256:
+    "8289463da9d631b4f715b6ab6f97d2a7ac59dc8ed2bd005a3b6f5d96dab57be5",
+  description: "create address ownership challenge",
+  responseDataSchema: GetVaultRegistrationChallengeResponse,
+  variablesSchema: z.object({
+    address: EthAddress.transform((s) => s.toLowerCase()),
+    provider: z.literal("ethereum").default("ethereum"),
+  }),
+});
 
 /** Create and obtain challenge data to prove ownership of an Eth address.
  *
@@ -144,25 +138,12 @@ export async function createAddressOwnershipChallenge(
   const { address, authToken } =
     CreateAddressOwnershipChallengeOptions.parse(options);
 
-  const response = await fetch("https://gql-fed.reddit.com/", {
-    method: "POST",
-    headers: {
-      accept: "application/json",
-      authorization: `Bearer ${authToken}`,
-      "content-type": "application/json",
-    },
-    body: GetVaultRegistrationChallengeQuery(address),
+  const data = await createAddressOwnershipChallengeOp.makeRequest({
+    authToken,
+    vars: { address },
   });
-  if (!response.ok) {
-    throw new HTTPResponseError(
-      `HTTP request to create address ownership challenge failed`,
-      { response },
-    );
-  }
-  const body = GetVaultRegistrationChallengeResponse.parse(
-    await response.json(),
-  );
-  return body.data.vault.registrationChallenge.payload;
+
+  return data.vault.registrationChallenge.payload;
 }
 
 const RegisterAddressWithAccountOptions = APIOptions.extend({
