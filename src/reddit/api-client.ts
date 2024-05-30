@@ -241,54 +241,33 @@ export const RedditUserVault = z.object({
 });
 export type RedditUserVault = z.infer<typeof RedditUserVault>;
 
-const GetUserVaultQueryResponse = z.object({
-  data: z.object({
+const getRedditUserVaultOp = GqlFedOperation.create({
+  operationName: "GetUserVault",
+  persistedQuerySha256:
+    "a2ca9a4361d8511ce75609b34844229e5691bfc3936c6fe029439f8426d33084",
+  description: "get vault address of reddit user",
+  responseDataSchema: z.object({
     vault: z.object({
       contact: RedditUserVault.nullable(),
     }),
   }),
+  variablesSchema: z.object({
+    provider: z.literal("ethereum").default("ethereum"),
+    userId: z.string(),
+  }),
 });
-type GetUserVaultQueryResponse = z.infer<typeof GetUserVaultQueryResponse>;
-
-const GetUserVaultQuery = (userId: string) =>
-  JSON.stringify({
-    extensions: {
-      persistedQuery: {
-        sha256Hash:
-          "a2ca9a4361d8511ce75609b34844229e5691bfc3936c6fe029439f8426d33084",
-        version: 1,
-      },
-    },
-    operationName: "GetUserVault",
-    variables: {
-      provider: "ethereum",
-      userId: userId,
-    },
-  });
 
 export async function getRedditUserVault(
   options: z.input<typeof GetRedditUserVaultOptions>,
 ): Promise<RedditUserVault | undefined> {
   const { authToken, userId } = GetRedditUserVaultOptions.parse(options);
 
-  const response = await fetch("https://gql-fed.reddit.com/", {
-    method: "POST",
-    headers: {
-      accept: "application/json",
-      authorization: `Bearer ${authToken}`,
-      "content-type": "application/json",
-    },
-    body: GetUserVaultQuery(userId),
+  const data = await getRedditUserVaultOp.makeRequest({
+    authToken,
+    vars: { userId },
   });
-  if (!response.ok) {
-    throw new HTTPResponseError(
-      `HTTP request to get vault address of reddit user failed`,
-      { response },
-    );
-  }
-  const body = GetUserVaultQueryResponse.parse(await response.json());
 
-  return body.data.vault.contact ?? undefined;
+  return data.vault.contact ?? undefined;
 }
 
 export const AccountVaultAddress = z.object({
