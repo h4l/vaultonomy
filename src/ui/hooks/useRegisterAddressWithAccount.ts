@@ -4,6 +4,8 @@ import { Hex, hashTypedData, isAddressEqual } from "viem";
 
 import { assert } from "../../assert";
 import { log } from "../../logging";
+import { RedditProviderError } from "../../reddit/reddit-interaction-client";
+import { ErrorCode } from "../../reddit/reddit-interaction-spec";
 import {
   NormalisedRedditEIP712Challenge,
   isExpired,
@@ -83,9 +85,20 @@ export function useRegisterAddressWithAccount({
     },
     onError(error) {
       log.error("useRegisterAddressWithAccount error:", error);
+
       updatePairingState({
-        sentPairingMessage: { result: "error", error: "request-failed" },
+        sentPairingMessage: {
+          result: "error",
+          error: isApiError(error) ? "request-not-processed" : "request-failed",
+        },
       });
     },
   });
+}
+
+function isApiError(error: Error): boolean {
+  return (
+    error instanceof RedditProviderError &&
+    error.type === ErrorCode.REDDIT_API_UNSUCCESSFUL
+  );
 }

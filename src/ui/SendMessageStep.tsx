@@ -108,7 +108,8 @@ function SendMessage({
           disabled={
             registerAddressWithAccount.status !== "idle" &&
             // allow retrying failed requests
-            sentPairingMessage?.error !== "request-failed"
+            sentPairingMessage?.error !== "request-failed" &&
+            sentPairingMessage?.error !== "request-not-processed"
           }
           size="l"
           className="relative block m-4"
@@ -138,6 +139,33 @@ function SendMessage({
                 old (they only last a few minutes). You need to go back and sign
                 a new one, sorry!
               </p>
+            </>
+          }
+        />
+      )}
+      {sentPairingMessage?.error === "request-not-processed" && (
+        <StepAction
+          state="error"
+          headline="Reddit could not pair your Wallet's Address."
+          details={
+            <>
+              Although your Pairing Message appears valid, Reddit did not
+              process it successfully.
+              <ul className="list-outside list-disc ml-6">
+                <li>
+                  <strong>
+                    Is this Address already paired with another Reddit account?
+                  </strong>
+                </li>
+                <li>
+                  Reddit won't allow an Address to be paired with multiple
+                  accounts at the same time.
+                </li>
+                <li>
+                  Reddit could be having a temporary glitch — you can try again
+                  later.
+                </li>
+              </ul>
             </>
           }
         />

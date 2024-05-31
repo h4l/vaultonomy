@@ -29,7 +29,15 @@ export type SignedPairingMessage = Result<
  */
 export type SentPairingMessage = Result<
   { messageHash: HexString },
-  "message-expired" | "signature-invalid" | "request-failed"
+  | "message-expired"
+  | "signature-invalid"
+  // When the API request was transmitted successfully, but Reddit returned an
+  // error. This can indicate an internal error on Reddit's side, or an invalid
+  // request, e.g. because an address is already registered on another account.
+  | "request-not-processed"
+  // When a request fails for any other reason, typically a network error or an
+  // intermittent issue on Reddit's end, like the API server being unavailable.
+  | "request-failed"
 >;
 
 export type PairingId = {

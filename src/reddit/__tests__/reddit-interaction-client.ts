@@ -126,14 +126,35 @@ describe("RedditProvider()", () => {
       await expect(resp).resolves.toEqual(RedditEIP712Challenges().example);
     });
 
-    test("registerAddressWithAccount()", async () => {
-      const resp = reddit.registerAddressWithAccount({
-        session: { userId: "t2_abc" },
-        address: `0x${"0".repeat(40)}`,
-        challengeSignature: `0x${"0".repeat(130)}`,
+    describe("registerAddressWithAccount()", () => {
+      test("returns null for successful request", async () => {
+        const resp = reddit.registerAddressWithAccount({
+          session: { userId: "t2_abc" },
+          address: `0x${"0".repeat(40)}`,
+          challengeSignature: `0x${"0".repeat(130)}`,
+        });
+        port.receiveMessage(createJSONRPCSuccessResponse(1, null));
+        await expect(resp).resolves.toBeNull();
       });
-      port.receiveMessage(createJSONRPCSuccessResponse(1, null));
-      await expect(resp).resolves.toBeNull();
+
+      // Reddit's API returns error responses when an address cannot be
+      // registered (e.g. due to already being registered elsewhere), so we must
+      // handle this case.
+      test("handles REDDIT_API_UNSUCCESSFUL error", async () => {
+        const resp = reddit.getUserProfile();
+        port.receiveMessage(
+          createJSONRPCErrorResponse(
+            1,
+            ErrorCode.REDDIT_API_UNSUCCESSFUL,
+            "Example",
+          ),
+        );
+        const [resolved] = await Promise.allSettled([resp]);
+        assert(resolved.status === "rejected");
+        assert(resolved.reason instanceof RedditProviderError);
+        expect(resolved.reason.type).toEqual(ErrorCode.REDDIT_API_UNSUCCESSFUL);
+        expect(resolved.reason.message).toEqual("Example");
+      });
     });
 
     describe("getUserVault()", () => {
