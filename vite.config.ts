@@ -74,6 +74,10 @@ function webextensionManifest({
 }: WebextensionManifestOptions): Plugin {
   return {
     name: "webextension-manifest",
+    // Only use this plugin in regular builds, not devserver. manifest.json is
+    // not needed in the devserver, and emitFile() is not supported in the
+    // devserver.
+    apply: "build",
     async buildStart(options) {
       let chromeManifest: ChromeWebExtensionManifest;
       try {
