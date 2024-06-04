@@ -16,7 +16,7 @@ export function createVaultonomyBackgroundProvider(options: {
 }
 
 function createRpcPortConnector(isOnDevServer: boolean) {
-  if (import.meta.env.MODE === "development" && isOnDevServer) {
+  if (VAULTONOMY.releaseTarget === "development" && isOnDevServer) {
     return createExternalExtensionPortConnector(VAULTONOMY_RPC_PORT);
   }
   return createExtensionPortConnector(VAULTONOMY_RPC_PORT);

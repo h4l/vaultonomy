@@ -42,7 +42,7 @@ a user POV.
 export function main() {
   log.info("vite env", import.meta.env);
   try {
-    if (import.meta.env.MODE === "development") {
+    if (VAULTONOMY.releaseTarget === "development") {
       new DevModeBackgroundService().start();
     } else {
       new BackgroundService().start();

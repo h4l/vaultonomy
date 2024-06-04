@@ -32,7 +32,7 @@ export function DevServerRoot(): JSX.Element {
       queryClientPersister={windowStoragePersister}
       vaultonomyStore={vaultonomyStore}
     >
-      {import.meta.env.VITE_TANSTACK_QUERY_DEV_TOOLS ?
+      {VAULTONOMY.dev?.tanstackQueryDevToolsEnabled ?
         <ReactQueryDevtools initialIsOpen={false} />
       : undefined}
       <AppUI />
