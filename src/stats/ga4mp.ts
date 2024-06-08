@@ -1,143 +1,203 @@
-/*
-- Use sendBeacon https://www.w3.org/TR/beacon/#sendbeacon-method
-  to send events on shutdown
-- Send when visibilityState transitions to hidden
-
-*/
-import { Emitter, createNanoEvents } from "nanoevents";
+import debounce from "lodash.debounce";
 import { z } from "zod";
 
 import { log } from "../logging";
-import { AnyEventSchema, AnyPayload } from "./payload_schemas";
+import { AnyPayload } from "./payload_schemas";
 
-export type EventQueueEvents<EventSchemaT extends AnyEventSchema> = {
-  eventAdded(
-    event: z.infer<EventSchemaT>,
-    queue: EventQueue<EventSchemaT>,
-  ): void;
-  eventDropped(
-    event: z.infer<EventSchemaT>,
-    queue: EventQueue<EventSchemaT>,
-  ): void;
+export type GA4MPOptions = {
+  endpoint: string;
+  measurementId: string;
+  apiSecret: string;
+  clientId: string;
+  userProperties?:
+    | Record<string, string | number>
+    | Iterable<[string, string | number]>;
 };
 
-export type EventQueueOptions = {
-  maxBufferSize?: number;
-};
-
-export class EventQueue<EventSchemaT extends AnyEventSchema> {
-  readonly emitter: Emitter<EventQueueEvents<EventSchemaT>> =
-    createNanoEvents();
-  private readonly buffer: z.infer<EventSchemaT>[] = [];
-  readonly maxBufferSize: number | undefined;
-  constructor(
-    readonly eventSchema: EventSchemaT,
-    options: EventQueueOptions = {},
-  ) {
-    if ((options.maxBufferSize ?? 0) < 1)
-      throw new Error("maxBufferSize must be <= 0");
-    this.maxBufferSize = options.maxBufferSize;
-  }
-
-  addEvent(event: z.input<EventSchemaT>): void {
-    const parsedEvent = this.eventSchema.parse(event);
-    if (this.size() >= (this.maxBufferSize ?? Number.MAX_SAFE_INTEGER)) {
-      this.emitter.emit("eventDropped", parsedEvent, this);
-    }
-    this.buffer.push(parsedEvent);
-    this.emitter.emit("eventAdded", parsedEvent, this);
-  }
-
-  size(): number {
-    return this.buffer.length;
-  }
-
-  removeEvents(count: number): z.infer<EventSchemaT>[] {
-    if (count < 0) throw new Error("count must be >= 0");
-    return this.buffer.splice(0, count);
-  }
+export interface GA4Event<
+  NameT extends string = string,
+  ParamsT extends Record<string, string | number> = Record<
+    string,
+    string | number
+  >,
+  ItemsT extends Record<string, string | number>[] = Record<
+    string,
+    string | number
+  >[],
+> {
+  name: NameT;
+  params?: ParamsT;
+  items?: ItemsT;
 }
 
-export type EventSenderOptions<EventT> = {
-  endpoint: string;
-  api_secret: string;
-  measurement_id: string;
-  payloadBuilder: PayloadBuilder<EventT>;
-};
+type EventGroup<EventT> = { time: number; events: EventT[] };
 
-export const MAX_PAYLOAD_EVENTS = 25;
-
-export class EventSender<EventSchemaT extends AnyEventSchema> {
+/**
+ * A client that sends events to a GA4 Measurement Protocol endpoint.
+ *
+ * Events are grouped together and sent in batches.
+ */
+export class GA4MPClient<EventT extends GA4Event = GA4Event> {
   readonly endpoint: string;
-  readonly api_secret: string;
-  readonly measurement_id: string;
-  readonly payloadBuilder: PayloadBuilder<z.infer<EventSchemaT>>;
-  readonly eventQueue: EventQueue<EventSchemaT>;
+  readonly measurementId: string;
+  readonly apiSecret: string;
+  readonly clientId: string;
+  readonly userProperties: Map<string, string | number>;
 
-  constructor(
-    eventQueue: EventQueue<EventSchemaT>,
-    options: EventSenderOptions<z.infer<EventSchemaT>>,
-  ) {
-    this.eventQueue = eventQueue;
-    this.payloadBuilder = options.payloadBuilder;
+  /** The maximum number of events each GA4MP payload can contain. */
+  readonly maxPayloadEvents: number = 25;
+
+  /** Events that occur within this number of milliseconds from each other are
+   * grouped and considered to occur at the time of the first event.
+   *
+   * Grouping events allows for multiple events to be sent in a single request,
+   * which reduces the overhead.
+   */
+  readonly eventGroupWindowMillis = 50;
+
+  /** The maximum number of events to store up before clearing them by sending
+   * to the endpoint (even if `sendDebounceWindowMillis` has not elapsed). */
+  readonly maxLoggedEvents = 200;
+
+  /** The length of time to wait for more events to appear before sending queued
+   * groups of events. The timer is reset each time new events appear.
+   *
+   * We use 20 seconds to ensure events recorded in the background service
+   * worker are not lost when it gets killed after 30s of inactivity.
+   */
+  readonly sendDebounceWindowMillis = 1000 * 20;
+
+  #loggedEventGroups: EventGroup<EventT>[] = [];
+  #loggedEventCount = 0;
+  #sendQueuedEventsSoon: ReturnType<typeof debounce<() => void>>;
+
+  constructor(options: GA4MPOptions) {
     this.endpoint = options.endpoint;
-    this.measurement_id = options.measurement_id;
-    this.api_secret = options.api_secret;
+    this.measurementId = options.measurementId;
+    this.apiSecret = options.apiSecret;
+    this.clientId = options.clientId;
+    this.userProperties = new Map(
+      options.userProperties === undefined ? []
+      : Symbol.iterator in options.userProperties ? options.userProperties
+      : Object.entries(options.userProperties),
+    );
+
+    this.#sendQueuedEventsSoon = debounce(
+      this.sendQueuedEvents.bind(this),
+      this.sendDebounceWindowMillis,
+      { leading: false, trailing: true },
+    );
+
     this.start();
   }
 
-  getFullUrl(): string {
-    const url = new URL(this.endpoint);
-    url.searchParams.set("measurement_id", this.measurement_id);
-    url.searchParams.set("api_secret", this.api_secret);
-    return url.toString();
+  private clearLoggedEvents(): void {
+    this.#loggedEventGroups = [];
+    this.#loggedEventCount = 0;
   }
 
   #stop: (() => void) | undefined;
+  /** Bind event listeners needed to operate. */
   private start() {
     if (this.#stop) return;
 
+    // Flush the queue when our UI becomes hidden. This ensures the UI doesn't
+    // get killed without sending events.
     const onVisibilityChange = () => {
       if (document.visibilityState === "hidden") {
-        this.sendQueuedEvents({ minEvents: 1 });
+        this.#sendQueuedEventsSoon.flush();
       }
     };
     document.addEventListener("visibilitychange", onVisibilityChange);
 
-    const stopEventAdded = this.eventQueue.emitter.on("eventAdded", () => {
-      this.sendQueuedEvents({ minEvents: MAX_PAYLOAD_EVENTS });
-    });
-
     this.#stop = () => {
       document.removeEventListener("visibilitychange", onVisibilityChange);
-      stopEventAdded();
     };
   }
 
-  sendQueuedEvents({ minEvents = 1 }: { minEvents?: number }): void {
-    if (minEvents < 1 || minEvents > MAX_PAYLOAD_EVENTS) {
-      throw new Error(
-        `minEvents must be > 0 and <= ${MAX_PAYLOAD_EVENTS}: ${minEvents}`,
-      );
-    }
-    while (this.eventQueue.size() > minEvents) {
-      const events = this.eventQueue.removeEvents(MAX_PAYLOAD_EVENTS);
-      this.sendEvents(events);
+  /** Record an event to be sent to the endpoint.
+   *
+   * The event will be grouped with other events that are close enough together
+   * in time, and sent as a batch.
+   */
+  logEvent(...events: EventT[]) {
+    this.#loggedEventGroups.push({ time: Date.now(), events });
+    this.#loggedEventCount += events.length;
+
+    if (this.#loggedEventCount >= this.maxLoggedEvents) {
+      this.sendQueuedEvents();
+    } else {
+      this.#sendQueuedEventsSoon();
     }
   }
 
-  private sendEvents(events: z.infer<EventSchemaT>[]): void {
-    let payload: AnyPayload;
-    try {
-      payload = this.payloadBuilder.buildPayload(events);
-    } catch (e) {
-      log.error(
-        "Failed to build payload from events, these events will be dropped:",
-        events,
-      );
-      return;
+  /** Re-pack logged events into groups to maximise the number of events per
+   * GA4MP request. Events are grouped if they're within the
+   * `eventGroupWindowMillis` from the first event in of each group.
+   */
+  private *groupUnsentEventGroupsForSending(): Generator<EventGroup<EventT>> {
+    let time = 0;
+    let events: EventT[] = [];
+
+    for (const group of this.#loggedEventGroups) {
+      if (group.time > time + this.eventGroupWindowMillis) {
+        if (events.length > 0) yield { time, events };
+        time = group.time;
+      }
+
+      for (const event of group.events) {
+        events.push(event);
+        if (events.length >= this.maxPayloadEvents) {
+          yield { time, events };
+          events = [];
+        }
+      }
+    }
+    if (events.length > 0) yield { time, events };
+  }
+
+  /** Immediately send any events previously recorded with `logEvent()`. */
+  sendQueuedEvents(): void {
+    for (const group of this.groupUnsentEventGroupsForSending()) {
+      const rawPayload = this.buildPayload(group.time, group.events);
+      const validatedPayload = AnyPayload.safeParse(rawPayload);
+
+      if (!validatedPayload.success) {
+        log.error(
+          "Failed to build GA4MP payload: Events do not conform to GA4MP limitations:",
+          validatedPayload.error.flatten(),
+          "; payload:",
+          rawPayload,
+        );
+      } else {
+        this.sendPayload(validatedPayload.data);
+      }
     }
 
+    this.clearLoggedEvents();
+  }
+
+  async [Symbol.dispose]() {
+    this.#sendQueuedEventsSoon.flush();
+    this.#stop && this.#stop();
+  }
+
+  /** The endpoint URL with the GA4MP `measurement_id` and `api_secret` params. */
+  private getFullUrl(): string {
+    const url = new URL(this.endpoint);
+    url.searchParams.set("measurement_id", this.measurementId);
+    url.searchParams.set("api_secret", this.apiSecret);
+    return url.toString();
+  }
+
+  /** Send a GA4MP payload to the endpoint.
+   *
+   * We use navigator.sendBeacon() rather than fetch, as it's intended for non
+   * time critical requests that can occur in the background, without a
+   * response. The browser can send these in the background after a tab is
+   * closed without blocking a tab.
+   */
+  private sendPayload(payload: AnyPayload): void {
     const body = new Blob([JSON.stringify(payload)], {
       type: "application/json",
     });
@@ -146,11 +206,29 @@ export class EventSender<EventSchemaT extends AnyEventSchema> {
     }
   }
 
-  async [Symbol.dispose]() {
-    this.#stop && this.#stop();
-  }
-}
+  /** Create a GA4MP payload suitable for sending to the endpoint. */
+  private buildPayload(
+    time: number,
+    events: EventT[],
+  ): z.input<typeof AnyPayload> {
+    return {
+      client_id: this.clientId,
+      timestamp_micros: time * 1000,
+      user_properties: Object.fromEntries(
+        [...this.userProperties].map(([k, v]) => [k, { value: v }]),
+      ),
+      events: events.map((e) => {
+        const params: Record<
+          string,
+          number | string | Record<string, number | string>[]
+        > = { ...e.params };
 
-export interface PayloadBuilder<EventT> {
-  buildPayload(events: EventT[]): AnyPayload;
+        if (e.items) {
+          const items = e.items;
+          params.items = items;
+        }
+        return { name: e.name, params: Object.fromEntries([]) };
+      }),
+    };
+  }
 }
