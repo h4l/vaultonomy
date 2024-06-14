@@ -1,30 +1,26 @@
 import debounce from "lodash.debounce";
+import { Emitter, createNanoEvents } from "nanoevents";
 import { z } from "zod";
 
-import { assert } from "../assert";
 import { log } from "../logging";
-import { AnyPayload } from "./payload_schemas";
+import { AnyEvent, AnyPayload } from "./payload_schemas";
 
 export type GA4MPOptions = {
   endpoint: string;
   measurementId: string;
   apiSecret: string;
   clientId: string;
-  userProperties?:
-    | Record<string, string | number>
-    | Iterable<[string, string | number]>;
+  userProperties?: Params | Iterable<[string, string | number]>;
+  /** Whether to track user engagement time on each page. Default: true. */
+  logEngagementTime?: boolean;
 };
+
+export type Params = Record<string, string | number>;
 
 export interface GA4Event<
   NameT extends string = string,
-  ParamsT extends Record<string, string | number> = Record<
-    string,
-    string | number
-  >,
-  ItemsT extends Record<string, string | number>[] = Record<
-    string,
-    string | number
-  >[],
+  ParamsT extends Params = Params,
+  ItemsT extends Params[] = Params[],
 > {
   name: NameT;
   params?: ParamsT;
@@ -33,12 +29,18 @@ export interface GA4Event<
 
 type EventGroup<EventT> = { time: number; events: EventT[] };
 
+export type GA4MPClientEvents<EventT> = {
+  event(event: EventT, time: number): void;
+  beforeDispose(): void;
+};
+
 /**
  * A client that sends events to a GA4 Measurement Protocol endpoint.
  *
  * Events are grouped together and sent in batches.
  */
 export class GA4MPClient<EventT extends GA4Event = GA4Event> {
+  readonly emitter: Emitter<GA4MPClientEvents<EventT>> = createNanoEvents();
   readonly endpoint: string;
   readonly measurementId: string;
   readonly apiSecret: string;
@@ -68,10 +70,12 @@ export class GA4MPClient<EventT extends GA4Event = GA4Event> {
    */
   readonly sendDebounceWindowMillis = 1000 * 20;
 
+  /** Tracks and report the time spent on each page. */
+  readonly engagementReporter: EngagementReporter | undefined = undefined;
+
   #loggedEventGroups: EventGroup<EventT>[] = [];
   #loggedEventCount = 0;
   #sendQueuedEventsSoon: ReturnType<typeof debounce<() => void>>;
-  #startTime: number | undefined;
 
   constructor(options: GA4MPOptions) {
     this.endpoint = options.endpoint;
@@ -91,6 +95,9 @@ export class GA4MPClient<EventT extends GA4Event = GA4Event> {
     );
 
     this.start();
+
+    if (options.logEngagementTime ?? true)
+      this.engagementReporter = new EngagementReporter(this);
   }
 
   private clearLoggedEvents(): void {
@@ -102,8 +109,6 @@ export class GA4MPClient<EventT extends GA4Event = GA4Event> {
   /** Bind event listeners needed to operate. */
   private start() {
     if (this.#stop) return;
-
-    this.#startTime = Date.now();
 
     // Flush the queue when our UI becomes hidden. This ensures the UI doesn't
     // get killed without sending events.
@@ -125,7 +130,11 @@ export class GA4MPClient<EventT extends GA4Event = GA4Event> {
    * in time, and sent as a batch.
    */
   logEvent(...events: EventT[]) {
-    this.#loggedEventGroups.push({ time: Date.now(), events });
+    const time = Date.now();
+
+    for (const event of events) this.emitter.emit("event", event, time);
+
+    this.#loggedEventGroups.push({ time, events });
     this.#loggedEventCount += events.length;
 
     if (this.#loggedEventCount >= this.maxLoggedEvents) {
@@ -181,8 +190,9 @@ export class GA4MPClient<EventT extends GA4Event = GA4Event> {
     this.clearLoggedEvents();
   }
 
-  async [Symbol.dispose]() {
-    this.#sendQueuedEventsSoon.flush();
+  [Symbol.dispose]() {
+    this.emitter.emit("beforeDispose");
+    this.engagementReporter?.[Symbol.dispose]();
     this.#stop && this.#stop();
   }
 
@@ -238,98 +248,133 @@ export class GA4MPClient<EventT extends GA4Event = GA4Event> {
 }
 
 /**
- * parameters:
- *  - language
- *  - page_location
- *  - page_referrer
- *  - page_title
- *  - screen_resolution
+ * Track engagement time on pages.
  *
- * click, form_start, form_submit, page_view, scroll,
- * session start (backend auto?)
- * user_engagement (e.g. when leaving)
- * view_search_results
+ * This detects and reports the time a page is visible for after a `page_load`
+ * event. Events in `reportingEventNames` (just `scroll` by default) have a
+ * `engagement_time_msec` parameter added to them. And when the page becomes
+ * hidden, we send a `user_engagement` event, also with a `engagement_time_msec`
+ * param, to log the accumulated engagement time since the last event that
+ * reported `engagement_time_msec`.
+ *
+ * This implements Google Analytics web's engagement time reporting:
+ * https://support.google.com/analytics/answer/9234069
  */
+export class EngagementReporter {
+  readonly minEngagementTime = 1000;
 
-// TODO: this shouldn't be responsible for reporting page details, or scroll.
-// (scroll and page_view seem to be the events that report engagement time.)
-// Instead, we should just provide APIs to get and reset engagement time. The
-// client can use this to annotate matching events with engagement time.
-
-/**
- * Report events to calculate page view counts and page engagement time.
- */
-export class PageEngagementReporter {
+  private currentPageLoadTime: number | undefined;
+  private currentPageParams: Params | undefined;
   private lastEngagementTime: number | undefined;
-  private currentPageParams: Record<string, string | number> | undefined;
+
+  readonly startingEventNames: ReadonlySet<string>;
+  readonly reportingEventNames: ReadonlySet<string>;
 
   constructor(readonly client: GA4MPClient) {
     this.start();
+    this.startingEventNames = new Set(["page_view"]);
+    this.reportingEventNames = new Set(["scroll"]);
   }
 
   #stop: (() => void) | undefined;
   private start(): void {
     if (this.#stop) return;
 
+    const stopOnEvent = this.client.emitter.on("event", (event, time) => {
+      if (this.startingEventNames.has(event.name)) {
+        this.startNewEngagementPeriod(event.params, time);
+      }
+
+      if (this.reportingEventNames.has(event.name)) {
+        this.accumulateEngagementTimeInEvent(event);
+      }
+    });
+
     const onVisibilityChange = () => {
       if (document.visibilityState === "hidden") {
         this.logAccumulatedEngagementTime();
       } else {
-        this.logStartOfEngagement();
+        this.startNewEngagementPeriod(this.currentPageParams);
       }
     };
     document.addEventListener("visibilitychange", onVisibilityChange);
 
-    let onDOMContentLoaded: (() => void) | undefined;
-    if (document.readyState === "loading") {
-      onDOMContentLoaded = this.logPageView.bind(this);
-      document.addEventListener("DOMContentLoaded", onDOMContentLoaded);
-    } else {
-      this.logPageView();
-    }
-
     this.#stop = () => {
-      document.removeEventListener;
+      stopOnEvent();
       window.removeEventListener("visibilitychange", onVisibilityChange);
-      onDOMContentLoaded &&
-        document.removeEventListener("DOMContentLoaded", onDOMContentLoaded);
     };
   }
 
-  logStartOfEngagement(): void {
-    this.lastEngagementTime = Date.now();
+  getEngagementTimeSincePageLoad(now: number = Date.now()): number {
+    return now - (this.currentPageLoadTime ?? now);
   }
 
-  logPageView(): void {
-    if (this.currentPageParams) this.logAccumulatedEngagementTime();
-    this.logStartOfEngagement();
-    this.currentPageParams = this.getPageParams();
-
-    this.client.logEvent({
-      name: "page_view",
-      params: this.currentPageParams,
-    });
+  getEngagementTimeSinceLastReport(now: number = Date.now()): number {
+    const loadTime = this.currentPageLoadTime ?? now;
+    const lastEngagementTime = this.lastEngagementTime ?? loadTime;
+    return now - lastEngagementTime;
   }
 
-  logAccumulatedEngagementTime(): void {
-    const now = Date.now();
-    if (!this.currentPageParams || !this.lastEngagementTime) return;
-    // Engagement time under 1s doesn't count
-    if (now < (this.lastEngagementTime ?? now) + 1000) return;
+  accumulateEngagementTime(now: number = Date.now()): number {
+    const engagementTime = this.getEngagementTimeSinceLastReport(now);
+
+    if (engagementTime < 1) return 0;
+
+    this.lastEngagementTime = now;
+    return engagementTime;
+  }
+
+  startNewEngagementPeriod(
+    pageParams: Params = this.getDefaultPageParams(),
+    now: number = Date.now(),
+  ): void {
+    this.currentPageParams = { ...pageParams };
+    this.currentPageLoadTime = now;
+    this.lastEngagementTime = now;
+  }
+
+  logAccumulatedEngagementTime(now: number = Date.now()): void {
+    const pageLoadTime = this.getEngagementTimeSincePageLoad(now);
+    const engagementTime = this.getEngagementTimeSinceLastReport(now);
+
+    const engagementLoggedSincePageLoad = this.lastEngagementTime === undefined;
+
+    // We log engagement time less than the min if we had an engagement-logging
+    // event within the min time. The min time is to avoid logging engagement
+    // that is not significant, but the presence of an engagement event suggests
+    // some engagement is happening.
+    if (pageLoadTime < this.minEngagementTime && !engagementLoggedSincePageLoad)
+      return;
+
+    if (engagementTime < 1) return; // no point in logging 0 engagement time
 
     this.client.logEvent({
       name: "user_engagement",
       params: {
         ...this.currentPageParams,
-        engagement_time_msec: now - this.lastEngagementTime,
+        engagement_time_msec: engagementTime,
       },
     });
   }
 
-  private getPageParams(): Record<string, string | number> {
+  startNewEngage(): void {}
+
+  accumulateEngagementTimeInEvent(
+    event: AnyEvent,
+    now: number = Date.now(),
+  ): void {
+    const engagementTime = this.accumulateEngagementTime(now);
+
+    if (engagementTime < 1) return;
+
+    if (!event.params) event.params = {};
+    event.params.engagement_time_msec = engagementTime;
+  }
+
+  private getDefaultPageParams(): Params {
     return {
-      language: navigator.language,
       page_location: window.location.toString(),
+      page_referrer: document.referrer,
     };
   }
 
