@@ -5,6 +5,8 @@ import { createJSONStorage, persist } from "zustand/middleware";
 import { log } from "../../logging";
 import { RedditEIP712Challenge } from "../../reddit/api-client";
 import { RedditProvider } from "../../reddit/reddit-interaction-client";
+import { GA4MPClient } from "../../stats/ga4mp";
+import { VaultonomyGA4MPClient, createClient } from "../../stats/stats";
 import { HexString, RecursivePartial } from "../../types";
 import { browser } from "../../webextension";
 import { VaultonomyBackgroundProvider } from "../rpc/VaultonomyBackgroundProvider";
@@ -104,6 +106,7 @@ export type VaultonomyStateData = {
   searchForUserQuery: string;
   userOfInterest: { rawUsernameQuery: string } | null;
   lastScrollPosition: number | null;
+  stats: VaultonomyGA4MPClient | null;
 };
 
 type PersistedVaultonomyStateData = Pick<
@@ -143,6 +146,17 @@ export const createVaultonomyStore = (
   return createStore<VaultonomyState>()(
     persist(
       (set) => {
+        const stats = createClient() ?? null;
+        if (stats) {
+          stats.logEvent({
+            name: "page_view",
+            params: {
+              page_location: window.location.href,
+              page_title: document.title,
+            },
+          });
+        }
+
         const state: VaultonomyState = {
           hasHydrated: false,
           isOnDevServer,
@@ -155,6 +169,7 @@ export const createVaultonomyStore = (
           searchForUserQuery: "",
           userOfInterest: null,
           lastScrollPosition: null,
+          stats: createClient() ?? null,
           // actions
           setHasHydrated(hasHydrated: boolean): void {
             set({ hasHydrated });
