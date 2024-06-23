@@ -4,6 +4,7 @@ import { log } from "../../logging";
 import { validateRedditChallenge } from "../../signing";
 import { PairingId } from "../state/createVaultonomyStore";
 import { usePairingState } from "../state/usePairingState";
+import { useVaultonomyStoreSingle } from "../state/useVaultonomyStore";
 import { assumeAvailable, useRedditProvider } from "./useRedditProvider";
 
 type CreateAddressOwnershipChallengeOptions = {
@@ -23,6 +24,7 @@ export function useCreateAddressOwnershipChallenge({
 }: CreateAddressOwnershipChallengeOptions) {
   const { redditProvider } = useRedditProvider();
   const { updatePairingState } = usePairingState(pairingId);
+  const stats = useVaultonomyStoreSingle((s) => s.stats);
 
   return useMutation({
     mutationKey: [
@@ -32,7 +34,7 @@ export function useCreateAddressOwnershipChallenge({
       redditUserName,
       address,
     ],
-    mutationFn: async () => {
+    mutationFn: async (_options: { startPairingAttemptsBlocked: number }) => {
       const challenge = await assumeAvailable(
         redditProvider,
       ).createAddressOwnershipChallenge({
@@ -43,11 +45,16 @@ export function useCreateAddressOwnershipChallenge({
       validateRedditChallenge({ address, challenge, redditUserName });
       return challenge;
     },
-    onSuccess(value) {
+    onSuccess(value, { startPairingAttemptsBlocked }) {
+      stats?.logEvent({
+        name: "VT_pairingMsgFetch_completed",
+        params: { start_blocked_count: startPairingAttemptsBlocked },
+      });
       updatePairingState({ fetchedPairingMessage: { result: "ok", value } });
     },
     onError(error) {
       log.error("useCreateAddressOwnershipChallenge error:", error);
+      stats?.logEvent({ name: "VT_pairingMsgFetch_failed" });
       updatePairingState({
         fetchedPairingMessage: { result: "error", error: null },
       });

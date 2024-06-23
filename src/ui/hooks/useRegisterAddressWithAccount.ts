@@ -13,6 +13,7 @@ import {
 } from "../../signing";
 import { PairingId, SentPairingMessage } from "../state/createVaultonomyStore";
 import { usePairingState } from "../state/usePairingState";
+import { useVaultonomyStoreSingle } from "../state/useVaultonomyStore";
 import { getRedditAccountVaultsQueryKey } from "./useRedditAccountVaults";
 import { assumeAvailable, useRedditProvider } from "./useRedditProvider";
 
@@ -26,6 +27,7 @@ export function useRegisterAddressWithAccount({
   challenge,
   challengeSignature,
 }: RegisterAddressWithAccountOptions) {
+  const stats = useVaultonomyStoreSingle((s) => s.stats);
   const queryClient = useQueryClient();
   const { redditProvider } = useRedditProvider();
   const { setPinnedPairing, updatePairingState } = usePairingState(
@@ -74,6 +76,14 @@ export function useRegisterAddressWithAccount({
       return { result: "ok", value: { messageHash: verification.hash } };
     },
     onSuccess(value: SentPairingMessage) {
+      if (value.result === "ok") {
+        stats?.logEvent({ name: "VT_pairingMsgSubmit_completed" });
+      } else {
+        stats?.logEvent({
+          name: "VT_pairingMsgSubmit_failed",
+          params: { reason: value.error },
+        });
+      }
       // pin the current pairing so that it remains after this mutation changes
       // the active wallet address (which changes the automatic pairingId).
       setPinnedPairing(pairingId);
@@ -86,10 +96,18 @@ export function useRegisterAddressWithAccount({
     onError(error) {
       log.error("useRegisterAddressWithAccount error:", error);
 
+      const errorName =
+        isApiError(error) ? "request-not-processed" : "request-failed";
+
+      stats?.logEvent({
+        name: "VT_pairingMsgSubmit_failed",
+        params: { reason: errorName },
+      });
+
       updatePairingState({
         sentPairingMessage: {
           result: "error",
-          error: isApiError(error) ? "request-not-processed" : "request-failed",
+          error: errorName,
         },
       });
     },

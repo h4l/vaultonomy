@@ -284,7 +284,7 @@ function StartPairingForm({
     if (isFormValid()) {
       log.debug("form submit OK", e);
 
-      createAddressOwnershipChallenge.mutate();
+      createAddressOwnershipChallenge.mutate({ startPairingAttemptsBlocked });
     } else {
       log.debug("form submit blocked", startPairingAttemptsBlocked + 1);
 

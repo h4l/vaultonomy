@@ -20,7 +20,10 @@ import {
   SignedPairingMessage,
 } from "../state/createVaultonomyStore";
 import { usePairingState } from "../state/usePairingState";
-import { useVaultonomyStore } from "../state/useVaultonomyStore";
+import {
+  useVaultonomyStore,
+  useVaultonomyStoreSingle,
+} from "../state/useVaultonomyStore";
 
 type OwnershipChallengeSigningErrorOptions = {
   address: Address;
@@ -101,8 +104,8 @@ export function useSignAddressOwnershipChallenge({
   challenge: NormalisedRedditEIP712Challenge;
 }) {
   const config = useConfig();
-  // const updatePairingState = useVaultonomyStore((s) => s.updateUser(userId));
   const { updatePairingState } = usePairingState(pairingId);
+  const stats = useVaultonomyStoreSingle((s) => s.stats);
 
   return useMutation({
     mutationKey: [
@@ -159,6 +162,7 @@ export function useSignAddressOwnershipChallenge({
       });
     },
     onSuccess(value) {
+      stats?.logEvent({ name: "VT_pairingMsgSign_completed" });
       updatePairingState({ signedPairingMessage: { result: "ok", value } });
     },
     onError(cause) {
@@ -178,6 +182,10 @@ export function useSignAddressOwnershipChallenge({
         error = "signature-invalid";
       else error = "sign-failed";
 
+      stats?.logEvent({
+        name: "VT_pairingMsgSign_failed",
+        params: { reason: error },
+      });
       updatePairingState({ signedPairingMessage: { result: "error", error } });
     },
   });
