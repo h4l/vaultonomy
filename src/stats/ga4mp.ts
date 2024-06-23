@@ -5,12 +5,15 @@ import { z } from "zod";
 import { log } from "../logging";
 import { AnyEvent, AnyPayload } from "./payload_schemas";
 
-export type GA4MPOptions = {
+export type GA4MPClientOptions = {
   endpoint: string;
   measurementId: string;
   apiSecret: string;
   clientId: string;
   userProperties?: Params | Iterable<[string, string | number]>;
+};
+
+export type GA4MPClientCreateOptions = GA4MPClientOptions & {
   /** Whether to track user engagement time on each page. Default: true. */
   logEngagementTime?: boolean;
 };
@@ -20,7 +23,7 @@ export type Params = Record<string, string | number>;
 export interface GA4Event<
   NameT extends string = string,
   ParamsT extends Params = Params,
-  ItemsT extends Params[] = Params[],
+  ItemsT extends Params[] | undefined = Params[] | undefined,
 > {
   name: NameT;
   params?: ParamsT;
@@ -31,6 +34,13 @@ type EventGroup<EventT> = { time: number; events: EventT[] };
 
 export type GA4MPClientEvents<EventT> = {
   event(event: EventT, time: number): void;
+  /** Called when the client detects the page is entering an idle state or is closing.
+   *
+   * Immediately after this event has emitted, the client will flush queued
+   * events to ensure they're sent before the page is closed.
+   */
+  becameIdle(): void;
+  becameActive(): void;
   beforeDispose(): void;
 };
 
@@ -70,14 +80,12 @@ export class GA4MPClient<EventT extends GA4Event = GA4Event> {
    */
   readonly sendDebounceWindowMillis = 1000 * 20;
 
-  /** Tracks and report the time spent on each page. */
-  readonly engagementReporter: EngagementReporter | undefined = undefined;
-
   #loggedEventGroups: EventGroup<EventT>[] = [];
   #loggedEventCount = 0;
   #sendQueuedEventsSoon: ReturnType<typeof debounce<() => void>>;
+  #isIdle: boolean | undefined = undefined;
 
-  constructor(options: GA4MPOptions) {
+  constructor(options: GA4MPClientOptions) {
     this.endpoint = options.endpoint;
     this.measurementId = options.measurementId;
     this.apiSecret = options.apiSecret;
@@ -93,11 +101,18 @@ export class GA4MPClient<EventT extends GA4Event = GA4Event> {
       this.sendDebounceWindowMillis,
       { leading: false, trailing: true },
     );
+  }
 
-    this.start();
+  static create(options: GA4MPClientCreateOptions): GA4MPClient {
+    const client = new GA4MPClient(options);
 
-    if (options.logEngagementTime ?? true)
-      this.engagementReporter = new EngagementReporter(this);
+    if (options.logEngagementTime ?? true) {
+      new EngagementReporter(client);
+    }
+
+    new VisibilityStateIdleController(client);
+
+    return client;
   }
 
   private clearLoggedEvents(): void {
@@ -105,23 +120,23 @@ export class GA4MPClient<EventT extends GA4Event = GA4Event> {
     this.#loggedEventCount = 0;
   }
 
-  #stop: (() => void) | undefined;
-  /** Bind event listeners needed to operate. */
-  private start() {
-    if (this.#stop) return;
+  becomeIdle(): void {
+    if (this.#isIdle) return;
+    this.#isIdle = true;
+
+    // Give listeners a chance to log extra events before we flush events before
+    // potential imminent termination (e.g. browser tab close).
+    this.emitter.emit("becameIdle");
 
     // Flush the queue when our UI becomes hidden. This ensures the UI doesn't
     // get killed without sending events.
-    const onVisibilityChange = () => {
-      if (document.visibilityState === "hidden") {
-        this.#sendQueuedEventsSoon.flush();
-      }
-    };
-    document.addEventListener("visibilitychange", onVisibilityChange);
+    this.#sendQueuedEventsSoon.flush();
+  }
 
-    this.#stop = () => {
-      document.removeEventListener("visibilitychange", onVisibilityChange);
-    };
+  becomeActive(): void {
+    if (this.#isIdle === false) return;
+    this.#isIdle = false;
+    this.emitter.emit("becameIdle");
   }
 
   /** Record an event to be sent to the endpoint.
@@ -192,8 +207,6 @@ export class GA4MPClient<EventT extends GA4Event = GA4Event> {
 
   [Symbol.dispose]() {
     this.emitter.emit("beforeDispose");
-    this.engagementReporter?.[Symbol.dispose]();
-    this.#stop && this.#stop();
   }
 
   /** The endpoint URL with the GA4MP `measurement_id` and `api_secret` params. */
@@ -241,9 +254,50 @@ export class GA4MPClient<EventT extends GA4Event = GA4Event> {
           const items = e.items;
           params.items = items;
         }
-        return { name: e.name, params: Object.fromEntries([]) };
+        return { name: e.name, params };
       }),
     };
+  }
+}
+
+/** Make a GA4MPClient idle/active according to `document.visibilityState`. */
+class VisibilityStateIdleController {
+  constructor(readonly client: GA4MPClient) {
+    this.start();
+  }
+
+  #stop: (() => void) | undefined;
+  /** Bind event listeners needed to operate. */
+  private start() {
+    if (this.#stop) return;
+
+    const onVisibilityChange = () => {
+      this.reportVisibilityState();
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
+    const stopBeforeDispose = this.client.emitter.on("beforeDispose", () => {
+      this[Symbol.dispose]();
+    });
+
+    this.#stop = () => {
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+      stopBeforeDispose();
+    };
+
+    this.reportVisibilityState();
+  }
+
+  private reportVisibilityState(): void {
+    if (document.visibilityState === "hidden") {
+      this.client.becomeIdle();
+    } else {
+      this.client.becomeActive();
+    }
+  }
+
+  [Symbol.dispose]() {
+    this.#stop && this.#stop();
   }
 }
 
@@ -290,18 +344,18 @@ export class EngagementReporter {
       }
     });
 
-    const onVisibilityChange = () => {
-      if (document.visibilityState === "hidden") {
-        this.logAccumulatedEngagementTime();
-      } else {
-        this.startNewEngagementPeriod(this.currentPageParams);
-      }
-    };
-    document.addEventListener("visibilitychange", onVisibilityChange);
+    const stopBecameIdleEvent = this.client.emitter.on("becameIdle", () => {
+      this.logAccumulatedEngagementTime();
+    });
+
+    const stopBecameActiveEvent = this.client.emitter.on("becameActive", () => {
+      this.startNewEngagementPeriod(this.currentPageParams);
+    });
 
     this.#stop = () => {
       stopOnEvent();
-      window.removeEventListener("visibilitychange", onVisibilityChange);
+      stopBecameIdleEvent();
+      stopBecameActiveEvent();
     };
   }
 
@@ -349,15 +403,15 @@ export class EngagementReporter {
     if (engagementTime < 1) return; // no point in logging 0 engagement time
 
     this.client.logEvent({
-      name: "user_engagement",
+      // 'user_engagement' is a reserved event name, so we this alternative for
+      // the same purpose.
+      name: "user_engagementAccumulated",
       params: {
         ...this.currentPageParams,
         engagement_time_msec: engagementTime,
       },
     });
   }
-
-  startNewEngage(): void {}
 
   accumulateEngagementTimeInEvent(
     event: AnyEvent,
