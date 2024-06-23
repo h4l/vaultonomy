@@ -68,13 +68,20 @@ export function useVaultonomyBackgroundConnection() {
           }
         }
         if (event.interest === "interested" && event.dwellTime > 450) {
-          setUserOfInterest({ rawUsernameQuery: event.username });
+          setUserOfInterest({
+            rawUsernameQuery: event.username,
+            source: "user-link-interaction",
+          });
         }
       },
     );
     const stopOnUserPageInteraction = createdProvider.emitter.on(
       "userPageInteraction",
-      (event) => setUserOfInterest({ rawUsernameQuery: event.username }),
+      (event) =>
+        setUserOfInterest({
+          rawUsernameQuery: event.username,
+          source: "user-page-interaction",
+        }),
     );
 
     return () => {

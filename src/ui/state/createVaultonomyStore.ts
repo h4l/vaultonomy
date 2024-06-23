@@ -70,7 +70,12 @@ export type VaultonomyStateActions = {
   setSearchForUserQuery(rawQuery: string): void;
   setHasHydrated(hasHydrated: boolean): void;
   setLastScrollPosition(lastScrollPosition: number | null): void;
-  setUserOfInterest(userOfInterest: { rawUsernameQuery: string } | null): void;
+  setUserOfInterest(
+    userOfInterest: {
+      rawUsernameQuery: string;
+      source: "user-link-interaction" | "user-page-interaction";
+    } | null,
+  ): void;
 };
 
 export enum PairingChecklist {
@@ -104,7 +109,10 @@ export type VaultonomyStateData = {
   /** One of the pairings that has been signed and submitted to register the address. */
   pinnedPairing: PairingId | null;
   searchForUserQuery: string;
-  userOfInterest: { rawUsernameQuery: string } | null;
+  userOfInterest: {
+    rawUsernameQuery: string;
+    source: "user-link-interaction" | "user-page-interaction";
+  } | null;
   lastScrollPosition: number | null;
   stats: VaultonomyGA4MPClient | null;
 };
@@ -251,7 +259,22 @@ export const createVaultonomyStore = (
             set({ lastScrollPosition });
           },
           setUserOfInterest(userOfInterest) {
-            set({ userOfInterest });
+            set((store) => {
+              if (
+                userOfInterest &&
+                userOfInterest.rawUsernameQuery !==
+                  store.userOfInterest?.rawUsernameQuery
+              ) {
+                stats?.logEvent({
+                  name: "VT_search_triggered",
+                  params: {
+                    trigger: userOfInterest.source,
+                    query_type: "username",
+                  },
+                });
+              }
+              return { userOfInterest };
+            });
           },
         };
         return state;

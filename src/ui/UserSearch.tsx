@@ -32,6 +32,7 @@ export function UserSearch(): JSX.Element {
     userOfInterest,
     userOfInterestQuery,
     setUserOfInterest,
+    stats,
   ] = useVaultonomyStore((store) => {
     const userOfInterestQuery = parseQuery(
       store.userOfInterest?.rawUsernameQuery ?? "",
@@ -42,6 +43,7 @@ export function UserSearch(): JSX.Element {
       store.userOfInterest,
       userOfInterestQuery.type === "username" ? userOfInterestQuery : undefined,
       store.setUserOfInterest,
+      store.stats,
     ];
   });
 
@@ -110,6 +112,13 @@ export function UserSearch(): JSX.Element {
           setCurrentQuery(
             parsedQuery.type === "invalid-query" ? undefined : parsedQuery,
           );
+
+          if (parsedQuery.type !== "invalid-query") {
+            stats?.logEvent({
+              name: "VT_search_triggered",
+              params: { trigger: "manual", query_type: parsedQuery.type },
+            });
+          }
 
           // Clear the automatic user search when the input is cleared
           if (
