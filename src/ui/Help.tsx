@@ -6,6 +6,7 @@ import {
   createContext,
   forwardRef,
   useContext,
+  useEffect,
   useReducer,
   useRef,
 } from "react";
@@ -14,6 +15,7 @@ import { assert } from "../assert";
 import { ReservedSpace } from "./ReservedSpace";
 import { ScreenReaderOnly } from "./a11y";
 import { useAnimateOnOffScreen } from "./hooks/useAnimateOnOffScreen";
+import { useVaultonomyStoreSingle } from "./state/useVaultonomyStore";
 import { pxNumbersAsRem } from "./utils/units";
 
 type SelectionMode = "preview" | "pin";
@@ -290,6 +292,11 @@ export function WithInlineHelp({
   );
 }
 
+/** The amount of time a help item needs to be active before it is recorded as
+ * viewed for usage stats purposes.
+ */
+const HELP_ITEM_SELECTED_DELAY = 500;
+
 export function HelpDialog(): JSX.Element {
   const help = useContext(HelpContext);
   const ref = useRef<HTMLDivElement>(null);
@@ -300,6 +307,25 @@ export function HelpDialog(): JSX.Element {
     visibility: help.helpEnabled ? "open" : "closed",
     closedOffset: "2rem",
   });
+  const stats = useVaultonomyStoreSingle((s) => s.stats);
+
+  useEffect(() => {
+    const helpId = getSelectedHelpItem(help)?.helpId;
+    if (!help.helpEnabled || !helpId) return;
+
+    const timeout = setTimeout(() => {
+      stats?.logEvent({
+        name: "VT_helpItem_selected",
+        params: {
+          help_id: helpId.substring(0, 100),
+        },
+      });
+    }, HELP_ITEM_SELECTED_DELAY);
+
+    return () => {
+      clearTimeout(timeout);
+    };
+  }, [stats, help.helpEnabled, getSelectedHelpItem(help)?.helpId]);
 
   return (
     <>
@@ -310,6 +336,9 @@ export function HelpDialog(): JSX.Element {
         <HelpToggleSwitch
           help={help}
           onClick={() => {
+            stats?.logEvent({
+              name: help.helpEnabled ? "VT_help_disabled" : "VT_help_enabled",
+            });
             help.dispatch({
               type: help.helpEnabled ? "help-disabled" : "help-enabled",
             });
