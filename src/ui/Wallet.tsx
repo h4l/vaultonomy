@@ -9,6 +9,7 @@ import { EthAccount, FadeOut } from "./EthAccount";
 import { WithInlineHelp } from "./Help";
 import { IndeterminateProgressBar } from "./IndeterminateProgressBar";
 import { useLazyConnectors } from "./hooks/wallet";
+import { useVaultonomyStoreSingle } from "./state/useVaultonomyStore";
 import { pxNumbersAsRem } from "./utils/units";
 
 export function Wallet({
@@ -17,6 +18,19 @@ export function Wallet({
   wallet: UseAccountReturnType;
 }): JSX.Element {
   const { disconnect } = useDisconnect();
+  const [selectedType, setSelectedType] = useState<WalletConnectorType>();
+
+  const stats = useVaultonomyStoreSingle((s) => s.stats);
+  useEffect(() => {
+    if (selectedType && wallet.isConnected) {
+      stats?.logEvent({
+        name: "VT_wallet_connected",
+        params: {
+          wallet_provider: selectedType,
+        },
+      });
+    }
+  }, [stats, selectedType, wallet.isConnected]);
 
   if (wallet.isConnected) {
     return (
@@ -36,17 +50,27 @@ export function Wallet({
     return (
       <>
         <EthAccount title="Wallet" subtitle="Not connected">
-          <ConnectWallet />
+          <ConnectWallet
+            selectedType={selectedType}
+            setSelectedType={setSelectedType}
+          />
         </EthAccount>
       </>
     );
   }
 }
 
-function ConnectWallet({ className }: { className?: string }): JSX.Element {
+function ConnectWallet({
+  className,
+  selectedType,
+  setSelectedType,
+}: {
+  className?: string;
+  selectedType: WalletConnectorType | undefined;
+  setSelectedType: (type: WalletConnectorType) => void;
+}): JSX.Element {
   const connectors = useLazyConnectors();
 
-  const [selectedType, setSelectedType] = useState<WalletConnectorType>();
   const { status, connect, error } = useConnect();
   const isErrorUserCancel = error?.name === "UserRejectedRequestError";
 
