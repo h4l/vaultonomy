@@ -2,8 +2,10 @@ import debounce from "lodash.debounce";
 import { Emitter, createNanoEvents } from "nanoevents";
 import { z } from "zod";
 
-import { log } from "../logging";
+import { log as _log } from "../logging";
 import { AnyEvent, AnyPayload } from "./payload_schemas";
+
+const log = _log.getLogger("ga4mp");
 
 export type GA4MPClientOptions = {
   endpoint: string;
@@ -147,7 +149,10 @@ export class GA4MPClient<EventT extends GA4Event = GA4Event> {
   logEvent(...events: EventT[]) {
     const time = Date.now();
 
-    for (const event of events) this.emitter.emit("event", event, time);
+    for (const event of events) {
+      log.debug("logEvent", event.name, event.params);
+      this.emitter.emit("event", event, time);
+    }
 
     this.#loggedEventGroups.push({ time, events });
     this.#loggedEventCount += events.length;
