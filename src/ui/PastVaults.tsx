@@ -37,7 +37,11 @@ export function PastVaults({
 function NoPastVaults() {
   return (
     <>
-      <EthAccountDetails title="Past Vault" ethAddress={undefined}>
+      <EthAccountDetails
+        type="past-vault"
+        title="Past Vault"
+        ethAddress={undefined}
+      >
         <FadeOut>
           <p className="text-center text-neutral-500">
             You don't have any inactive Vaults.
@@ -51,6 +55,7 @@ function NoPastVaults() {
 function PastVault({ vault }: { vault: AccountVaultAddress }): JSX.Element {
   return (
     <EthAccountDetails
+      type="past-vault"
       title="Past Vault"
       ethAddress={vault.address}
       footer={

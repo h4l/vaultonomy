@@ -27,14 +27,23 @@ import {
   RaribleIcon,
   ZapperLogo,
 } from "./icons";
+import { useVaultonomyStoreSingle } from "./state/useVaultonomyStore";
+
+export type AccountType =
+  | "connected-vault"
+  | "past-vault"
+  | "connected-wallet"
+  | "search-result-vault";
 
 export function EthAccount({
+  type,
   title,
   subtitle,
   ethAddress: _ethAddress,
   footer,
   children,
 }: {
+  type: AccountType;
   title: string;
   subtitle?: string;
   ethAddress?: Address;
@@ -44,6 +53,7 @@ export function EthAccount({
 }): JSX.Element {
   return (
     <EthAccountDetails
+      type={type}
       title={title}
       ethAddress={_ethAddress}
       header={
@@ -72,12 +82,14 @@ export function EthAccount({
 }
 
 export function EthAccountDetails({
+  type,
   title,
   ethAddress: _ethAddress,
   header,
   footer,
   children,
 }: {
+  type: AccountType;
   title: string;
   ethAddress?: Address;
   header?: ReactNode;
@@ -128,7 +140,12 @@ export function EthAccountDetails({
       <EthAddressHexPairs ethAddress={_ethAddress} />
       {isDisabled ?
         undefined
-      : <EthAddressActions title={title} ethAddress={ethAddress} />}
+      : <EthAddressActions
+          accountType={type}
+          title={title}
+          ethAddress={ethAddress}
+        />
+      }
       {footer ?
         <div className="mt-1 row-start-7 col-start-2 col-span-5">{footer}</div>
       : undefined}
@@ -171,9 +188,11 @@ export function EthAddressHexPairs({
 }
 
 function EthAddressActions({
+  accountType,
   title,
   ethAddress,
 }: {
+  accountType: AccountType;
   title: string;
   ethAddress: Address;
 }): JSX.Element {
@@ -184,13 +203,22 @@ function EthAddressActions({
         helpText={`Copy the ${title}'s 0x… address to the clipboard.`}
       >
         <CopyButton
+          accountType={accountType}
           className="pt-[0.05rem]"
           iconClassName="w-full max-w-6 max-h-6"
           textToCopy={ethAddress}
         />
       </WithInlineHelp>
-      <AddressActivityTool title={title} ethAddress={ethAddress} />
-      <AddressCollectablesTool title={title} ethAddress={ethAddress} />
+      <AddressActivityTool
+        accountType={accountType}
+        title={title}
+        ethAddress={ethAddress}
+      />
+      <AddressCollectablesTool
+        accountType={accountType}
+        title={title}
+        ethAddress={ethAddress}
+      />
     </>
   );
 }
@@ -217,10 +245,12 @@ interface CopyState {
 }
 
 function CopyButton({
+  accountType,
   className,
   iconClassName,
   textToCopy,
 }: {
+  accountType: AccountType;
   size?: number | string;
   className?: string;
   iconClassName?: string;
@@ -232,9 +262,16 @@ function CopyButton({
     overlayType: "done",
     overlayState: "hidden",
   });
+  const stats = useVaultonomyStoreSingle((s) => s.stats);
 
   async function doCopy() {
     if (isDisabled) return;
+
+    stats?.logEvent({
+      name: "VT_ethAddress_copied",
+      params: { account_type: accountType },
+    });
+
     try {
       // FIXME: maybe remove this
       if (process.env.NODE_ENV === "development" && !window.isSecureContext) {
@@ -314,15 +351,18 @@ function CopyButton({
 }
 
 function AddressActivityTool({
+  accountType,
   title,
   ethAddress,
 }: {
+  accountType: AccountType;
   title: string;
   ethAddress: Address;
 }): JSX.Element {
   const addressActivityTool = useVaultonomySettings({
     select: ({ preferences }) => preferences.addressActivityTool,
   });
+  const stats = useVaultonomyStoreSingle((s) => s.stats);
 
   if (!addressActivityTool.data) return <></>;
 
@@ -336,6 +376,15 @@ function AddressActivityTool({
       <Link
         href={tool.url(encodeURIComponent(ethAddress) as Address)}
         className="inline-block"
+        onClick={() => {
+          stats?.logEvent({
+            name: "VT_ethAddress_toolUsed",
+            params: {
+              account_type: accountType,
+              tool_name: addressActivityTool.data,
+            },
+          });
+        }}
       >
         <span className="sr-only">
           View this {title} on {tool.label}
@@ -349,15 +398,18 @@ function AddressActivityTool({
 }
 
 function AddressCollectablesTool({
+  accountType,
   title,
   ethAddress,
 }: {
+  accountType: AccountType;
   title: string;
   ethAddress: Address;
 }): JSX.Element {
   const addressCollectablesTool = useVaultonomySettings({
     select: ({ preferences }) => preferences.addressCollectablesTool,
   });
+  const stats = useVaultonomyStoreSingle((s) => s.stats);
 
   if (!addressCollectablesTool.data) return <></>;
 
@@ -372,6 +424,15 @@ function AddressCollectablesTool({
         // href={openseaAddressDetailUrl(ethAddress)}
         href={tool.url(encodeURIComponent(ethAddress) as Address)}
         className="inline-block"
+        onClick={() => {
+          stats?.logEvent({
+            name: "VT_ethAddress_toolUsed",
+            params: {
+              account_type: accountType,
+              tool_name: addressCollectablesTool.data,
+            },
+          });
+        }}
       >
         <span className="sr-only">
           View this {title} on {tool.label}

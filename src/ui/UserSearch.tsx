@@ -134,6 +134,7 @@ export function UserSearch(): JSX.Element {
       />
       <div className="mt-8">
         <EthAccountDetails
+          type="search-result-vault"
           title="Vault"
           ethAddress={resultUserVault.data?.address}
         >

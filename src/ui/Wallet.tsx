@@ -36,6 +36,7 @@ export function Wallet({
     return (
       <>
         <EthAccount
+          type="connected-wallet"
           title="Wallet"
           ethAddress={wallet.address}
           footer={
@@ -49,7 +50,11 @@ export function Wallet({
   } else {
     return (
       <>
-        <EthAccount title="Wallet" subtitle="Not connected">
+        <EthAccount
+          type="connected-wallet"
+          title="Wallet"
+          subtitle="Not connected"
+        >
           <ConnectWallet
             selectedType={selectedType}
             setSelectedType={setSelectedType}

@@ -10,6 +10,7 @@ export function Vault({
 }): JSX.Element {
   return (
     <EthAccount
+      type="connected-vault"
       title="Reddit Vault"
       subtitle={!activeVault ? "No active Vault" : undefined}
       ethAddress={activeVault?.data?.address}

@@ -6,9 +6,11 @@ export function Link({
   href,
   toId,
   className,
+  onClick,
   children,
 }: {
   className?: string;
+  onClick?: (e: React.MouseEvent<HTMLAnchorElement, MouseEvent>) => void;
   children: ReactNode;
 } & ({ href: string; toId?: undefined } | { href?: undefined; toId: string })) {
   const isScreenReaderOnlyContext = useContext(ScreenReaderOnlyContext);
@@ -27,6 +29,7 @@ export function Link({
       className={`underline underline-offset-2 decoration-from-font visited:decoration-double ${
         className || ""
       }`}
+      onClick={onClick}
     >
       {children}
     </a>
