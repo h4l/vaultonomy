@@ -126,24 +126,10 @@ export function UserAvatar({
   );
 }
 
-export function UserAvatarImage({
-  id,
-  url,
-  onLoad,
-}: {
-  id?: string;
-  url: string;
-  onLoad?: (height: number) => void;
-}) {
+function UserAvatarImage({ id, url }: { id?: string; url: string }) {
   return (
     <>
-      <image
-        id={id}
-        data-testid="user-avatar-image"
-        onLoad={(ev) => onLoad && onLoad(ev.currentTarget.getBBox().height)}
-        width={IMG_WIDTH}
-        href={url}
-      />
+      <image id={id} width={IMG_WIDTH} href={url} />
     </>
   );
 }
@@ -154,7 +140,6 @@ function PlaceholderAvatarImage({ id }: { id?: string }) {
   return (
     <svg
       id={id}
-      data-testid="placeholder-avatar-image"
       xmlns="http://www.w3.org/2000/svg"
       width={IMG_WIDTH}
       height={PLACEHOLDER_HEIGHT}
