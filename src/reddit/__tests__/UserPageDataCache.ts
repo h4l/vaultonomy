@@ -67,8 +67,8 @@ describe("createPrivateUserPageDataCache", () => {
       userPageData: loggedInUser(),
       requestedAt: 42,
     };
-    const cache = createPrivateUserPageDataCache();
     jest.mocked(safeGetPrivateCache).mockResolvedValue(undefined);
+    const cache = createPrivateUserPageDataCache();
 
     await cache.setUserSession(session);
     await expect(cache.getUserSession()).resolves.toBeUndefined();
