@@ -372,10 +372,22 @@ function getWindowsMock(): RecursivePartial<typeof chrome.windows> {
 function getPermissionsMock(): RecursivePartial<typeof chrome.permissions> {
   type PermissionsState = {
     permissions: Map<string, null | Set<string>>;
+    onAdded: EventEmitter<[permissions: chrome.permissions.Permissions]>;
+    onRemoved: EventEmitter<[permissions: chrome.permissions.Permissions]>;
   };
-  const state = mockState<PermissionsState>(() => ({ permissions: new Map() }));
+  const state = mockState<PermissionsState>(() => ({
+    permissions: new Map(),
+    onAdded: new EventEmitter(),
+    onRemoved: new EventEmitter(),
+  }));
 
   return {
+    get onAdded() {
+      return state().onAdded;
+    },
+    get onRemoved() {
+      return state().onRemoved;
+    },
     contains: jest.fn(
       async (requested: chrome.permissions.Permissions): Promise<boolean> => {
         const { permissions } = state();
@@ -401,18 +413,46 @@ function getPermissionsMock(): RecursivePartial<typeof chrome.permissions> {
         return true;
       },
     ),
+    remove: jest.fn<typeof chrome.permissions.remove>(
+      async (removed: chrome.permissions.Permissions): Promise<boolean> => {
+        const { permissions } = state();
+        let removeCount = 0;
+        for (const permission of removed.permissions ?? []) {
+          const grantedOrigins = permissions.get(permission);
+          if (!grantedOrigins) continue;
+
+          for (const origin of removed.origins ?? [])
+            removeCount += grantedOrigins.delete(origin) ? 1 : 0;
+        }
+        if (removeCount > 0) {
+          state().onRemoved.emit(removed);
+          return true;
+        }
+        return false;
+      },
+    ),
     request: jest.fn(
       async (requested: chrome.permissions.Permissions): Promise<boolean> => {
         const { permissions } = state();
+        let addedCount = 0;
         for (const permission of requested.permissions ?? []) {
           let origins = permissions.get(permission);
           if (!origins) {
             origins = new Set();
             permissions.set(permission, origins);
           }
-          for (const origin of requested.origins ?? []) origins.add(origin);
+          for (const origin of requested.origins ?? []) {
+            if (!origins.has(origin)) {
+              addedCount += 1;
+              origins.add(origin);
+            }
+          }
         }
-        return true;
+        if (addedCount > 0) {
+          state().onAdded.emit(requested);
+          return true;
+        }
+        return false;
       },
     ),
   };
