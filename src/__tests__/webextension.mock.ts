@@ -4,6 +4,7 @@ import { mock } from "jest-mock-extended";
 import { nextTick } from "process";
 import util from "util";
 
+import { log } from "../logging";
 import { Connector } from "../rpc/connections";
 import { RecursivePartial } from "../types";
 import {
@@ -91,9 +92,25 @@ export function isActiveTabAccessible(tab: chrome.tabs.Tab): boolean {
 }
 
 function getTabsMock(thisMock: ThisMock): RecursivePartial<typeof chrome.tabs> {
-  type TabState = { nextId: number; tabs: Map<number, chrome.tabs.Tab> };
+  type OnUpdatedEvent = EventEmitter<
+    [tabId: number, changeInfo: chrome.tabs.TabChangeInfo, tab: chrome.tabs.Tab]
+  >;
+  type OnRemovedEvent = EventEmitter<
+    [tabId: number, removeInfo: chrome.tabs.TabRemoveInfo]
+  >;
+  type TabState = {
+    nextId: number;
+    tabs: Map<number, chrome.tabs.Tab>;
+    onUpdated: OnUpdatedEvent;
+    onRemoved: OnRemovedEvent;
+  };
   const state = mockState<TabState>(
-    (): TabState => ({ nextId: 9000, tabs: new Map() }),
+    (): TabState => ({
+      nextId: 9000,
+      tabs: new Map(),
+      onUpdated: new EventEmitter(),
+      onRemoved: new EventEmitter(),
+    }),
   );
 
   function mockTab(
@@ -131,7 +148,89 @@ function getTabsMock(thisMock: ThisMock): RecursivePartial<typeof chrome.tabs> {
     delete tab.title;
   }
 
+  /** Partial implementation of browser.tabs.update()
+   *
+   * This implementation only supports changing the url.
+   */
+  async function update(
+    ...args:
+      | [updateProperties: chrome.tabs.UpdateProperties | undefined]
+      | [
+          tabId: number | undefined,
+          updateProperties: chrome.tabs.UpdateProperties | undefined,
+        ]
+  ): Promise<undefined | chrome.tabs.Tab> {
+    await nextTickPromise();
+
+    let tabId: number | undefined;
+    let updateProperties: chrome.tabs.UpdateProperties = {};
+    // tabId should default to the current window's selected tab, but we don't
+    // track this in the mock.
+    if (args.length === 1) {
+      if (typeof args[0] === "number") tabId = args[0];
+      else updateProperties = args[0] ?? {};
+    } else {
+      tabId = args[0];
+      updateProperties = args[1] ?? {};
+    }
+
+    // We only implement support for the url prop, because that's sufficient
+    // for our tests.
+    const { url, ...others } = updateProperties;
+    if (Object.entries(others).length > 0) {
+      log.error(
+        "browser.tabs.update() called with properties that the mock does not handle:",
+        others,
+      );
+    }
+
+    if (tabId === undefined) return;
+    const tab = state().tabs.get(tabId);
+    if (!tab) return;
+
+    const props: Partial<chrome.tabs.Tab> = {
+      ...(url === undefined ? {} : { url }),
+    };
+
+    const hasActiveTabPermission = await thisMock().permissions.contains({
+      permissions: ["activeTab"],
+    });
+
+    let tabChanged = false;
+    for (const key of Object.keys(props) as Array<keyof chrome.tabs.Tab>) {
+      if (props[key] !== tab[key]) {
+        tabChanged = true;
+        break;
+      }
+    }
+
+    const originalTab = { ...tab };
+    Object.assign(tab, props);
+    const outputTab = { ...tab };
+
+    // We check permissions after updating because don't require access to change a tab's
+    // URL, only to read it
+    if (!(await canAccess(tab, hasActiveTabPermission))) censorTab(outputTab);
+
+    const changes: chrome.tabs.TabChangeInfo = {};
+    if (originalTab.url !== tab.url) {
+      changes.url = outputTab.url; // may be censored to undefined
+    }
+
+    if (tabChanged) {
+      state().onUpdated.emit(tabId, changes, outputTab);
+    }
+
+    return outputTab;
+  }
+
   return {
+    get onUpdated() {
+      return state().onUpdated;
+    },
+    get onRemoved() {
+      return state().onRemoved;
+    },
     get: jest.fn(async (id: number) => {
       const tab = state().tabs.get(id);
       if (!tab) throw new Error(`No tab with id: ${id}`);
@@ -143,6 +242,9 @@ function getTabsMock(thisMock: ThisMock): RecursivePartial<typeof chrome.tabs> {
     create: jest.fn<typeof chrome.tabs.create>(async (opt) => {
       return mockTab(opt);
     }),
+    update: jest.fn<typeof chrome.tabs.update>(
+      update as typeof chrome.tabs.update,
+    ),
     query: jest.fn<typeof chrome.tabs.query>(
       async (query: chrome.tabs.QueryInfo) => {
         const matches = [...state().tabs.values()].map((tab) => ({
@@ -179,8 +281,19 @@ function getTabsMock(thisMock: ThisMock): RecursivePartial<typeof chrome.tabs> {
     ),
     remove: jest.fn(async (tabIds: number | number[]): Promise<void> => {
       await nextTickPromise();
-      if (typeof tabIds === "number") state().tabs.delete(tabIds);
-      else for (const id of tabIds) state().tabs.delete(id);
+      const tabs = state().tabs;
+      if (typeof tabIds === "number") tabIds = [tabIds];
+
+      for (const id of tabIds) {
+        const tab = tabs.get(id);
+        tabs.delete(id);
+        if (tab) {
+          state().onRemoved.emit(id, {
+            isWindowClosing: false,
+            windowId: tab.windowId,
+          });
+        }
+      }
     }),
     discard: jest.fn(async (tabId?: number): Promise<void> => {
       if (tabId === undefined) {
