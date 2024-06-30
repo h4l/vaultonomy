@@ -1,0 +1,8 @@
+.*
+!.env*
+!.eslint*
+!.npmrc
+!.prettier*
+!.swcrc
+dist
+node_modules

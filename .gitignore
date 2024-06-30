@@ -1,5 +1,6 @@
 .*
 !.devcontainer
+!.dockerignore
 !.env.development.example
 !.envrc
 !.eslint*
