@@ -29,8 +29,12 @@ export class RedditTabObserver {
   #state: AvailabilityState | undefined;
 
   private observe(): AvailabilityState {
-    const state: Partial<AvailabilityState> & { isReloading: boolean } = {
+    const state: Partial<AvailabilityState> & {
+      isReloading: boolean;
+      isStopped: boolean;
+    } = {
       isReloading: false,
+      isStopped: false,
     };
     const availableTabs = new Set<number>();
 
@@ -68,7 +72,7 @@ export class RedditTabObserver {
     };
 
     const reportAvailability = (): Availability | undefined => {
-      if (state.isReloading) return;
+      if (state.isReloading || state.isStopped) return;
       const availability: Availability =
         availableTabs.size === 0 ? "unavailable" : "available";
       if (availability !== state.lastAvailability) {
@@ -155,11 +159,19 @@ export class RedditTabObserver {
       await reloadTabs("start");
       const availability = reportAvailability();
 
+      if (state.isStopped) throw new Error("stopped");
       assert(availability);
       return availability;
     })();
+    // ignore error on stop unless it's explicitly accessed
+    state.lastAvailability.catch((e) => {
+      if (e instanceof Error && e.message === "stopped") return;
+      throw e;
+    });
 
     state.stop = () => {
+      if (state.isStopped) return;
+      state.isStopped = true;
       for (const stop of toStop) stop();
     };
 
@@ -171,7 +183,7 @@ export class RedditTabObserver {
   }
 
   get availability(): Promise<Availability> {
-    if (!this.#state) throw new Error("stopped");
+    if (!this.#state) return Promise.reject(new Error("stopped"));
     return Promise.resolve(this.#state.lastAvailability);
   }
 
