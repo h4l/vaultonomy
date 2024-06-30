@@ -1,5 +1,6 @@
 // @ts-check
 import eslint from "@eslint/js";
+import jestPlugin from "eslint-plugin-jest";
 import react from "eslint-plugin-react";
 import reactRefresh from "eslint-plugin-react-refresh";
 import globals from "globals";
@@ -38,5 +39,10 @@ export default tseslint.config(
         { allowConstantExport: true },
       ],
     },
+  },
+  {
+    // enable jest rules on test files
+    files: ["**/__tests__/**"],
+    ...jestPlugin.configs["flat/recommended"],
   },
 );
