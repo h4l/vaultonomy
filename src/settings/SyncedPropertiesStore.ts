@@ -8,6 +8,13 @@ import { browser } from "../webextension";
 
 const log = _log.getLogger("settings/SyncedPropertiesStore");
 
+type ZodPartialObject<
+  T extends z.ZodObject<S>,
+  S extends z.ZodRawShape = T["shape"],
+> = z.ZodObject<{
+  [k in keyof S]: z.ZodOptional<S[k]>;
+}>;
+
 /**
  * Read/Write/Observe changes in a set of prefixed keys in browser.storage.sync.
  *
@@ -22,7 +29,10 @@ const log = _log.getLogger("settings/SyncedPropertiesStore");
  * Writes to storage are rate-limited to prevent users triggering synced storage
  * write limits.
  */
-export class SyncedPropertiesStore<PropertiesSchemaT extends z.ZodObject<any>> {
+export class SyncedPropertiesStore<
+  PropertiesSchemaT extends z.ZodObject<Shape>,
+  Shape extends z.ZodRawShape = PropertiesSchemaT["shape"],
+> {
   readonly emitter: Emitter<{
     propertiesChanged: (
       properties: Partial<z.infer<PropertiesSchemaT>>,
@@ -33,7 +43,7 @@ export class SyncedPropertiesStore<PropertiesSchemaT extends z.ZodObject<any>> {
   readonly defaultProperties: () => z.infer<PropertiesSchemaT>;
   readonly keyPrefix: string;
 
-  private partialSchema: z.ZodObject<any>;
+  private partialSchema: ZodPartialObject<PropertiesSchemaT>;
 
   // Writes to the synced storage are throttled at a level that the user can
   // hit using command shortcuts. To prevent the user triggering the limits, we
@@ -173,11 +183,11 @@ export class SyncedPropertiesStore<PropertiesSchemaT extends z.ZodObject<any>> {
       });
   }
 
-  async #syncCacheToStorage(): Promise<Record<string, any>> {
+  async #syncCacheToStorage(): Promise<Partial<z.infer<PropertiesSchemaT>>> {
     if (this.cache === undefined) return {};
 
     const stored = await this.readFromStorage();
-    const changes: Record<string, any> = {};
+    const changes: Partial<z.infer<PropertiesSchemaT>> = {};
     for (const key in this.cache) {
       const cacheValue = this.cache[key];
       if (cacheValue === undefined || cacheValue === stored[key]) continue;
