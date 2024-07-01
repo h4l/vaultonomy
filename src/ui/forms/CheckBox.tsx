@@ -71,7 +71,7 @@ export function InlineCheckBox({
   const checkboxId = props.id || useId();
   return (
     <div className="flex flex-row">
-      <CheckBox {...props} id={checkboxId} />
+      <CheckBox {...props} name={name} id={checkboxId} />
       <div>
         <label htmlFor={checkboxId}>{label}</label>
       </div>
