@@ -1,10 +1,7 @@
 import { jest } from "@jest/globals";
 import { JSONRPCServer } from "json-rpc-2.0";
 
-import {
-  MockPort,
-  installWebextensionMock,
-} from "../../__tests__/webextension.mock";
+import { MockPort } from "../../__tests__/webextension.mock";
 
 import { assert } from "../../assert";
 import { createRawPortConnector } from "../../webextensions/createRawPortConnector";

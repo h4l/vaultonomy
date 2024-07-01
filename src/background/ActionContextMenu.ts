@@ -41,7 +41,7 @@ function getCreateProps(
       return [
         { ...defaultProps, parentId, contexts: ["action"], ...entry, id },
       ];
-    default:
+    default: {
       assert(entry.type ?? "normal" === "normal");
       id = menuId(parentId, entry);
       const { children = [], ...props } = entry;
@@ -49,6 +49,7 @@ function getCreateProps(
         { ...defaultProps, parentId, ...props, id },
         ...children.flatMap((e) => getCreateProps(e, id)),
       ];
+    }
   }
 }
 
@@ -113,7 +114,10 @@ const menus: Array<MenuEntry> = [
   },
 ];
 
-function parseEnum<T extends z.ZodEnum<any>>(type: T, value: string) {
+function parseEnum<T extends z.ZodEnum<V>, V extends [string, ...string[]]>(
+  type: T,
+  value: string,
+): z.infer<T> | undefined {
   const result = type.safeParse(value);
   return result.success ? result.data : undefined;
 }
@@ -156,7 +160,7 @@ export class ActionContextMenu {
   }
 
   setMenuState(menuState: Partial<ContextMenuState>): void {
-    let changes: Partial<ContextMenuState> = {};
+    const changes: Partial<ContextMenuState> = {};
     if (
       menuState.addressActivityTool &&
       menuState.addressActivityTool !== this.menuState.addressActivityTool
@@ -193,8 +197,8 @@ export class ActionContextMenu {
     info: chrome.contextMenus.OnClickData,
     _tab?: chrome.tabs.Tab | undefined,
   ): void {
-    let addressActivityTool: ActivityToolId;
-    let addressCollectablesTool: CollectablesToolId;
+    let addressActivityTool: ActivityToolId | undefined;
+    let addressCollectablesTool: CollectablesToolId | undefined;
 
     (async () => {
       if (info.menuItemId === "open-as-tab") {

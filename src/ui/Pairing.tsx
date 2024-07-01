@@ -165,7 +165,6 @@ function ExpandingNonModalDialog({
         "border-neutral-200  border-b-neutral-300",
         "dark:border-neutral-800  dark:border-b-neutral-750",
         idleBgClasses,
-        ,
       ].join(" ")}
     >
       <div>

@@ -140,7 +140,7 @@ export class VaultonomyBackgroundServiceSession {
     const defaultMapError = server.mapErrorToJSONRPCErrorResponse;
     server.mapErrorToJSONRPCErrorResponse = (
       id: JSONRPCID,
-      _error: any,
+      _error: unknown,
     ): JSONRPCErrorResponse => {
       const error = _error as Partial<Error>;
       // When proxying calls with RedditProvider, its errors wrap a JSONRPCErrorException

@@ -1,4 +1,5 @@
 import { jest } from "@jest/globals";
+import type { Mocked } from "jest-mock";
 import { mock } from "jest-mock-extended";
 
 import { sleep } from "../../__tests__/testing.utils";
@@ -15,7 +16,7 @@ type PageDataModule = typeof import("../page-data");
 jest.unstable_mockModule(
   "./src/reddit/page-data",
   (): Partial<PageDataModule> => ({
-    UserPageData: jest.fn() as any,
+    UserPageData: mock<PageDataModule["UserPageData"]>(),
     fetchPageData: jest.fn<PageDataModule["fetchPageData"]>(),
   }),
 );
@@ -23,8 +24,8 @@ jest.unstable_mockModule(
 type UserPageDataCacheModule = typeof import("../UserPageDataCache");
 jest.unstable_mockModule(
   "./src/reddit/UserPageDataCache",
-  (): Partial<UserPageDataCacheModule> => ({
-    createPrivateUserPageDataCache: jest.fn() as any,
+  (): Partial<Mocked<UserPageDataCacheModule>> => ({
+    createPrivateUserPageDataCache: jest.fn(),
   }),
 );
 
@@ -46,7 +47,7 @@ describe("createCachedSessionManager()", () => {
     const sm = createCachedSessionManager();
 
     expect(sm).toBeInstanceOf(SessionManager);
-    expect((sm as any).cache).toBe(cache);
+    expect(sm["cache"]).toBe(cache);
   });
 });
 
@@ -180,7 +181,7 @@ describe("SessionManager", () => {
       .mocked(fetchPageData)
       .mockImplementationOnce(async () => {
         sleep();
-        throw new HTTPResponseError("fail1", {} as any);
+        throw new HTTPResponseError("fail1", { response: {} as Response });
       })
       .mockResolvedValueOnce(user1);
 
@@ -246,11 +247,9 @@ describe("SessionManager", () => {
       .mockRejectedValueOnce(new Error("fail2"));
 
     const sm = new SessionManager(cache);
-    await expect(sm.getPageData()).rejects.toThrowError("fail1");
+    await expect(sm.getPageData()).rejects.toThrow("fail1");
 
     await jest.advanceTimersByTimeAsync(SECOND / 2);
-    await expect(sm.getPageData({ maxAge: SECOND })).rejects.toThrowError(
-      "fail2",
-    );
+    await expect(sm.getPageData({ maxAge: SECOND })).rejects.toThrow("fail2");
   });
 });

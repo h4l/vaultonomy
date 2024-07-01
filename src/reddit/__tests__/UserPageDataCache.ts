@@ -4,6 +4,7 @@ import { MockStorage } from "../../__tests__/webextension.mock";
 
 import { assert } from "../../assert";
 import { StoredUserPageData } from "../UserPageDataCache";
+import { OnCreatedOptions } from "../private-cache";
 import { loggedInUser } from "./page-data.fixtures";
 
 type PrivateCache = typeof import("../private-cache");
@@ -37,8 +38,8 @@ describe("createPrivateUserPageDataCache", () => {
       .mockImplementation(async ({ onCreated }) => {
         assert(onCreated);
         await onCreated({
-          cache: storage as any,
-          storage: storage as any,
+          cache: storage as unknown as OnCreatedOptions["cache"],
+          storage: storage as unknown as OnCreatedOptions["storage"],
         });
         return storage;
       });

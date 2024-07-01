@@ -6,7 +6,6 @@ import {
 } from "../../reddit/reddit-interaction-client";
 import { ErrorCode } from "../../reddit/reddit-interaction-spec";
 import { AnyRedditUserProfile } from "../../reddit/types";
-import { useVaultonomyStore } from "../state/useVaultonomyStore";
 import { useRedditProvider } from "./useRedditProvider";
 import { normaliseUsername } from "./useSearchForUser";
 

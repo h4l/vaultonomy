@@ -1,5 +1,6 @@
 import { expect, jest } from "@jest/globals";
 import {
+  JSONRPCRequest,
   createJSONRPCErrorResponse,
   createJSONRPCSuccessResponse,
 } from "json-rpc-2.0";
@@ -65,14 +66,15 @@ describe("RedditProvider()", () => {
     let portConnector: Connector<chrome.runtime.Port>;
     let port: MockPort;
     let reddit: RedditProvider;
-    let messages: any[] = [];
+    let messages: JSONRPCRequest[] = [];
     beforeEach(() => {
       [portConnector, port] = MockPort.createMockConnector();
       reddit = RedditProvider.from(portConnector);
 
       messages = [];
       jest.mocked(port.postMessage).mockImplementation((message) => {
-        messages.push(message);
+        assert((message as JSONRPCRequest).jsonrpc === "2.0");
+        messages.push(message as JSONRPCRequest);
       });
     });
 

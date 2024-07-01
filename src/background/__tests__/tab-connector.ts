@@ -1,10 +1,7 @@
 import { jest } from "@jest/globals";
 import { mock } from "jest-mock-extended";
 
-import {
-  MockPort,
-  installWebextensionMock,
-} from "../../__tests__/webextension.mock";
+import { installWebextensionMock } from "../../__tests__/webextension.mock";
 
 import { log } from "../../logging";
 import { CouldNotConnect } from "../../rpc/connections";

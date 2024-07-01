@@ -2,7 +2,7 @@ import { VaultonomyError } from "./VaultonomyError";
 import { assert } from "./assert";
 
 export class Timeout<T> extends VaultonomyError {
-  readonly timeout: true = true;
+  readonly timeout = true;
 
   constructor(
     readonly limit: number,
@@ -14,7 +14,7 @@ export class Timeout<T> extends VaultonomyError {
 }
 
 export class NoTimeout<T> {
-  readonly timeout: false = false;
+  readonly timeout = false;
   constructor(
     readonly limit: number,
     readonly label: string | undefined,

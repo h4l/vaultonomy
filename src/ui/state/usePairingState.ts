@@ -51,7 +51,7 @@ export function usePairingState<T, ID extends PairingId | undefined>(
 
   return useVaultonomyStore((s) => {
     const { pinnedPairingId } = usePinnedPairing();
-    let id: PairingId | undefined =
+    const id: PairingId | undefined =
       pinnedPairingId || (id_ && getPairingId(id_));
     const updatePairingState = id ? s.updatePairingState(id) : undefined;
     return {

@@ -129,7 +129,7 @@ function webextensionManifest({
     // not needed in the devserver, and emitFile() is not supported in the
     // devserver.
     apply: "build",
-    async buildStart(options) {
+    async buildStart(_options) {
       const packageJsonMeta = await readPackageJsonMeta();
 
       let chromeManifest: ChromeWebExtensionManifest;

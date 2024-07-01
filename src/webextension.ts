@@ -43,7 +43,7 @@ export type StorageAreaSet = {
    * @return A void Promise
    * @since MV3
    */
-  set(items: { [key: string]: any }): Promise<void>;
+  set(items: { [key: string]: unknown }): Promise<void>;
 };
 export type StorageAreaGet = {
   /**
@@ -54,8 +54,8 @@ export type StorageAreaGet = {
    * @since MV3
    */
   get(
-    keys?: string | string[] | { [key: string]: any } | null,
-  ): Promise<{ [key: string]: any }>;
+    keys?: string | string[] | { [key: string]: unknown } | null,
+  ): Promise<{ [key: string]: unknown }>;
 };
 
 export type StorageAreaClear = {

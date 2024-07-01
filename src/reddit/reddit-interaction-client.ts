@@ -156,7 +156,7 @@ export class RedditProvider {
       ),
     ];
 
-    const trackErrors = <A extends any[], R>(
+    const trackErrors = <A extends unknown[], R>(
       f: (...args: A) => Promise<R>,
     ): ((...args: A) => Promise<R>) => {
       return async (...args) => {

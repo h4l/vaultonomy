@@ -15,7 +15,7 @@
  * - For useful advice on ad-hoc use, see: https://developer.chrome.com/docs/extensions/how-to/integrate/google-analytics-4#generate-client-id
  *   This example shows how to use GA4 MP from a browser extension using raw HTTP requests, without gtag.js.
  */
-import { number, z } from "zod";
+import { z } from "zod";
 
 const GrantOrDeny = z.enum(["GRANTED", "DENIED"]);
 

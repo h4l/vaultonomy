@@ -1,8 +1,6 @@
-import { ReactNode, useEffect, useRef } from "react";
+import { ReactNode, useRef } from "react";
 import { twMerge } from "tailwind-merge";
 
-import { assert } from "../../assert";
-import { log } from "../../logging";
 import { Heading } from "../Heading";
 import { usePositionReachedBroadcast } from "../ProgressLine";
 import { AriaLiveAlert } from "../a11y";

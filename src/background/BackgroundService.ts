@@ -219,9 +219,9 @@ export class BackgroundService {
 
   private startNotifyInterestInUsersFromUserLinkInteraction(): Stop {
     const onMessage = (
-      message: any,
+      message: unknown,
       sender: chrome.runtime.MessageSender,
-      _sendResponse: (response?: any) => void,
+      _sendResponse: (response?: unknown) => void,
     ): void => {
       const parsedMsg = UserLinkInteractionEvent.safeParse(message);
 

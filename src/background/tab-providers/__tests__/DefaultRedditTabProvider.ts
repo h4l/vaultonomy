@@ -1,7 +1,6 @@
 import { jest } from "@jest/globals";
 
 import {
-  activeTabAccessible,
   installWebextensionMock,
   markActiveTabAccessible,
   mockedEvent,

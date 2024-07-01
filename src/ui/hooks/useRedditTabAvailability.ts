@@ -1,7 +1,7 @@
 import { queryOptions, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 
-import { assert, assertUnreachable } from "../../assert";
+import { assert } from "../../assert";
 import { RedditTabAvailability } from "../../vaultonomy-rpc-spec";
 import { VaultonomyBackgroundProvider } from "../rpc/VaultonomyBackgroundProvider";
 import { useVaultonomyStoreSingle } from "../state/useVaultonomyStore";

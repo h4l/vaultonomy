@@ -10,7 +10,7 @@ import { Button } from "../Button";
 import { IndeterminateProgressBar } from "../IndeterminateProgressBar";
 import { Link } from "../Link";
 import { useSignAddressOwnershipChallenge } from "../hooks/useSignAddressOwnershipChallenge";
-import { PAIRING_MESSAGE, WALLET } from "../ids";
+import { PAIRING_MESSAGE } from "../ids";
 import { PairingId } from "../state/createVaultonomyStore";
 import { usePairingState } from "../state/usePairingState";
 import { PairingStepsInlineHelp } from "./PairingStepsInlineHelp";
@@ -80,7 +80,7 @@ function SignMessage({
 }: SignMessageParams): JSX.Element {
   const [userDidSwitchChains, setUserDidSwitchChains] =
     useState<boolean>(false);
-  const { mutate, status, error } = useSignAddressOwnershipChallenge({
+  const { mutate, status } = useSignAddressOwnershipChallenge({
     pairingId,
     address,
     challenge,

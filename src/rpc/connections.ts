@@ -52,7 +52,7 @@ export interface AsyncManagedConnection<T> {
   disconnect(instance?: T | Promise<T>): void;
 }
 
-function ensureNotStopped(mc: ManagedConnection<any>): void {
+function ensureNotStopped<T>(mc: ManagedConnection<T>): void {
   if (mc.isStopped) throw new CouldNotConnect("stopped");
 }
 

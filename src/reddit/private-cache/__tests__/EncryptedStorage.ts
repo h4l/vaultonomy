@@ -1,6 +1,9 @@
 import { MockStorage } from "../../../__tests__/webextension.mock";
 
-import { AesGcmEncryptedStorage } from "../EncryptedStorage";
+import {
+  AesGcmEncryptedStorage,
+  AesGcmEncryptedValue,
+} from "../EncryptedStorage";
 
 const generateKey = async () =>
   await crypto.subtle.generateKey({ name: "AES-GCM", length: 256 }, false, [
@@ -82,7 +85,7 @@ describe("EncryptedStorage", () => {
   test("value set for storage key cannot be read from another storage key", async () => {
     await estorage.set({ foo: 42 });
 
-    const encryptedFoo = (await storage.get("foo")).foo;
+    const encryptedFoo = (await storage.get("foo")).foo as AesGcmEncryptedValue;
     expect(Object.keys(encryptedFoo).toSorted()).toEqual(["ciphertext", "iv"]);
 
     await storage.set({ bar: encryptedFoo });
@@ -100,7 +103,8 @@ describe("EncryptedStorage", () => {
 
   test("get() does not decrypt manipulated iv", async () => {
     await estorage.set({ foo: 42 });
-    const { iv, ciphertext } = (await storage.get("foo")).foo;
+    const { iv, ciphertext } = (await storage.get("foo"))
+      .foo as AesGcmEncryptedValue;
     await storage.set({
       foo: {
         iv: `0x${iv.substring(2, 4) === "ff" ? "00" : "ff"}${iv.substring(4)}`,
@@ -114,7 +118,8 @@ describe("EncryptedStorage", () => {
 
   test("get() does not decrypt manipulated ciphertext", async () => {
     await estorage.set({ foo: 42 });
-    const { iv, ciphertext: ct } = (await storage.get("foo")).foo;
+    const { iv, ciphertext: ct } = (await storage.get("foo"))
+      .foo as AesGcmEncryptedValue;
     await storage.set({
       foo: {
         ciphertext: `0x${

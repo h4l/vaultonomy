@@ -14,13 +14,13 @@ describe("EthAddress", () => {
   });
 
   test("rejects address with invalid checksum", () => {
-    expect(() =>
-      EthAddress.parse(checksumAddress.replace("A", "a")),
-    ).toThrowError("Invalid address checksum");
+    expect(() => EthAddress.parse(checksumAddress.replace("A", "a"))).toThrow(
+      "Invalid address checksum",
+    );
   });
 
   test("rejects address with invalid structure", () => {
-    expect(() => EthAddress.parse("0x...")).toThrowError("Invalid address");
+    expect(() => EthAddress.parse("0x...")).toThrow("Invalid address");
   });
 });
 
@@ -38,11 +38,11 @@ describe("RawEthAddress", () => {
   test("rejects address with invalid checksum", () => {
     expect(() =>
       RawEthAddress.parse(checksumAddress.replace("A", "a")),
-    ).toThrowError("Invalid address checksum");
+    ).toThrow("Invalid address checksum");
   });
 
   test("rejects address with invalid structure", () => {
-    expect(() => RawEthAddress.parse("0x...")).toThrowError("Invalid address");
+    expect(() => RawEthAddress.parse("0x...")).toThrow("Invalid address");
   });
 });
 
@@ -58,7 +58,7 @@ describe("EthHexSignature", () => {
     ${" "}
     ${` ${sig} `}
   `("rejects non-signature value $thing", ({ thing }: { thing: unknown }) => {
-    expect(() => EthHexSignature.parse(thing)).toThrowError(
+    expect(() => EthHexSignature.parse(thing)).toThrow(
       "Invalid hex signature string",
     );
   });

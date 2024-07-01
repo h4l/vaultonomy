@@ -17,7 +17,7 @@ import { retroactivePortDisconnection } from "../webextensions/retroactivePortDi
 import { nextTickPromise } from "./testing.utils";
 
 function unimplementedMockFn<T extends FunctionLike>() {
-  const mock = jest.fn<T>(((): any => {
+  const mock = jest.fn<T>(((): ReturnType<T> => {
     throw new Error("Mocked without implementation");
   }) as T);
   return mock;
@@ -29,7 +29,7 @@ function unimplementedMockFn<T extends FunctionLike>() {
  * @param initial The initial value after clearAllMocks().
  * @returns A function that returns the current state.
  */
-function mockState<T extends Record<string | number | symbol, any>>(
+function mockState<T extends Record<string | number | symbol, unknown>>(
   initial: T | (() => T),
 ): () => T {
   const stateCarrier = jest.fn<(this: T) => void>();
@@ -78,13 +78,14 @@ function queryMatchesTab(
 }
 
 export const activeTabAccessible = Symbol("activeTabAccessible");
+export type MockTabCreateProperties = chrome.tabs.CreateProperties &
+  Partial<{ [activeTabAccessible]: boolean }>;
 
 export function markActiveTabAccessible(
   options: chrome.tabs.CreateProperties,
   accessible: boolean = true,
-): chrome.tabs.CreateProperties {
-  (options as any)[activeTabAccessible] = accessible;
-  return options;
+): MockTabCreateProperties {
+  return { ...options, [activeTabAccessible]: accessible };
 }
 
 export function isActiveTabAccessible(tab: chrome.tabs.Tab): boolean {
@@ -331,7 +332,10 @@ function getWindowsMock(): RecursivePartial<typeof chrome.windows> {
 
   return {
     get: jest.fn(
-      async (windowId: number, query?: any): Promise<chrome.windows.Window> => {
+      async (
+        windowId: number,
+        query?: chrome.windows.QueryOptions,
+      ): Promise<chrome.windows.Window> => {
         if (query !== undefined)
           throw new Error("windows.get() with query is not implemented");
         const window = state().windows.get(windowId);
@@ -461,7 +465,7 @@ function getPermissionsMock(): RecursivePartial<typeof chrome.permissions> {
 function getScriptingMock(): RecursivePartial<typeof chrome.scripting> {
   return {
     executeScript: jest.fn(
-      async <Args extends any[], Result>(
+      async <Args extends unknown[], Result>(
         _injection: chrome.scripting.ScriptInjection<Args, Result>,
       ): Promise<Array<chrome.scripting.InjectionResult<Awaited<Result>>>> => {
         throw new Error("Mock has no default implementation");
@@ -526,15 +530,9 @@ export class EventEmitter<EventArgs extends unknown[]>
     jest.spyOn(this as EventEmitter<EventArgs>, "removeListener");
     jest.spyOn(this as EventEmitter<EventArgs>, "hasListeners");
   }
-  addRules = jest.fn().mockImplementation(() => {
-    throw new Error("not implemented");
-  });
-  removeRules = jest.fn().mockImplementation(() => {
-    throw new Error("not implemented");
-  });
-  getRules = jest.fn().mockImplementation(() => {
-    throw new Error("not implemented");
-  });
+  addRules = unimplementedMockFn();
+  removeRules = unimplementedMockFn();
+  getRules = unimplementedMockFn();
 
   emit(...args: EventArgs): void {
     for (const listener of this.#listeners) {
@@ -611,7 +609,7 @@ export class MockPort implements chrome.runtime.Port {
     Mock<Connector<chrome.runtime.Port>>,
     MockPort,
   ] {
-    let mockPort: MockPort =
+    const mockPort: MockPort =
       MockPort.createAndRegisterRetroactiveDisconnection();
 
     const connector = jest
@@ -678,7 +676,7 @@ export class MockStorage
     this.storage.clear();
   }
 
-  async set(items: { [key: string]: any }): Promise<void> {
+  async set(items: { [key: string]: unknown }): Promise<void> {
     await nextTickPromise();
     for (const key in items) {
       const value = items[key];
@@ -688,8 +686,8 @@ export class MockStorage
     }
   }
   async get(
-    keys?: string | string[] | { [key: string]: any } | null | undefined,
-  ): Promise<{ [key: string]: any }> {
+    keys?: string | string[] | { [key: string]: unknown } | null | undefined,
+  ): Promise<{ [key: string]: unknown }> {
     await nextTickPromise();
     if (keys === null || keys === undefined) return {};
     const values =

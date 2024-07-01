@@ -4,6 +4,7 @@ import { assert } from "../../assert";
 import {
   DEFAULT_PAGE_DATA_URL,
   PageData,
+  RawPageData,
   fetchPageData,
   parsePageJSONData,
 } from "../page-data";
@@ -48,8 +49,8 @@ describe("fetchPageData()", () => {
       },
     };
     await expect(fetchPageData()).resolves.toStrictEqual(expected);
-    expect(fetch).toBeCalledTimes(1);
-    expect(fetch).nthCalledWith(1, DEFAULT_PAGE_DATA_URL);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(fetch).toHaveBeenNthCalledWith(1, DEFAULT_PAGE_DATA_URL);
   });
 
   test.each([
@@ -63,8 +64,8 @@ describe("fetchPageData()", () => {
         ok: true,
         status: 200,
         text: async () => {
-          const data = pageDataLoggedIn() as any;
-          assert(data.user.account.snoovatarFullBodyAsset);
+          const data = pageDataLoggedIn() as RawPageData;
+          assert(data.user?.account?.snoovatarFullBodyAsset);
           delete data.user.account.snoovatarFullBodyAsset;
           data.user.account = { ...data.user.account, ...raw };
           return html(data);
@@ -87,8 +88,8 @@ describe("fetchPageData()", () => {
         },
       };
       await expect(fetchPageData()).resolves.toStrictEqual(expected);
-      expect(fetch).toBeCalledTimes(1);
-      expect(fetch).nthCalledWith(1, DEFAULT_PAGE_DATA_URL);
+      expect(fetch).toHaveBeenCalledTimes(1);
+      expect(fetch).toHaveBeenNthCalledWith(1, DEFAULT_PAGE_DATA_URL);
     },
   );
 

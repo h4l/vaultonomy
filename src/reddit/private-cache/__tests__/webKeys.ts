@@ -35,6 +35,7 @@ test("key is the same as the last-set key", async () => {
 
 test("setting non-extractable keys works too", async () => {
   await setWrappingKey(await genKey({ extractable: false }));
+  await expect(getWrappingKey()).resolves.not.toBeUndefined();
 });
 
 test("deleteVaultonomyIndexedDB() clears data", async () => {
@@ -66,7 +67,7 @@ test("reports error when opening broken database", async () => {
   await createBrokenVaultonomyDb({ version: 2 }); // version is too high
 
   const result = getWrappingKey();
-  await expect(result).rejects.toThrowError(OpenDatabaseError);
+  await expect(result).rejects.toThrow(OpenDatabaseError);
   await expect(result).rejects.toThrowErrorMatchingInlineSnapshot(
     `"Failed to open database vaultonomy: VersionError"`,
   );
@@ -77,7 +78,7 @@ test("reports error when database schema is wrong when reading", async () => {
   await createBrokenVaultonomyDb({ version: 1 });
 
   const result = getWrappingKey();
-  await expect(result).rejects.toThrowError(ReadDatabaseError);
+  await expect(result).rejects.toThrow(ReadDatabaseError);
   await expect(result).rejects.toThrowErrorMatchingInlineSnapshot(
     `"Failed to get wrapping key: NotFoundError: No objectStore named keys in this database"`,
   );
@@ -88,7 +89,7 @@ test("reports error when database schema is wrong when writing", async () => {
   await createBrokenVaultonomyDb({ version: 1 });
 
   const result = setWrappingKey(await await genKey({ extractable: true }));
-  await expect(result).rejects.toThrowError(WriteDatabaseError);
+  await expect(result).rejects.toThrow(WriteDatabaseError);
   await expect(result).rejects.toThrowErrorMatchingInlineSnapshot(
     `"Failed to set wrapping key: NotFoundError: No objectStore named keys in this database"`,
   );
@@ -97,7 +98,7 @@ test("reports error when database schema is wrong when writing", async () => {
 test("deleteVaultonomyIndexedDB() fixes broken db", async () => {
   await createBrokenVaultonomyDb({ version: 1 });
   const result = setWrappingKey(await genKey({ extractable: false }));
-  await expect(result).rejects.toThrowError(WriteDatabaseError);
+  await expect(result).rejects.toThrow(WriteDatabaseError);
 
   await deleteVaultonomyIndexedDB();
   const key = await genKey({ extractable: true });

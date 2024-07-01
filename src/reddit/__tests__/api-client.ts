@@ -108,7 +108,7 @@ describe("registerAddressWithAccount()", () => {
   });
 
   test("handles request with successful HTTP response but error in body", async () => {
-    const fetch = jest.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+    jest.spyOn(globalThis, "fetch").mockResolvedValueOnce({
       ok: true,
       status: 200,
       json: async () => RegisterVaultAddressResponses().speculativeError,
@@ -127,7 +127,7 @@ describe("registerAddressWithAccount()", () => {
   });
 
   test("handles request with successful HTTP response but GQL error in body", async () => {
-    const fetch = jest.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+    jest.spyOn(globalThis, "fetch").mockResolvedValueOnce({
       ok: true,
       status: 200,
       json: async () => RegisterVaultAddressResponses().error,
@@ -310,13 +310,17 @@ describe("getRedditUserProfile()", () => {
     async (avatarValue: unknown) => {
       const noAvatarResponse = () => {
         const data = oauthRedditUserAboutResponse();
-        (data.data as any).snoovatar_img = avatarValue;
+
+        (data.data as Record<keyof typeof data.data, unknown>).snoovatar_img =
+          avatarValue;
+
         if (avatarValue === undefined) {
-          delete (data.data as any).snoovatar_img;
+          delete (data.data as Record<keyof typeof data.data, unknown>)
+            .snoovatar_img;
         }
         return data;
       };
-      const fetch = jest.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+      jest.spyOn(globalThis, "fetch").mockResolvedValueOnce({
         ok: true,
         status: 200,
         json: async () => noAvatarResponse(),

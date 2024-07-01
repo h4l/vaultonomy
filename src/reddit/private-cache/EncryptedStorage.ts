@@ -64,8 +64,8 @@ export abstract class EncryptedStorage<
   abstract decryptToBytes(encrypted: E, key: string): Promise<Uint8Array>;
 
   async get(
-    keys?: string | string[] | { [key: string]: any } | null | undefined,
-  ): Promise<{ [key: string]: any }> {
+    keys?: string | string[] | { [key: string]: unknown } | null | undefined,
+  ): Promise<{ [key: string]: unknown }> {
     if (keys === undefined || keys === null) return {};
 
     let defaults: Record<string, unknown>;
@@ -127,7 +127,7 @@ export abstract class EncryptedStorage<
     return values;
   }
 
-  async set(items: { [key: string]: any }): Promise<void> {
+  async set(items: { [key: string]: unknown }): Promise<void> {
     const encryptedEntries = await Promise.all(
       Object.entries(items)
         .filter(([_key, value]) => value !== undefined)
@@ -146,7 +146,7 @@ const AesGcmEncryptedValue = z.object({
   iv: HexString,
   ciphertext: HexString,
 });
-type AesGcmEncryptedValue = z.infer<typeof AesGcmEncryptedValue>;
+export type AesGcmEncryptedValue = z.infer<typeof AesGcmEncryptedValue>;
 
 export class AesGcmEncryptedStorage extends EncryptedStorage<
   typeof AesGcmEncryptedValue

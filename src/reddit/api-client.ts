@@ -2,7 +2,6 @@
  * This module provides client operations for the parts of Reddit's (internal)
  * API we need to use.
  */
-import { Address, Hex } from "viem";
 import { z } from "zod";
 
 import { HTTPResponseError } from "../errors/http";

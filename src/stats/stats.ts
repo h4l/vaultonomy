@@ -10,6 +10,8 @@ import {
 import { WalletConnectorType } from "../wagmi";
 import { GA4Event, GA4MPClient } from "./ga4mp";
 
+type EmptyParams = Record<string, never>;
+
 export type PageViewEvent = GA4Event<
   "page_view",
   {
@@ -53,12 +55,12 @@ export type VaultonomyPairingMsgFetchCompletedEvent = GA4Event<
 
 export type VaultonomyPairingMsgFetchFailedEvent = GA4Event<
   "VT_pairingMsgFetch_failed",
-  {}
+  EmptyParams
 >;
 
 export type VaultonomyPairingMsgSignCompletedEvent = GA4Event<
   "VT_pairingMsgSign_completed",
-  {}
+  EmptyParams
 >;
 
 export type VaultonomyPairingMsgSignFailedEvent = GA4Event<
@@ -68,7 +70,7 @@ export type VaultonomyPairingMsgSignFailedEvent = GA4Event<
 
 export type VaultonomyPairingMsgSubmitCompletedEvent = GA4Event<
   "VT_pairingMsgSubmit_completed",
-  {}
+  EmptyParams
 >;
 
 export type VaultonomyPairingMsgSubmitFailedEvent = GA4Event<
@@ -76,9 +78,15 @@ export type VaultonomyPairingMsgSubmitFailedEvent = GA4Event<
   { reason: NonNullable<SentPairingMessage["error"]> }
 >;
 
-export type VaultonomyHelpEnabledEvent = GA4Event<"VT_help_enabled", {}>;
+export type VaultonomyHelpEnabledEvent = GA4Event<
+  "VT_help_enabled",
+  EmptyParams
+>;
 
-export type VaultonomyHelpDisabledEvent = GA4Event<"VT_help_disabled", {}>;
+export type VaultonomyHelpDisabledEvent = GA4Event<
+  "VT_help_disabled",
+  EmptyParams
+>;
 
 export type VaultonomyHelpToggledEvent = GA4Event<
   "VT_helpItem_selected",

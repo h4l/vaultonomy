@@ -1,6 +1,6 @@
 import { StateStorage, createJSONStorage } from "zustand/middleware";
 
-import { StorageAreaGetSetRemove, browser } from "../../webextension";
+import { StorageAreaGetSetRemove } from "../../webextension";
 import { ExtensionAsyncStorage } from "./ExtensionAsyncStorage";
 
 /**
@@ -19,7 +19,7 @@ export function extensionStateStorage(
 export function createExtensionStorage<T>(
   storageArea: StorageAreaGetSetRemove,
 ) {
-  // This is somewhat inefficient as we have two layers of JSON serialisation —
+  // This is somewhat inefficient as we have two layers of JSON serialisation —
   // zustand's JSONStorage serialises store state to JSON before passing it to
   // our StateStorage impl, which writes the already-JSON string to extension
   // storage, which also serialises as JSON.

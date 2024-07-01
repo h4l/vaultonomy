@@ -1,5 +1,5 @@
 import { DateTime } from "luxon";
-import { Emitter, createNanoEvents } from "nanoevents";
+import { createNanoEvents } from "nanoevents";
 import { useEffect, useState } from "react";
 
 import { assert } from "../../assert";

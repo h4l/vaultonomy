@@ -102,17 +102,17 @@ describe("JSON RPC", () => {
       throw error;
     });
 
+    let e: unknown;
     try {
       await client.request("add", { a: 1, b: 3 });
       throw new Error("expected request to fail");
-    } catch (e) {
-      // The server caught and re-transmitted the error -- it's not the same obj
-      expect(e).not.toBe(error);
-      // But it retains the same message
-      expect(e).toEqual(error);
+    } catch (e_) {
+      e = e_;
     }
+    // The server caught and re-transmitted the error -- it's not the same obj
+    expect(e).not.toBe(error);
+    // But it retains the same message
+    expect(e).toEqual(error);
     expect(errorListener).toHaveBeenCalled();
   });
 });
-
-export {};

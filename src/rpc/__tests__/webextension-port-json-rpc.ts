@@ -34,8 +34,8 @@ describe("server — bindPortToJSONRPCServer()", () => {
     port.receiveMessage(createJSONRPCRequest(1, "echo", "Hello"));
     await sleep();
 
-    expect(port.postMessage).toBeCalledTimes(1);
-    expect(port.postMessage).toBeCalledWith(
+    expect(port.postMessage).toHaveBeenCalledTimes(1);
+    expect(port.postMessage).toHaveBeenCalledWith(
       createJSONRPCSuccessResponse(1, { paramsReceived: "Hello" }),
     );
   });
@@ -60,8 +60,8 @@ test("createPortSendRequestFn()", () => {
   const sendFn = createPortSendRequestFn(port);
   const msg = createJSONRPCRequest(1, "hi");
   sendFn(msg);
-  expect(port.postMessage).toBeCalledTimes(1);
-  expect(port.postMessage).toBeCalledWith(msg);
+  expect(port.postMessage).toHaveBeenCalledTimes(1);
+  expect(port.postMessage).toHaveBeenCalledWith(msg);
 });
 
 describe("bindPortToJSONRPCClient()", () => {

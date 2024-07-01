@@ -1,7 +1,5 @@
-import { ReactNode } from "react";
 import { twMerge } from "tailwind-merge";
 
-import { RedditUserProfile } from "../reddit/reddit-interaction-spec";
 import { AnyRedditUserProfile } from "../reddit/types";
 import { WithInlineHelp } from "./Help";
 import { Link } from "./Link";

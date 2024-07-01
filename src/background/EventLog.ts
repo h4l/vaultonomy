@@ -8,7 +8,7 @@ import { Queue } from "./Queue";
  *
  * @see SynchronisingEventEmitter
  */
-export class EventLog<T extends TaggedEvent<any>> {
+export class EventLog<T extends TaggedEvent<U>, U = T["event"]> {
   readonly instanceId = crypto.randomUUID();
   #sequenceNumber: number = 0;
   readonly #events: Queue<T>;

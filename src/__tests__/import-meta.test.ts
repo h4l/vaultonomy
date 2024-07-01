@@ -5,7 +5,8 @@ import { jest } from "@jest/globals";
 // defined in test code.
 
 test("import.meta.env is rewritten to __import_meta_env", () => {
-  expect(import.meta.env).toBe((global as any).__import_meta_env);
+  type GlobalImportMeta = { __import_meta_env?: unknown };
+  expect(import.meta.env).toBe((global as GlobalImportMeta).__import_meta_env);
 });
 
 test('import.meta.env.MODE is "development"', () => {

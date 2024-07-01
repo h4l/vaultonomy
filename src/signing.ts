@@ -1,19 +1,16 @@
 import { DateTime } from "luxon";
 import {
   Address,
-  ByteArray,
   Hex,
   hashTypedData,
   isAddressEqual,
   recoverAddress,
-  verifyTypedData,
 } from "viem";
 import { normalizeChainId } from "wagmi";
 
 import { VaultonomyError } from "./VaultonomyError";
 import { RedditEIP712Challenge } from "./reddit/api-client";
 import { Evaluate } from "./types";
-import { Result } from "./ui/state/createVaultonomyStore";
 
 type RedditEIP712ChallengeDomain = RedditEIP712Challenge["domain"];
 type NormalisedDomain = Omit<

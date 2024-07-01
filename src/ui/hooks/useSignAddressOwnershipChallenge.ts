@@ -1,11 +1,5 @@
 import { useMutation } from "@tanstack/react-query";
-import {
-  Address,
-  Hex,
-  ProviderRpcErrorType,
-  UserRejectedRequestError,
-  hashTypedData,
-} from "viem";
+import { Address, Hex, UserRejectedRequestError, hashTypedData } from "viem";
 import { useConfig } from "wagmi";
 import { SignTypedDataErrorType, signTypedData } from "wagmi/actions";
 
@@ -20,10 +14,7 @@ import {
   SignedPairingMessage,
 } from "../state/createVaultonomyStore";
 import { usePairingState } from "../state/usePairingState";
-import {
-  useVaultonomyStore,
-  useVaultonomyStoreSingle,
-} from "../state/useVaultonomyStore";
+import { useVaultonomyStoreSingle } from "../state/useVaultonomyStore";
 
 type OwnershipChallengeSigningErrorOptions = {
   address: Address;

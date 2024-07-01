@@ -1,9 +1,6 @@
 import { assert } from "../../assert";
 import { log as _log } from "../../logging";
-import type {
-  InterestInUserEvent,
-  UserLinkInteractionEvent,
-} from "../../messaging";
+import type { UserLinkInteractionEvent } from "../../messaging";
 import { Stop, Unbind } from "../../types";
 import { browser } from "../../webextension";
 

@@ -4,8 +4,6 @@ import { createJSONStorage, persist } from "zustand/middleware";
 
 import { log } from "../../logging";
 import { RedditEIP712Challenge } from "../../reddit/api-client";
-import { RedditProvider } from "../../reddit/reddit-interaction-client";
-import { GA4MPClient } from "../../stats/ga4mp";
 import { VaultonomyGA4MPClient, createClient } from "../../stats/stats";
 import { HexString, RecursivePartial } from "../../types";
 import { browser } from "../../webextension";

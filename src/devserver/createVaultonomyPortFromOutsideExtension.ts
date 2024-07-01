@@ -32,7 +32,7 @@ export function createVaultonomyPortFromOutsideExtension({
   if (typeof browser?.runtime?.connect !== "function") {
     throw new Error(
       `createVaultonomyPortFromOutsideExtension: browser.runtime.connect is \
-not a function — is this page\'s origin listed as externally_connectable in \
+not a function — is this page's origin listed as externally_connectable in \
 the manifest of extension ID ${JSON.stringify(VAULTONOMY.dev.extensionId)}?`,
     );
   }

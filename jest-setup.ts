@@ -3,11 +3,16 @@ import { JSONRPCErrorException } from "json-rpc-2.0";
 
 globalThis.fetch = jest.fn<typeof globalThis.fetch>();
 
-(global as any).__import_meta_env = {
+type VaultonomyGlobal = {
+  __import_meta_env?: Partial<ImportMetaEnv>;
+  VAULTONOMY?: typeof VAULTONOMY;
+};
+
+(global as VaultonomyGlobal).__import_meta_env = {
   MODE: "development",
 };
 
-(global as any).VAULTONOMY = {
+(global as VaultonomyGlobal).VAULTONOMY = {
   version: "0.0.0",
   releaseTarget: "production",
   browserTarget: "chrome",
@@ -18,7 +23,7 @@ globalThis.fetch = jest.fn<typeof globalThis.fetch>();
     measurement_id: "MEASUREMENT_ID",
   },
   dev: null,
-} satisfies typeof VAULTONOMY;
+};
 
 expect.addEqualityTesters([
   // consider error code and data when comparing JSON RCP errors

@@ -1,4 +1,5 @@
 import { describe, expect, jest, test } from "@jest/globals";
+import type { Mocked } from "jest-mock";
 import { mock } from "jest-mock-extended";
 import {
   JSONRPCClient,
@@ -28,9 +29,9 @@ jest.useFakeTimers();
 type SessionManagerModule = typeof import("../SessionManager");
 jest.unstable_mockModule(
   "./src/reddit/SessionManager",
-  (): SessionManagerModule => ({
-    createCachedSessionManager: jest.fn() as any,
-    SessionManager: jest.fn() as any,
+  (): Mocked<SessionManagerModule> => ({
+    createCachedSessionManager: jest.fn(),
+    SessionManager: jest.fn(),
   }),
 );
 
@@ -101,7 +102,7 @@ describe("createServerSession()", () => {
         expect(RedditUserProfile.safeParse(response).success).toBeTruthy();
         expect(response).toEqual(loggedInUser().user);
 
-        expect(sessionManager.getPageData).toBeCalledTimes(1);
+        expect(sessionManager.getPageData).toHaveBeenCalledTimes(1);
       },
     );
 
@@ -163,8 +164,8 @@ describe("createServerSession()", () => {
         expect(RedditUserProfile.safeParse(response).success).toBeTruthy();
         expect(response).toEqual(userProfile());
 
-        expect(sessionManager.getPageData).toBeCalledTimes(1);
-        expect(getRedditUserProfile).toBeCalledTimes(1);
+        expect(sessionManager.getPageData).toHaveBeenCalledTimes(1);
+        expect(getRedditUserProfile).toHaveBeenCalledTimes(1);
       });
 
       test("responds with an error the API call to get the profile fails", async () => {
@@ -198,7 +199,7 @@ describe("createServerSession()", () => {
 
       expect(RedditEIP712Challenge.safeParse(response).success).toBeTruthy();
       expect(response).toEqual(RedditEIP712Challenges().example);
-      expect(createAddressOwnershipChallenge).toBeCalledTimes(1);
+      expect(createAddressOwnershipChallenge).toHaveBeenCalledTimes(1);
     });
 
     test("responds with error if logged-in user does not match userId param", async () => {
@@ -248,8 +249,8 @@ describe("createServerSession()", () => {
       );
 
       await expect(resp).resolves.toBeNull();
-      expect(registerAddressWithAccount).toBeCalledTimes(1);
-      expect(registerAddressWithAccount).toBeCalledWith({
+      expect(registerAddressWithAccount).toHaveBeenCalledTimes(1);
+      expect(registerAddressWithAccount).toHaveBeenCalledWith({
         authToken: "secret",
         address: "0x" + "0".repeat(40),
         challengeSignature: "0x" + "0".repeat(130),
@@ -324,8 +325,8 @@ describe("createServerSession()", () => {
       } satisfies RedditGetUserVaultParams);
 
       await expect(resp).resolves.toEqual(vault());
-      expect(getRedditUserVault).toBeCalledTimes(1);
-      expect(getRedditUserVault).toBeCalledWith({
+      expect(getRedditUserVault).toHaveBeenCalledTimes(1);
+      expect(getRedditUserVault).toHaveBeenCalledWith({
         userId: "exampleUserId",
         authToken: "secret",
       });
@@ -370,8 +371,8 @@ describe("createServerSession()", () => {
       });
 
       await expect(resp).resolves.toEqual(addresses());
-      expect(getRedditAccountVaultAddresses).toBeCalledTimes(1);
-      expect(getRedditAccountVaultAddresses).toBeCalledWith({
+      expect(getRedditAccountVaultAddresses).toHaveBeenCalledTimes(1);
+      expect(getRedditAccountVaultAddresses).toHaveBeenCalledWith({
         authToken: "secret",
       });
     });

@@ -34,14 +34,14 @@ describe("createRCPMethodCaller()", () => {
   test("creates client request when called", async () => {
     jest.spyOn(JSONRPCClient.prototype, "request").mockResolvedValue("hi Bob");
     await expect(greet({ name: "Bob", msg: "hi" })).resolves.toEqual("hi Bob");
-    expect(JSONRPCClient.prototype.request).toBeCalledWith("greet", {
+    expect(JSONRPCClient.prototype.request).toHaveBeenCalledWith("greet", {
       name: "Bob",
       msg: "hi",
     });
   });
 
   test("creates request to managedClient when called", async () => {
-    let managedClientGreet = createRCPMethodCaller({
+    const managedClientGreet = createRCPMethodCaller({
       method,
       managedClient: new ReconnectingManagedConnection<JSONRPCClient>(() => [
         client,
@@ -52,7 +52,7 @@ describe("createRCPMethodCaller()", () => {
     await expect(
       managedClientGreet({ name: "Bob", msg: "hi" }),
     ).resolves.toEqual("hi Bob");
-    expect(JSONRPCClient.prototype.request).toBeCalledWith("greet", {
+    expect(JSONRPCClient.prototype.request).toHaveBeenCalledWith("greet", {
       name: "Bob",
       msg: "hi",
     });
@@ -60,18 +60,14 @@ describe("createRCPMethodCaller()", () => {
 
   test("validates param with its zod type", async () => {
     const result = greet({ name: 42 as unknown as string, msg: "hi" });
-    await expect(result).rejects.toThrowError(ZodError);
-    await expect(result).rejects.toThrowError(
-      "Expected string, received number",
-    );
+    await expect(result).rejects.toThrow(ZodError);
+    await expect(result).rejects.toThrow("Expected string, received number");
   });
 
   test("validates return value with signature's return zod type", async () => {
     jest.spyOn(JSONRPCClient.prototype, "request").mockResolvedValue(true);
     const result = greet({ name: "Bob", msg: "hi" });
-    await expect(result).rejects.toThrowError(ZodError);
-    await expect(result).rejects.toThrowError(
-      "Expected string, received boolean",
-    );
+    await expect(result).rejects.toThrow(ZodError);
+    await expect(result).rejects.toThrow("Expected string, received boolean");
   });
 });

@@ -1,8 +1,7 @@
 import { JSONRPCClient, JSONRPCErrorException } from "json-rpc-2.0";
 import { z } from "zod";
 
-import { ErrorCode } from "../reddit/reddit-interaction-spec";
-import { AnyManagedConnection, ManagedConnection } from "./connections";
+import { AnyManagedConnection } from "./connections";
 
 export interface RPCMethodSpec<
   Params extends z.ZodTypeAny,

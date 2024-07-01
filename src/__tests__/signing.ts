@@ -131,7 +131,7 @@ describe("verifySignedRedditChallenge", () => {
       challenge: challengeFor1,
       signature: signatureOfModifiedFrom1,
     });
-    expect(result.isValid).toBeFalsy;
+    expect(result.isValid).toBeFalsy();
     assert(!result.isValid);
     expect(result.reasonShort).toEqual("Message signature is not correct.");
   });

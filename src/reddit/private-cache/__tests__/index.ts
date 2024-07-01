@@ -3,9 +3,9 @@ import { jest } from "@jest/globals";
 import { MockStorage } from "../../../__tests__/webextension.mock";
 
 import { OnCreatedHandler } from "..";
-import { assert } from "../../../assert";
 import { log } from "../../../logging";
 import { HexString } from "../../../types";
+import { AesGcmEncryptedValue } from "../EncryptedStorage";
 import {
   DatabaseError,
   DeleteDatabaseError,
@@ -95,7 +95,7 @@ describe("getPrivateCache()", () => {
   test("calls onCreated on first use", async () => {
     const onCreated = jest.fn<OnCreatedHandler>();
     const cache = await getPrivateCache({ id: "foo", onCreated });
-    expect(onCreated).toBeCalledTimes(1);
+    expect(onCreated).toHaveBeenCalledTimes(1);
     expect(onCreated).toHaveBeenLastCalledWith({ cache, storage: storage });
   });
 
@@ -115,8 +115,8 @@ describe("getPrivateCache()", () => {
 
     expect(got).toStrictEqual({ thing: { data: 123 } });
 
-    const stored = await storage.get("thing");
-    expect(Object.keys(stored.thing).toSorted()).toEqual(["ciphertext", "iv"]);
+    const thing = (await storage.get("thing")).thing as AesGcmEncryptedValue;
+    expect(Object.keys(thing).toSorted()).toEqual(["ciphertext", "iv"]);
   });
 
   abstract class Disruption {
@@ -140,7 +140,7 @@ describe("getPrivateCache()", () => {
   class UserCorruptsWebStorageDisruption extends Disruption {
     async disrupt(): Promise<void> {
       // unexpected value stored in db
-      wrappingKey = { lol: "oops" } as any;
+      wrappingKey = { lol: "oops" } as unknown as CryptoKey;
     }
   }
 
@@ -164,7 +164,8 @@ describe("getPrivateCache()", () => {
         });
     }
     async checkRecovery(): Promise<void> {
-      expect(webKeys.deleteVaultonomyIndexedDB).toBeCalledTimes(1);
+      // eslint-disable-next-line jest/no-standalone-expect
+      expect(webKeys.deleteVaultonomyIndexedDB).toHaveBeenCalledTimes(1);
     }
   }
 
@@ -189,7 +190,7 @@ describe("getPrivateCache()", () => {
       const cache1 = await getCache();
       await cache1.set({ thing: { data: 123 } });
 
-      expect(onCreated).toBeCalledTimes(1);
+      expect(onCreated).toHaveBeenCalledTimes(1);
       expect(extensionKeys.getWrappedDataKey).toHaveBeenCalledTimes(1);
       expect(webKeys.getWrappingKey).toHaveBeenCalledTimes(1);
       expect(extensionKeys.setWrappedDataKey).toHaveBeenCalledTimes(1);
@@ -200,7 +201,7 @@ describe("getPrivateCache()", () => {
       const cache2 = await getCache();
       expect(await cache2.get("thing")).toStrictEqual({ thing: { data: 123 } });
 
-      expect(onCreated).toBeCalledTimes(1);
+      expect(onCreated).toHaveBeenCalledTimes(1);
       expect(extensionKeys.getWrappedDataKey).toHaveBeenCalledTimes(2);
       expect(webKeys.getWrappingKey).toHaveBeenCalledTimes(2);
       expect(extensionKeys.setWrappedDataKey).toHaveBeenCalledTimes(1);
@@ -214,7 +215,7 @@ describe("getPrivateCache()", () => {
       await disruption.checkRecovery();
 
       // cache was cleared and keys re-generated
-      expect(onCreated).toBeCalledTimes(2);
+      expect(onCreated).toHaveBeenCalledTimes(2);
       expect(await cache3.get("thing")).toStrictEqual({});
 
       // storage is usable again

@@ -89,7 +89,7 @@ export function createServerSession<
     service.mapErrorToJSONRPCErrorResponse;
   service.mapErrorToJSONRPCErrorResponse = (
     id: JSONRPCID,
-    error: any,
+    error: unknown,
   ): JSONRPCErrorResponse => {
     if (error instanceof HTTPResponseError) {
       if (error.response.status === 404) {

@@ -13,7 +13,7 @@ export const log = _log.getLogger("ui/rpc/SynchronisingEventEmitter");
 // use the RPC notifications for the dev-mode UI (which can't receive extension
 // messages as it's outside the extension). I'm favouring using the same
 // mechanism for both, even though it makes the extension itself a little more
-// complicated than it could be — I'd rather maintain one slightly more
+// complicated than it could be — I'd rather maintain one slightly more
 // complicated thing than two separate notification mechanisms.
 
 type SynchronisingState<T> = {
@@ -31,7 +31,10 @@ type EmittingState<T> = {
  * An event emitter which can pull in a log of past events to emit events that
  * were sent before this emitter was created.
  */
-export class SynchronisingEventEmitter<T extends TaggedEvent<any>> {
+export class SynchronisingEventEmitter<
+  T extends TaggedEvent<U>,
+  U = T["event"],
+> {
   private state: SynchronisingState<T> | EmittingState<T>;
   private readonly getEventLog: () => Promise<T[]>;
   private readonly emitEvent: (event: T) => void;

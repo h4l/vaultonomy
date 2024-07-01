@@ -29,6 +29,7 @@ const RawPageData = z.object({
       .nullish(),
   }),
 });
+export type RawPageData = z.input<typeof RawPageData>;
 
 export const RedditUserAPICredentials = z.object({
   token: z.string(),
