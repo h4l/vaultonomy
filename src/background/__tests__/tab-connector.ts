@@ -54,6 +54,7 @@ describe("redditTabConnector", () => {
           {
             frameId: 1,
             result: null,
+            documentId: "1",
           },
         ] satisfies chrome.scripting.InjectionResult<null>[],
     );
