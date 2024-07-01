@@ -66,15 +66,6 @@ describe("DefaultRedditTabProvider", () => {
     expect(browser.action.onClicked.removeListener).toHaveBeenCalled();
   });
 
-  test("unbinds from active tab", async () => {
-    const dp = new DefaultRedditTabProvider();
-    await dp.getTab().catch(() => {});
-    dp.unbind();
-
-    expect(browser.action.onClicked.addListener).toHaveBeenCalled();
-    expect(browser.action.onClicked.removeListener).toHaveBeenCalled();
-  });
-
   test("provides active tab", async () => {
     const dp = new DefaultRedditTabProvider();
 
