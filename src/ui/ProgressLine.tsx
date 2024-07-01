@@ -6,17 +6,15 @@ import {
   forwardRef,
   useContext,
   useEffect,
-  useId,
   useReducer,
   useRef,
   useState,
 } from "react";
 
 import { assert, assertUnreachable } from "../assert";
-import { log } from "../logging";
 
 type ProgressLinePosition = HTMLElement | "end";
-type ProgressLinePositionRef = RefObject<HTMLElement> | "end";
+export type ProgressLinePositionRef = RefObject<HTMLElement> | "end";
 type ProgressLinePositions = {
   positionStates: ProgressLinePositionStates;
   reachedPosition: ProgressLinePosition | null;
@@ -29,11 +27,11 @@ type ProgressLinePositionStates = Record<
 const ProgressReachedPositionContext = createContext<
   ProgressLinePosition | null | undefined
 >(undefined);
-const ProgressActionDispatchContext = createContext<
+export const ProgressActionDispatchContext = createContext<
   Dispatch<Action> | undefined
 >(undefined);
 
-type Action =
+export type Action =
   | {
       type: "position-changed";
       id: string;
@@ -125,15 +123,6 @@ function useFurthestPositionReached(): ProgressLinePosition | null {
     "useFurthestPositionReached() used without a ProgressReachedPositionContext ancestor",
   );
   return position;
-}
-
-function useProgressActionDispatch(): Dispatch<Action> {
-  const dispatch = useContext(ProgressActionDispatchContext);
-  assert(
-    dispatch !== undefined,
-    "useProgressActionDispatch() used without a ProgressActionDispatchContext ancestor",
-  );
-  return dispatch;
 }
 
 /**
@@ -236,57 +225,3 @@ const ProgressLine = forwardRef<HTMLDivElement, ProgressLineProps>(
     );
   },
 );
-
-/**
- * Report whether a progress line position has been reached.
- *
- * The container's progress line will consider this position when determining
- * how far down the line should be drawn.
- */
-export function usePositionReachedBroadcast({
-  isReached,
-  position,
-}: {
-  isReached: boolean;
-  position: ProgressLinePositionRef | null;
-}): void {
-  const dispatch = useProgressActionDispatch();
-  const id = useId();
-
-  // Always create and remove the position on mount/unmount
-  useEffect(() => {
-    const pos = position === "end" ? position : position?.current;
-    assert(pos, "position is null on component mount");
-    dispatch({
-      type: "position-changed",
-      id,
-      position: pos,
-      reached: isReached,
-    });
-
-    return () => dispatch({ id, type: "position-removed" });
-  }, []);
-
-  // Also update the position when isReached changes
-  useEffect(() => {
-    const pos = position === "end" ? position : position?.current;
-    if (!pos) return;
-    if (pos !== "end" && !pos.parentNode) {
-      log.debug(
-        "usePositionReachedBroadcast not broadcasting disconnected pos:",
-        pos,
-        "id:",
-        id,
-      );
-      return;
-    }
-
-    dispatch({
-      id,
-      type: "position-changed",
-      position: pos,
-      reached: isReached,
-    });
-    return () => {};
-  }, [dispatch, id, isReached, position]);
-}

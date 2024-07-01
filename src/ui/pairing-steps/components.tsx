@@ -2,8 +2,8 @@ import { ReactNode, useRef } from "react";
 import { twMerge } from "tailwind-merge";
 
 import { Heading } from "../Heading";
-import { usePositionReachedBroadcast } from "../ProgressLine";
 import { AriaLiveAlert } from "../a11y";
+import { usePositionReachedBroadcast } from "../hooks/progress-line";
 import { DoneIcon, ErrorIcon, PendingIcon } from "../icons";
 
 export type PairingStepState = "past" | "present" | "future";
