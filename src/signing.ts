@@ -6,6 +6,9 @@ import {
   isAddressEqual,
   recoverAddress,
 } from "viem";
+// TODO: vendor normalizeChainId — it's deprecated. They suggest using Number,
+//   but we depend on its automatic detection of 0x prefixed strings, which
+//   Number does not do.
 import { normalizeChainId } from "wagmi";
 
 import { VaultonomyError } from "./VaultonomyError";
