@@ -121,7 +121,7 @@ function helpReducer(help: HelpState, action: HelpAction): HelpState {
   }
 }
 
-export function useRootHelpState(): HelpState {
+function useRootHelpState(): HelpState {
   const [help, dispatch] = useReducer<Reducer<HelpState, HelpAction>>(
     helpReducer,
     {
