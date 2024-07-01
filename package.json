@@ -15,7 +15,8 @@
     "typecheck": "tsc"
   },
   "dependencies": {
-    "@metamask/providers": "^14.0.2",
+    "@jest/globals": "^29.7.0",
+    "@metamask/providers": "^16.1.0",
     "@tailwindcss/typography": "^0.5.10",
     "@tanstack/query-async-storage-persister": "^5.24.1",
     "@tanstack/query-core": "^5.17.19",
