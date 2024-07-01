@@ -69,7 +69,7 @@ test("reports error when opening broken database", async () => {
   const result = getWrappingKey();
   await expect(result).rejects.toThrow(OpenDatabaseError);
   await expect(result).rejects.toThrowErrorMatchingInlineSnapshot(
-    `"Failed to open database vaultonomy: VersionError"`,
+    `"Failed to open database vaultonomy: VersionError: An attempt was made to open a database using a lower version than the existing version."`,
   );
 });
 
