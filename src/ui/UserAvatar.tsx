@@ -84,6 +84,7 @@ export function UserAvatar({
       width={IMG_WIDTH}
       xmlns="http://www.w3.org/2000/svg"
     >
+      <title>{title}</title>
       <defs aria-hidden="true">
         {avatarUrl ?
           <UserAvatarImage id={`img${id}`} url={avatarUrl} />
