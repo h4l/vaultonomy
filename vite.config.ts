@@ -356,15 +356,17 @@ export default defineConfig(async (options) => {
     },
     plugins: [
       webextensionManifest({ source: "src/manifest.json", browserTarget }),
-      // Vite emits a module that warns about node things being accessed. Its
-      // named prefixed with _ and chrome seems to disallow extensions using js
-      // files with _ prefixes. AFAIK nothing needs node polyfills, but libs check
-      // for their presence to conditionally enable them. My intention here is to
-      // not include any polyfills, but use the plugin's ability to disable Vite's
-      // warnings.
+      // MetaMask's modules use a node streams API polyfill which expect the
+      // Buffer and process node globals to exist.
       nodePolyfills({
-        include: [],
-        globals: {},
+        // These are only used via globals, but if the include array is empty,
+        // all modules get included.
+        include: ["buffer", "process"],
+        globals: {
+          Buffer: true,
+          process: true,
+          global: false,
+        },
       }),
       replace({
         values: {
