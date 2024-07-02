@@ -342,6 +342,9 @@ export class BackgroundService {
 
   private ensureSidePanelIsOpenAndDisplayingVaultonomy(tab: chrome.tabs.Tab) {
     log.debug("Opening side panel");
+    if (browser.sidebarAction) {
+      browser.sidebarAction.toggle();
+    }
     // Enable our page in the side panel for the whole current window, not just
     // the current tab. So our page remains open when changing tabs. Users can
     // close the side panel, or open a different side-panel page and re-open our
@@ -352,10 +355,14 @@ export class BackgroundService {
     // instructions. And opening on a single tab would result in multiple
     // instances being open on different tabs, each with their own state. That
     // would surely be confusing.
-    chrome.sidePanel.setOptions({
-      enabled: true,
-      path: "ui.html",
-    });
-    chrome.sidePanel.open({ windowId: tab.windowId });
+    else if (browser.sidePanel) {
+      browser.sidePanel.setOptions({
+        enabled: true,
+        path: "ui.html",
+      });
+      browser.sidePanel.open({ windowId: tab.windowId });
+      // TODO: Chrome doesn't provide an API to close the panel. We can close it
+      // by calling window.close() from the panel's environment.
+    }
   }
 }

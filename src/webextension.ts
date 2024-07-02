@@ -1,3 +1,5 @@
+import type { Browser } from "webextension-polyfill";
+
 // Use @types/chrome for the WebExtension API (rather than
 // webextension-polyfill) as they're more accurate and we only want to use
 // APIs that exist in Chrome.
@@ -10,12 +12,15 @@ type PermissionsEvent = chrome.events.Event<
   (permissions: chrome.permissions.Permissions) => void
 >;
 
-export type WebExtensionAPI = typeof chrome & {
+export type WebExtensionAPI = Omit<typeof chrome, "sidePanel"> & {
   permissions: {
     // @types/chrome lacks removeListener() for these
     onAdded: PermissionsEvent;
     onRemoved: PermissionsEvent;
   };
+  // Present in Firefox, but not Chrome
+  sidebarAction?: Browser["sidebarAction"];
+  sidePanel?: typeof chrome.sidePanel;
 };
 
 const webExtensionGlobal = globalThis as WebExtensionGlobal;
