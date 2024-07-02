@@ -4,5 +4,7 @@
 !.npmrc
 !.prettier*
 !.swcrc
-dist
+dist*
+docker-bake.hcl
+Dockerfile
 node_modules
