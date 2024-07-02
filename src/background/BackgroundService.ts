@@ -79,6 +79,7 @@ export class BackgroundService {
 
     this.toStop = [];
 
+    this.toStop.push(this.startHandlingPostInstallSidePanelConfig());
     this.toStop.push(this.startHandlingActionButtonClicks());
     this.toStop.push(this.startHandlingExtensionConnections());
     this.toStop.push(this.startNotifyInterestInUsersFromUserLinkInteraction());
@@ -326,6 +327,40 @@ export class BackgroundService {
     return disconnect;
   }
 
+  private startHandlingPostInstallSidePanelConfig(): Stop {
+    const configureSidePanel = () => {
+      this.configureChromeToOpenSidePanelOnActionClick();
+    };
+    browser.runtime.onInstalled.addListener(configureSidePanel);
+    return () => browser.runtime.onInstalled.removeListener(configureSidePanel);
+  }
+
+  private async configureChromeToOpenSidePanelOnActionClick() {
+    // Enable our page in the side panel for the whole current window, not just
+    // the current tab. So our page remains open when changing tabs. Users can
+    // close the side panel, or open a different side-panel page and re-open our
+    // page later by triggering this again by clicking our Action button.
+    //
+    // Chrome allows opening a side panel just on the current tab, but it seems
+    // useful to be able to view our sidepanel while viewing a different
+    // website, e.g. to follow instructions. And opening on a single tab would
+    // result in multiple instances being open on different tabs, each with
+    // their own state. That would surely be confusing.
+    //
+    // Note however that each browser window can have a different Vaultonomy
+    // side panel open (and it can be opened in a tab, or full window using the
+    // context menu options).
+
+    if (browser.sidePanel) {
+      // Chrome doesn't have an API to close the sidePanel, so rather than open
+      // and close it in the action button click event handler, we configure the
+      // panel behaviour to have the browser toggle it for us on action click.
+      await browser.sidePanel.setPanelBehavior({
+        openPanelOnActionClick: true,
+      });
+    }
+  }
+
   private startHandlingActionButtonClicks(): Stop {
     const onActionButtonClicked = (tab: chrome.tabs.Tab) => {
       log.trace("Action button clicked", new Date().toLocaleTimeString());
@@ -341,28 +376,12 @@ export class BackgroundService {
   }
 
   private ensureSidePanelIsOpenAndDisplayingVaultonomy(tab: chrome.tabs.Tab) {
-    log.debug("Opening side panel");
+    // Unlike Chrome, Firefox provides an API for toggling the side panel, so we
+    // use this method to open/close the sidebar in Firefox. Note that
+    // browser.sidebarAction is only defined in Firefox's webextension API,
+    // Chrome uses browser.sidePanel.
     if (browser.sidebarAction) {
       browser.sidebarAction.toggle();
-    }
-    // Enable our page in the side panel for the whole current window, not just
-    // the current tab. So our page remains open when changing tabs. Users can
-    // close the side panel, or open a different side-panel page and re-open our
-    // page later by triggering this again by clicking our Action button.
-    //
-    // We could open just on the current tab, but it seems useful to be able to
-    // view our sidepanel while viewing a different website, e.g. to follow
-    // instructions. And opening on a single tab would result in multiple
-    // instances being open on different tabs, each with their own state. That
-    // would surely be confusing.
-    else if (browser.sidePanel) {
-      browser.sidePanel.setOptions({
-        enabled: true,
-        path: "ui.html",
-      });
-      browser.sidePanel.open({ windowId: tab.windowId });
-      // TODO: Chrome doesn't provide an API to close the panel. We can close it
-      // by calling window.close() from the panel's environment.
     }
   }
 }
