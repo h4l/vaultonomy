@@ -21,7 +21,10 @@ export class DevModeBackgroundService extends BackgroundService {
       this.handleExternalConnection(port);
     };
 
-    assert(!browser.runtime.onConnectExternal.hasListeners());
+    // Firefox doesn't implement hasListeners.
+    if (typeof browser.runtime.onConnectExternal.hasListeners === "function") {
+      assert(!browser.runtime.onConnectExternal.hasListeners());
+    }
     browser.runtime.onConnectExternal.addListener(onConnect);
 
     return () => browser.runtime.onConnectExternal.removeListener(onConnect);
