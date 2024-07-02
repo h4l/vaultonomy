@@ -1,4 +1,4 @@
-import { nextTick } from "process";
+import { nextTick } from "node:process";
 
 export const sleep = async (n?: number) => {
   await new Promise((resolve) => setTimeout(resolve, n ?? 1));

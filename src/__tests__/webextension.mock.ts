@@ -1,7 +1,7 @@
 import { jest } from "@jest/globals";
 import { FunctionLike, Mock } from "jest-mock";
 import { mock } from "jest-mock-extended";
-import { nextTick } from "process";
+import { nextTick } from "node:process";
 import util from "util";
 
 import { log } from "../logging";
