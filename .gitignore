@@ -11,7 +11,7 @@
 !.prettier*
 !.swcrc
 !.vscode
-dist
+dist*
 node_modules
 .vscode/*
 !.vscode/launch.example.json
