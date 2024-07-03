@@ -42,9 +42,6 @@ jobs:
         uses: docker/bake-action@v5
         with:
           targets: ${{ matrix.target }}
-          set: |
-            *.cache-from=type=gha
-            *.cache-to=type=gha,mode=max
 
   package:
     runs-on: ubuntu-latest
