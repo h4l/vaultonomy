@@ -7,6 +7,7 @@
 !.eslint*
 # marking .git as ignored can confuse VSCode when editing .git/COMMIT_EDITMSG
 !.git
+!.github
 !.gitignore
 !.prettier*
 !.swcrc
