@@ -59,7 +59,7 @@ RUN mkdir /packaged \
     && find . -type f -exec \
     touch --no-dereference --date="@${SOURCE_DATE_EPOCH:?}" {} + -print \
     | sort \
-    | zip -9 --no-extra -@ "/packaged/vaultonomy-${BROWSER:?}-${RELEASE:?}.zip"
+    | zip -9 -X -@ "/packaged/vaultonomy-${BROWSER:?}-${RELEASE:?}.zip"
 
 
 FROM scratch AS packaged-files
