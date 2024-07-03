@@ -38,8 +38,8 @@ jobs:
         with:
           targets: ${{ matrix.target }}
           set: |
-            node-modules.cache-from=type=gha
-            node-modules.cache-to=type=gha,mode=max
+            *.cache-from=type=gha
+            *.cache-to=type=gha,mode=max
 
   package:
     runs-on: ubuntu-latest
@@ -61,11 +61,6 @@ jobs:
           SOURCE_DATE_EPOCH: ${{ env.TIMESTAMP }}
         with:
           targets: packages
-          set: |
-            node-modules.cache-from=type=gha
-            node-modules.cache-to=type=gha,mode=max
-            build-base.cache-from=type=gha
-            build-base.cache-to=type=gha,mode=max
 
       - name: Archive production artifacts
         uses: actions/upload-artifact@v4
