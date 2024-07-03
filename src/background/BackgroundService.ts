@@ -375,7 +375,7 @@ export class BackgroundService {
     return () => browser.action.onClicked.removeListener(onActionButtonClicked);
   }
 
-  private ensureSidePanelIsOpenAndDisplayingVaultonomy(tab: chrome.tabs.Tab) {
+  private ensureSidePanelIsOpenAndDisplayingVaultonomy(_tab: chrome.tabs.Tab) {
     // Unlike Chrome, Firefox provides an API for toggling the side panel, so we
     // use this method to open/close the sidebar in Firefox. Note that
     // browser.sidebarAction is only defined in Firefox's webextension API,
