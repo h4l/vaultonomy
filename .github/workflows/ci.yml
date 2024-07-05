@@ -139,10 +139,9 @@ jobs:
           fi
 
           for file in "${files[@]}"; do
-            gh attestation verify PATH/TO/YOUR/BUILD/ARTIFACT-BINARY \
+            gh attestation verify ${file:?} \
               --repo "${GITHUB_REPOSITORY:?}" \
               --signer-workflow "${GITHUB_WORKFLOW_REF:?}"
-            count=$(( $count + 1 ))
           done
 
       - name: Create GitHub Release
