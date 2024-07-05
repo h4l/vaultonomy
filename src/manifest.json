@@ -10,7 +10,6 @@
     "128": "img/vaultonomy_icon_128.png"
   },
   "manifest_version": 3,
-  "version": "0.0.1",
   "description": "Manage your Reddit account's Vault from the browser.",
   "permissions": [
     "scripting",
