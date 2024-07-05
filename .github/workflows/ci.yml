@@ -45,14 +45,23 @@ jobs:
 
   package:
     runs-on: ubuntu-latest
-    needs:
-      - validate
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+
+      - name: Verify tag matches version
+        if: startsWith(github.event.ref, 'refs/tags/v')
+        run: |
+          package_version=$(jq < package.json -r .version)
+          tag_version=${GITHUB_REF/#refs\/tags\/v/}
+          if [[ ${tag_version:?} != ${package_version:?} ]]; then
+            echo "Error: git tag does not match package.json version" >&2
+            declare -p GITHUB_REF tag_version package_version >&2
+            exit 1
+          fi
 
       - name: Get Git commit timestamps
         run: echo "TIMESTAMP=$(git log -1 --pretty=%ct)" >> $GITHUB_ENV
@@ -64,14 +73,73 @@ jobs:
         with:
           targets: packages
 
-      - uses: actions/attest-build-provenance@v1
+      - name: Rename package & attestation files
+        run: |
+          # Flatten the nested build output dirs and rename provenance. The
+          # build generates provenance.json in each output dir which corresponds
+          # to the .zip in each dir. We want the provenance file names to
+          # contain the browser and version.
+
+          for package in dist/packages/*/*.zip; do
+            browser_dir=$(dirname "${package:?}")
+            filename=$(basename "${package:?}")
+            package_id=${filename/%.zip/}
+
+            mv "${browser_dir:?}/provenance.json" "dist/${package_id:?}_provenance.json"
+            mv "${package:?}" "dist/"
+          done
+
+      - name: Create GitHub attestations
+        uses: actions/attest-build-provenance@v1
+        # Only create attestations for release artefacts, as regular branch
+        # builds aren't stored long-term, and we don't expect people to use them
+        # for anything serious.
+        if: startsWith(github.event.ref, 'refs/tags/v')
         with:
           subject-path: |
-            dist/packages/chrome-production/vaultonomy-chrome-production.zip
-            dist/packages/firefox-production/vaultonomy-firefox-production.zip
+            dist/vaultonomy-*.zip
+            dist/vaultonomy-*_provenance.json
 
-      - name: Archive production artifacts
+      - name: Store built extension packages
         uses: actions/upload-artifact@v4
         with:
-          name: package-files
-          path: dist
+          name: package_files
+          path: |
+            dist/vaultonomy-*.zip
+            dist/vaultonomy-*_provenance.json
+          # We don't need to store these for long, as release artefacts get
+          # added to the GitHub Releases we create.
+          retention-days: 7
+
+  github-release:
+    runs-on: ubuntu-latest
+    needs:
+      - validate
+      - package
+    if: startsWith(github.event.ref, 'refs/tags/v')
+    steps:
+      - name: Download extension packages
+        uses: actions/download-artifact@v4
+        with:
+          name: package_files
+
+      - name: Validate GitHub attestations
+        run: |
+          files=(dist/*)
+          (( ${#files[@]} == 4 ))
+
+          for file in "${files[@]}"; do
+            gh attestation verify PATH/TO/YOUR/BUILD/ARTIFACT-BINARY \
+              --repo "${GITHUB_REPOSITORY:?}" \
+              --signer-workflow "${GITHUB_WORKFLOW_REF:?}"
+            count=$(( $count + 1 ))
+          done
+
+      - name: Create GitHub Release
+        run: |
+          release_opts=()
+          # Pre-release semver versions contain -, e.g. 1.2.3-beta.1
+          [[ ${GITHUB_REF:?} =~ [-] ]] && release_opts+=(--prerelease)
+
+          gh release create --verify-tag --notes-start-tag --draft \
+            "${release_opts[@]}"
