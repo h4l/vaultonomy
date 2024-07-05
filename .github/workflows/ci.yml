@@ -125,14 +125,21 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
+      # We don't use the repo files, but gh release create needs the repo.
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - run: rm -rf dist
+
       - name: Download extension packages
         uses: actions/download-artifact@v4
         with:
           name: package_files
+          path: dist
 
       - name: Validate GitHub attestations
         run: |
-          files=(*.zip *.json)
+          files=(dist/*.zip dist/*.json)
           if (( ${#files[@]} != 4 )); then
             { echo "Unexpected package files:"; find . >&2; declare -p files; } >&2;
             exit 1
@@ -146,7 +153,9 @@ jobs:
 
       - name: Create GitHub Release
         run: |
+          files=(dist/*.zip dist/*.json)
           tag_name=${GITHUB_REF:?}
+
           release_opts=()
           # Pre-release semver versions contain -, e.g. 1.2.3-beta.1
           [[ ${tag_name:?} =~ [-] ]] && release_opts+=(--prerelease)
