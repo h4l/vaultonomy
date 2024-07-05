@@ -160,5 +160,5 @@ jobs:
           # Pre-release semver versions contain -, e.g. 1.2.3-beta.1
           [[ ${tag_name:?} =~ [-] ]] && release_opts+=(--prerelease)
 
-          gh release create --verify-tag --notes-start-tag --draft \
+          gh release create --verify-tag --generate-notes --draft \
             "${release_opts[@]}" "${tag_name:?}" "${files[@]}"
