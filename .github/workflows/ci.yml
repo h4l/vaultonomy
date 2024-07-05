@@ -4,9 +4,7 @@ on:
   push:
 
 permissions:
-  id-token: write
   contents: read
-  attestations: write
 
 jobs:
   prepare:
@@ -45,6 +43,10 @@ jobs:
 
   package:
     runs-on: ubuntu-latest
+    permissions:
+      # required to create attestations
+      id-token: write
+      attestations: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -117,6 +119,11 @@ jobs:
       - validate
       - package
     if: startsWith(github.event.ref, 'refs/tags/v')
+    permissions:
+      # required to create releases
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
     steps:
       - name: Download extension packages
         uses: actions/download-artifact@v4
