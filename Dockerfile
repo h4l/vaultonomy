@@ -53,7 +53,7 @@ COPY --from=build /dist/ .
 
 FROM build AS package
 SHELL ["bash", "-euo", "pipefail", "-c"]
-ARG BROWSER RELEASE SOURCE_DATE_EPOCH BUILD_TAG=
+ARG BROWSER RELEASE SOURCE_DATE_EPOCH=0 BUILD_TAG=
 RUN <<EOF
 set -x
 

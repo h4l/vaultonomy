@@ -3,8 +3,6 @@ variable "GITHUB_REF_TYPE" { default = "" }
 // Set in GitHub actions to the branch or tag name, e.g. v0.1.2
 variable "GITHUB_REF_NAME" { default = "" }
 
-variable "SOURCE_DATE_EPOCH" { default = "0" }
-
 group "default" {
     targets = ["tasks"]
 }
@@ -46,7 +44,6 @@ target "packages" {
   args = {
     BROWSER = browser
     RELEASE = "production"
-    SOURCE_DATE_EPOCH = SOURCE_DATE_EPOCH
     BUILD_TAG = build_tag()
   }
   output = ["type=local,dest=dist/packages/${browser}-production"]

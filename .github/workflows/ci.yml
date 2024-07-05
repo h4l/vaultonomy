@@ -11,7 +11,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       targets: ${{ steps.list_targets.outputs.targets }}
-      commit_timestamp: ${{ steps.get_commit_timestamp.outputs.commit_timestamp }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -21,10 +20,6 @@ jobs:
         uses: docker/bake-action/subaction/list-targets@v4
         with:
           target: tasks
-
-      - name: Get Git commit timestamp
-        id: get_commit_timestamp
-        run: echo "commit_timestamp=$(git log -1 --pretty=%ct)" >> "${GITHUB_OUTPUT:?}"
 
       - name: Verify tag matches version
         if: startsWith(github.event.ref, 'refs/tags/v')
@@ -69,8 +64,6 @@ jobs:
 
       - name: Build release packages
         uses: docker/bake-action@v5
-        env:
-          SOURCE_DATE_EPOCH: ${{ needs.prepare.outputs.commit_timestamp }}
         with:
           source: "${{ github.server_url }}/${{ github.repository }}.git#${{ github.sha }}"
           targets: packages
