@@ -4,5 +4,13 @@
   "importOrderSortSpecifiers": true,
   "proseWrap": "always",
   "plugins": ["@trivago/prettier-plugin-sort-imports"],
-  "experimentalTernaries": true
+  "experimentalTernaries": true,
+  "overrides": [
+    {
+      "files": "*.yml",
+      "options": {
+        "proseWrap": "preserve"
+      }
+    }
+  ]
 }
