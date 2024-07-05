@@ -146,9 +146,10 @@ jobs:
 
       - name: Create GitHub Release
         run: |
+          tag_name=${GITHUB_REF:?}
           release_opts=()
           # Pre-release semver versions contain -, e.g. 1.2.3-beta.1
-          [[ ${GITHUB_REF:?} =~ [-] ]] && release_opts+=(--prerelease)
+          [[ ${tag_name:?} =~ [-] ]] && release_opts+=(--prerelease)
 
           gh release create --verify-tag --notes-start-tag --draft \
-            "${release_opts[@]}" "${files[@]}"
+            "${release_opts[@]}" "${tag_name:?}" "${files[@]}"
