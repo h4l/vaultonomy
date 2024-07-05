@@ -1,7 +1,7 @@
 {
   "name": "vaultonomy",
   "description": "A browser extension for Reddit to interact with Reddit Vaults.",
-  "version": "0.0.1-citest.4",
+  "version": "0.0.1-citest.5",
   "private": true,
   "license": "MIT",
   "author": {
