@@ -19,7 +19,8 @@
     "lint": "eslint src *.ts",
     "prettier": "prettier --check src *.ts",
     "test": "NODE_OPTIONS=--experimental-vm-modules npx jest",
-    "typecheck": "tsc"
+    "typecheck": "tsc",
+    "create-git-release-tag": "version=$(jq < package.json -r .version); git tag -a \"v${version:?}\" -m \"${version:?}\""
   },
   "dependencies": {
     "@jest/globals": "^29.7.0",
