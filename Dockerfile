@@ -1,5 +1,4 @@
 # syntax=docker/dockerfile:1
-ARG BUILDKIT_SBOM_SCAN_CONTEXT=true
 
 FROM node:22 AS node-base
 WORKDIR /build
@@ -53,13 +52,24 @@ COPY --from=build /dist/ .
 
 
 FROM build AS package
-ARG BROWSER RELEASE SOURCE_DATE_EPOCH=0
-RUN mkdir /packaged \
-    && cd /dist \
-    && find . -type f -exec \
-    touch --no-dereference --date="@${SOURCE_DATE_EPOCH:?}" {} + -print \
-    | sort \
-    | zip -9 -X -@ "/packaged/vaultonomy-${BROWSER:?}-${RELEASE:?}.zip"
+SHELL ["bash", "-euo", "pipefail", "-c"]
+ARG BROWSER RELEASE SOURCE_DATE_EPOCH BUILD_TAG=
+RUN <<EOF
+set -x
+
+build_id=
+if [[ $BUILD_TAG ]]; then build_id="_${BUILD_TAG:?}"; fi
+
+if [[ $BUILD_TAG && $RELEASE == production ]]; then build_target=${BROWSER:?}
+else build_target="${BROWSER:?}-${RELEASE:?}"; fi
+
+mkdir /packaged
+cd /dist
+find . -type f -exec \
+  touch --no-dereference --date="@${SOURCE_DATE_EPOCH:-0}" {} + -print \
+  | sort \
+  | zip -9 -X -@ "/packaged/vaultonomy_${build_target:?}${build_id?}.zip"
+EOF
 
 
 FROM scratch AS packaged-files

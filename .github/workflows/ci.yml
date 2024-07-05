@@ -99,16 +99,16 @@ jobs:
         if: startsWith(github.event.ref, 'refs/tags/v')
         with:
           subject-path: |
-            dist/vaultonomy-*.zip
-            dist/vaultonomy-*_provenance.json
+            dist/vaultonomy_*.zip
+            dist/vaultonomy_*_provenance.json
 
       - name: Store built extension packages
         uses: actions/upload-artifact@v4
         with:
           name: package_files
           path: |
-            dist/vaultonomy-*.zip
-            dist/vaultonomy-*_provenance.json
+            dist/vaultonomy_*.zip
+            dist/vaultonomy_*_provenance.json
           # We don't need to store these for long, as release artefacts get
           # added to the GitHub Releases we create.
           retention-days: 7

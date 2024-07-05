@@ -1,6 +1,9 @@
-variable "SOURCE_DATE_EPOCH" {
-  default = "0"
-}
+// Set in GitHub Actions to "tag" or "branch"
+variable "GITHUB_REF_TYPE" { default = "" }
+// Set in GitHub actions to the branch or tag name, e.g. v0.1.2
+variable "GITHUB_REF_NAME" { default = "" }
+
+variable "SOURCE_DATE_EPOCH" { default = "0" }
 
 group "default" {
     targets = ["tasks"]
@@ -30,16 +33,21 @@ target "builds" {
   output = ["type=local,dest=dist/${browser}-${release}"]
 }
 
+function "build_tag" {
+  params = []
+  result = GITHUB_REF_TYPE == "tag" ? GITHUB_REF_NAME : ""
+}
+
 target "packages" {
   name = "package-${browser}"
   matrix = {
     browser = ["chrome", "firefox"]
   }
   args = {
-    BUILDKIT_SBOM_SCAN_CONTEXT = true
     BROWSER = browser
     RELEASE = "production"
     SOURCE_DATE_EPOCH = SOURCE_DATE_EPOCH
+    BUILD_TAG = build_tag()
   }
   output = ["type=local,dest=dist/packages/${browser}-production"]
   attest = ["type=sbom", "type=provenance,mode=max"]
