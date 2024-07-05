@@ -1,6 +1,7 @@
 import replace from "@rollup/plugin-replace";
 import react from "@vitejs/plugin-react-swc";
 import { readFile } from "fs/promises";
+import { parse as semverParse } from "semver";
 import { Plugin, defineConfig, loadEnv } from "vite";
 import { nodePolyfills } from "vite-plugin-node-polyfills";
 import { z } from "zod";
@@ -47,13 +48,20 @@ const Icons = z.record(z.string().regex(/^\d+$/), z.string());
 const BaseWebExtensionManifest = z
   .object({
     name: z.string(),
-    version: z.string().optional(),
+    version: z.undefined({
+      message:
+        "The version is generated from the package.json version; version in the source manifest must not be set.",
+    }),
+    version_name: z.undefined({
+      message:
+        "The version_name is generated from the package.json version; version_name in the source manifest must not be set.",
+    }),
     icons: Icons,
     permissions: z.array(z.string()),
   })
   .passthrough();
 
-const ChromeWebExtensionManifest = BaseWebExtensionManifest.extend({
+const SourceChromeWebExtensionManifest = BaseWebExtensionManifest.extend({
   background: z
     .object({
       service_worker: z.string(),
@@ -68,9 +76,19 @@ const ChromeWebExtensionManifest = BaseWebExtensionManifest.extend({
     })
     .optional(),
 });
+type SourceChromeWebExtensionManifest = z.infer<
+  typeof SourceChromeWebExtensionManifest
+>;
+
+const ChromeWebExtensionManifest = SourceChromeWebExtensionManifest.extend({
+  version: z.string(),
+  version_name: z.string().optional(),
+});
 type ChromeWebExtensionManifest = z.infer<typeof ChromeWebExtensionManifest>;
 
 const FirefoxWebExtensionManifest = BaseWebExtensionManifest.extend({
+  version: z.string(),
+  version_name: z.string().optional(),
   browser_specific_settings: z.object({
     gecko: z.object({
       id: z.literal("vaultonomy@h4l.users.github.com"),
@@ -92,31 +110,53 @@ const FirefoxWebExtensionManifest = BaseWebExtensionManifest.extend({
 });
 type FirefoxWebExtensionManifest = z.infer<typeof FirefoxWebExtensionManifest>;
 
-interface NameVersion {
-  name: string;
+interface ManifestVersion {
   version: string;
+  version_name?: string;
 }
 
-/** Get the name and version to use in the extension manifest.
+/** Get the version and version_name to use in the extension manifest.
  *
- * We use the name from manifest.json and the version from package.json.
- *
- * Extension manifest.json version property must be a strict 1.2.3 version, so
- * if the version from package.json has extra content (like 1.2.3-beta.1) we
- * use just the numbers in the version and include the full version in the name.
+ * See {@link ./docs/version-numbers.md} for our version number rules and
+ * justification.
  */
-function manifestNameVersion({
-  manifest,
-  packageJsonMeta,
-}: {
-  manifest: ChromeWebExtensionManifest;
-  packageJsonMeta: PackageJsonMeta;
-}): NameVersion {
-  const { strictVersion, fullVersion } = packageJsonMeta.version;
-  if (fullVersion === strictVersion) {
-    return { name: manifest.name, version: strictVersion };
+function getManifestVersion({ version }: PackageJsonMeta): ManifestVersion {
+  const invalidMsg = (reason: string) =>
+    `Invalid package.json version: ${version.version}: ${reason}`;
+  if (version.build.length !== 0) {
+    throw new Error(invalidMsg("+xxx build identifier is not allowed"));
   }
-  return { name: `${manifest.name} (${fullVersion})`, version: strictVersion };
+  if (version.prerelease.length === 0) {
+    if (version.patch % 2 === 1) {
+      throw new Error(
+        invalidMsg("non-pre-release versions must have an even patch number"),
+      );
+    }
+    return { version: version.version };
+  }
+  if (version.prerelease.length !== 2) {
+    throw new Error(
+      invalidMsg("pre-release version must have 0 or 2 components"),
+    );
+  }
+  if (version.patch % 2 !== 1) {
+    throw new Error(
+      invalidMsg("pre-release versions must have an odd patch number"),
+    );
+  }
+  const {
+    major,
+    minor,
+    patch,
+    prerelease: [preType, preNum],
+  } = version;
+  if (!(typeof preType === "string" && typeof preNum === "number")) {
+    throw new Error(invalidMsg("pre-release must be <name>.<num>"));
+  }
+  return {
+    version: `${major}.${minor}.${patch}.${preNum}`,
+    version_name: version.version,
+  };
 }
 
 function webextensionManifest({
@@ -132,9 +172,9 @@ function webextensionManifest({
     async buildStart(_options) {
       const packageJsonMeta = await readPackageJsonMeta();
 
-      let chromeManifest: ChromeWebExtensionManifest;
+      let sourceManifest: SourceChromeWebExtensionManifest;
       try {
-        chromeManifest = ChromeWebExtensionManifest.parse(
+        sourceManifest = SourceChromeWebExtensionManifest.parse(
           JSON.parse(await readFile(source, { encoding: "utf-8" })),
         );
       } catch (error) {
@@ -143,18 +183,17 @@ function webextensionManifest({
         );
       }
 
-      const nameVersion = manifestNameVersion({
-        manifest: chromeManifest,
-        packageJsonMeta,
-      });
-      chromeManifest.name = nameVersion.name;
-      chromeManifest.version = nameVersion.version;
+      const manifestVersion = getManifestVersion(packageJsonMeta);
 
       let outputManifest:
         | ChromeWebExtensionManifest
         | FirefoxWebExtensionManifest;
       if (browserTarget === "chrome") {
-        outputManifest = chromeManifest;
+        outputManifest = {
+          version: manifestVersion.version,
+          version_name: manifestVersion.version_name,
+          ...sourceManifest,
+        } satisfies ChromeWebExtensionManifest;
       } else {
         // Firefox doesn't support externally_connectable.
         const {
@@ -163,12 +202,14 @@ function webextensionManifest({
           icons,
           side_panel,
           permissions,
-          ...filteredChromeManifest
-        } = chromeManifest;
+          ...filteredSourceManifest
+        } = sourceManifest;
 
         const firefoxManifest = {
-          ...filteredChromeManifest,
+          ...filteredSourceManifest,
           name,
+          version: manifestVersion.version,
+          version_name: manifestVersion.version_name,
           icons,
           browser_specific_settings: {
             gecko: {
@@ -180,7 +221,7 @@ function webextensionManifest({
           // Firefox doesn't use sidePanel permission
           permissions: permissions.filter((p) => p != "sidePanel"),
           background: {
-            scripts: [chromeManifest.background.service_worker],
+            scripts: [sourceManifest.background.service_worker],
             type: "module",
           },
           sidebar_action: {
@@ -211,16 +252,17 @@ function webextensionManifest({
 
 const PackageJsonMeta = z.object({
   version: z.string().transform((arg, ctx) => {
-    const match = /^(\d+\.\d+\.\d+)(?:[^\d]\S*)?$/.exec(arg);
-    const [fullVersion, strictVersion] = match || [];
-    if (!strictVersion || !fullVersion) {
+    const version = semverParse(arg);
+    // const match = /^(\d+\.\d+\.\d+)(?:[^\d]\S*)?$/.exec(arg);
+    // const [fullVersion, strictVersion] = match || [];
+    if (!version) {
       ctx.addIssue({
         code: "custom",
         message: `Invalid version`,
       });
       return z.NEVER;
     }
-    return { strictVersion, fullVersion };
+    return version;
   }),
 });
 type PackageJsonMeta = z.infer<typeof PackageJsonMeta>;
@@ -309,7 +351,7 @@ async function loadVaultonomyGlobal({
     config = {
       releaseTarget,
       browserTarget,
-      version: packageJsonMeta.version.fullVersion,
+      version: packageJsonMeta.version.version,
       stats: loadStatsConfigProd(env),
       dev: null,
     } satisfies VaultonomyConfigProd;
@@ -317,7 +359,7 @@ async function loadVaultonomyGlobal({
     config = {
       releaseTarget,
       browserTarget,
-      version: packageJsonMeta.version.fullVersion,
+      version: packageJsonMeta.version.version,
       stats: loadStatsConfigDev(env),
       dev: loadVaultonomyDevConfig(env),
     } satisfies VaultonomyConfigDev;
