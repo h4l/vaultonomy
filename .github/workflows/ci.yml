@@ -154,7 +154,7 @@ jobs:
       - name: Create GitHub Release
         run: |
           files=(dist/*.zip dist/*.json)
-          tag_name=${GITHUB_REF:?}
+          tag_name=${GITHUB_REF/#refs\/tags\//}  # remove the refs/tags/ prefix
 
           release_opts=()
           # Pre-release semver versions contain -, e.g. 1.2.3-beta.1
