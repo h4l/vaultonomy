@@ -215,8 +215,8 @@ function webextensionManifest({
           browser_specific_settings: {
             gecko: {
               id: "vaultonomy@h4l.users.github.com",
-              // TODO: check sidebar min version
-              strict_min_version: "109.0",
+              // storage.session requires 115
+              strict_min_version: "115.0",
             },
           },
           // Firefox doesn't use sidePanel permission
