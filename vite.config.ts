@@ -6,6 +6,7 @@ import { Plugin, defineConfig, loadEnv } from "vite";
 import { nodePolyfills } from "vite-plugin-node-polyfills";
 import { z } from "zod";
 
+import { transformFunctionConstructorReturnThis } from "./build/rollup-plugin-function-constructor-return-this";
 import {
   BrowserTarget,
   ReleaseTarget,
@@ -397,6 +398,14 @@ export default defineConfig(async (options) => {
       sourcemap: true,
     },
     plugins: [
+      // Fix modules that use `Function("return this")()` instead of globalThis.
+      transformFunctionConstructorReturnThis({
+        include: [
+          "**/lodash.*/**",
+          "**/lodash/**",
+          "**/@walletconnect/universal-provider/**",
+        ],
+      }),
       webextensionManifest({ source: "src/manifest.json", browserTarget }),
       // MetaMask's modules use a node streams API polyfill which expect the
       // Buffer and process node globals to exist.
