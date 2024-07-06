@@ -30,3 +30,8 @@ Chrome Web Store and Firefox Add-Ons in a few weeks.
 A brief screencast demonstrating Vaultonomy:
 
 [![Vaultonomy demo screencast](./docs/assets/vaultonomy-video-screenshot.png)](https://www.youtube.com/watch?v=MuJXesN2foI "Vaultonomy demo screencast")
+
+## Further reading
+
+- [Reviewing Vaultonomy Releases](docs/reviewing-releases.md) — Information for
+  people wishing to verify the authenticity of Vaultonomy releases.
