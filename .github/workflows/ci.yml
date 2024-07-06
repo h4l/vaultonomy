@@ -67,6 +67,7 @@ jobs:
         with:
           source: "${{ github.server_url }}/${{ github.repository }}.git#${{ github.sha }}"
           targets: packages
+          provenance: true
 
       - name: Rename package & attestation files
         run: |

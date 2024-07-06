@@ -47,5 +47,4 @@ target "packages" {
     BUILD_TAG = build_tag()
   }
   output = ["type=local,dest=dist/packages/${browser}-production"]
-  attest = ["type=sbom", "type=provenance,mode=max"]
 }
