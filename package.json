@@ -14,6 +14,7 @@
     "dev": "NODE_ENV=development vite --host \"${VITE_HOST:-localhost}\"",
     "build": "NODE_ENV=${VAULTONOMY_RELEASE:-production} vite build --mode \"${VAULTONOMY_RELEASE:-production}-${VAULTONOMY_BROWSER:-chrome}\"",
     "build-dev": "VAULTONOMY_RELEASE=development npm run build",
+    "build-ff": "VAULTONOMY_BROWSER=firefox npm run build",
     "build-dev-ff": "VAULTONOMY_BROWSER=firefox npm run build-dev",
     "check": "npm run typecheck && npm run lint",
     "lint": "eslint src *.ts",
