@@ -76,8 +76,5 @@
       },
       "description": "Switch to the previous Address Collectables Tool"
     }
-  },
-  "externally_connectable": {
-    "matches": ["http://vaultonomy.localhost:5173/*"]
   }
 }

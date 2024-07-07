@@ -42,6 +42,7 @@ const BuildMode = z.string().transform((arg, ctx): BuildMode => {
 type WebextensionManifestOptions = {
   source: string;
   browserTarget: BrowserTarget;
+  releaseTarget: ReleaseTarget;
 };
 
 const Icons = z.record(z.string().regex(/^\d+$/), z.string());
@@ -70,12 +71,6 @@ const SourceChromeWebExtensionManifest = BaseWebExtensionManifest.extend({
     })
     .strict(),
   side_panel: z.object({ default_path: z.string() }),
-  externally_connectable: z
-    .object({
-      ids: z.array(z.string()).optional(),
-      matches: z.array(z.string()).optional(),
-    })
-    .optional(),
 });
 type SourceChromeWebExtensionManifest = z.infer<
   typeof SourceChromeWebExtensionManifest
@@ -84,6 +79,12 @@ type SourceChromeWebExtensionManifest = z.infer<
 const ChromeWebExtensionManifest = SourceChromeWebExtensionManifest.extend({
   version: z.string(),
   version_name: z.string().optional(),
+  externally_connectable: z
+    .object({
+      ids: z.array(z.string()).optional(),
+      matches: z.array(z.string()).optional(),
+    })
+    .optional(),
 });
 type ChromeWebExtensionManifest = z.infer<typeof ChromeWebExtensionManifest>;
 
@@ -162,6 +163,7 @@ function getManifestVersion({ version }: PackageJsonMeta): ManifestVersion {
 function webextensionManifest({
   source,
   browserTarget,
+  releaseTarget,
 }: WebextensionManifestOptions): Plugin {
   return {
     name: "webextension-manifest",
@@ -192,12 +194,19 @@ function webextensionManifest({
         outputManifest = {
           version: manifestVersion.version,
           version_name: manifestVersion.version_name,
+          // In development the UI can run from the vite devserver to allow for
+          // hot reloading. externally_connectable allows for specific origins
+          // to establish Port connects to achieve this. It's always off in
+          // production.
+          // Note that Firefox doesn't support externally_connectable.
+          externally_connectable:
+            releaseTarget === "development" ?
+              { matches: ["http://vaultonomy.localhost:5173/*"] }
+            : undefined,
           ...sourceManifest,
         } satisfies ChromeWebExtensionManifest;
       } else {
-        // Firefox doesn't support externally_connectable.
         const {
-          externally_connectable: _,
           name,
           icons,
           side_panel,
@@ -409,7 +418,11 @@ export default defineConfig(async (options) => {
           "**/@walletconnect/universal-provider/**",
         ],
       }),
-      webextensionManifest({ source: "src/manifest.json", browserTarget }),
+      webextensionManifest({
+        source: "src/manifest.json",
+        browserTarget,
+        releaseTarget,
+      }),
       // MetaMask's modules use a node streams API polyfill which expect the
       // Buffer and process node globals to exist.
       nodePolyfills({
