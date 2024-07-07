@@ -34,4 +34,6 @@ A brief screencast demonstrating Vaultonomy:
 ## Further reading
 
 - [Reviewing Vaultonomy Releases](docs/reviewing-releases.md) — Information for
-  people wishing to verify the authenticity of Vaultonomy releases.
+  people wishing to verify the authenticity of Vaultonomy's releases.
+- [Reviewing Vaultonomy Behaviour](docs/reviewing-behaviour.md) — Information
+  for people wishing to verify the behaviour of Vaultonomy's code.

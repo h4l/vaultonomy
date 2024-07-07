@@ -9,6 +9,17 @@ in this repository, and have not been tampered with.
 This is aimed at staff of extension hosting platforms and anyone with an
 interest in what they're installing.
 
+Also see the [Reviewing Vaultonomy Behaviour] page, which covers how to review
+and verify the source code.
+
+- [Reviewing Vaultonomy Behaviour] explains how to verify that the intended
+  behaviour of Vaultonomy is acceptable.
+- Reviewing Vaultonomy Releases (this document) explains how to verify that the
+  installed software does in fact exhibit the intended behaviour established
+  here — i.e. it's not been modified.
+
+  [Reviewing Vaultonomy Behaviour]: ./reviewing-behaviour.md
+
 ## Table of contents
 
 1. [Background](#background)
