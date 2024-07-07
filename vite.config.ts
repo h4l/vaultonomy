@@ -89,7 +89,6 @@ type ChromeWebExtensionManifest = z.infer<typeof ChromeWebExtensionManifest>;
 
 const FirefoxWebExtensionManifest = BaseWebExtensionManifest.extend({
   version: z.string(),
-  version_name: z.string().optional(),
   browser_specific_settings: z.object({
     gecko: z.object({
       id: z.literal("vaultonomy@h4l.users.github.com"),
@@ -208,9 +207,13 @@ function webextensionManifest({
 
         const firefoxManifest = {
           ...filteredSourceManifest,
-          name,
+          // Firefox doesn't support version_name, so we put the version_name
+          // into the extension name. This only applies to pre-release versions.
+          name:
+            manifestVersion.version === manifestVersion.version_name ?
+              name
+            : `${name} (${manifestVersion.version_name})`,
           version: manifestVersion.version,
-          version_name: manifestVersion.version_name,
           icons,
           browser_specific_settings: {
             gecko: {
