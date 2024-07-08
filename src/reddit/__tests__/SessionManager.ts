@@ -170,6 +170,49 @@ describe("SessionManager", () => {
     expect(fetchPageData).toHaveBeenCalledTimes(2);
   });
 
+  test("cache is cleared when a logged-out response is received", async () => {
+    const user1Expires = Date.now() + DAY;
+    const user2Expires = Date.now() + DAY + SECOND;
+    const user1 = loggedInUser({ authExpires: new Date(user1Expires) });
+    const user2 = loggedInUser({ authExpires: new Date(user2Expires) });
+    const noUser = anonUser();
+    jest
+      .mocked(fetchPageData)
+      .mockResolvedValueOnce(user1)
+      .mockResolvedValueOnce(noUser)
+      .mockResolvedValueOnce(user2);
+
+    const sm = new SessionManager(cache);
+    await expect(sm.getPageData()).resolves.toEqual(user1);
+    jest.advanceTimersByTime(SECOND / 2);
+
+    // user1 is now cached
+    expect(cache.setUserSession).toHaveBeenCalledTimes(1);
+    expect(cache.clear).not.toHaveBeenCalled();
+    await expect(sm.getPageData()).resolves.toEqual(user1);
+
+    jest.advanceTimersByTime(SECOND / 2);
+
+    // Fetching with noCache calls fetchPageData() again, returning the
+    // logged-out response, which causes the SessionManager to clear user1 from
+    // the cache.
+    await expect(sm.getPageData({ noCache: true })).resolves.toEqual(noUser);
+    expect(cache.clear).toHaveBeenCalledTimes(1);
+
+    jest.advanceTimersByTime(SECOND / 2);
+
+    // Logged-out requests are cached for a short time, so a subsequent request
+    // receives the logged-out user.
+    await expect(sm.getPageData()).resolves.toEqual(noUser);
+
+    jest.advanceTimersByTime(SECOND * 5);
+
+    // Now we get the newly-logged-in user, since user1 was cleared
+    await expect(sm.getPageData()).resolves.toEqual(user2);
+
+    expect(fetchPageData).toHaveBeenCalledTimes(3);
+  });
+
   test("Throws errors from fetchPageData without retrying", async () => {
     jest.spyOn(log, "error").mockImplementation(() => {});
 

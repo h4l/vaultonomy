@@ -34,9 +34,6 @@ import {
 const LOGGED_OUT_LIFETIME = 1000;
 const MIN_SESSION_LENGTH = 1000 * 60 * 10;
 
-// TODO: we should clear the user session cache when a non-cached request sees a
-// logged-out user, otherwise we'll hold onto credentials after logout.
-
 async function getUserSession(
   sessionManager: SessionManager,
   expectedUserId: string | null,

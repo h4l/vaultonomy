@@ -118,6 +118,14 @@ export class SessionManager {
       // make pointless re-requests, but long enough to not be within a period
       // that the user could have logged in again.
       expireAfter(response, Date.now() + LOGGED_OUT_LIFETIME);
+      // Having fetched a logged-out page with a user session cached means that
+      // the user of the cached session is no longer logged in, so we should no
+      // longer consider use the cached session, and we should purge it from
+      // the persistent cache. This happens in practice because the UI makes two
+      // concurrent requests, one for the cached user and another for the
+      // current user.
+      this.loadedPageData = undefined;
+      await this.cache.clear();
     }
   }
 
