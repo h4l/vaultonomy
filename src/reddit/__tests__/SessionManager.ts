@@ -51,7 +51,6 @@ describe("createCachedSessionManager()", () => {
   });
 });
 
-// TODO: test for noStore ignoring cached value
 describe("SessionManager", () => {
   let cachedUser: StoredUserPageData | undefined;
   const cache: UserPageDataCache = mock<UserPageDataCache>();
@@ -198,8 +197,6 @@ describe("SessionManager", () => {
     await expect(sm1.getPageData()).resolves.toEqual(user1);
   });
 
-  // TODO: Test error responses are not cached
-
   test("minFresh", async () => {
     const user1 = loggedInUser({ authExpires: new Date(Date.now() + DAY) });
     const user2 = loggedInUser({ authExpires: new Date(Date.now() + DAY * 2) });
@@ -238,6 +235,28 @@ describe("SessionManager", () => {
 
     await jest.advanceTimersByTimeAsync(SECOND);
     await expect(sm.getPageData({ maxAge: SECOND })).resolves.toEqual(user2);
+  });
+
+  test("noCache", async () => {
+    const user1 = loggedInUser({ authExpires: new Date(Date.now() + DAY) });
+    const user2 = loggedInUser({ authExpires: new Date(Date.now() + DAY * 2) });
+
+    jest
+      .mocked(fetchPageData)
+      .mockResolvedValueOnce(user1)
+      .mockResolvedValueOnce(user2);
+
+    const sm = new SessionManager(cache);
+    await expect(sm.getPageData({})).resolves.toEqual(user1);
+
+    await jest.advanceTimersByTimeAsync(SECOND / 2);
+    await expect(sm.getPageData({ noCache: true })).resolves.toEqual(user2);
+
+    // noCache doesn't stop us caching the response, it only stops a cached
+    // response being used to serve the noCache request. So a subsequent request
+    // without noCache can be served by the cached response.
+    await jest.advanceTimersByTimeAsync(SECOND);
+    await expect(sm.getPageData({})).resolves.toEqual(user2);
   });
 
   test("Errors are not cached", async () => {

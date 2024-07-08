@@ -129,7 +129,7 @@ export class SessionManager {
       return loadedResponse.pageData;
 
     for (let i = 1; ; ++i) {
-      // shouldn't really be more than 2, only noStore constraint would prevent
+      // shouldn't really be more than 2, only noCache constraint would prevent
       // the first iteration from loading.
       assert(i < 100, "unable to call loadPageData");
 
@@ -180,7 +180,7 @@ function satisfiesNoCache(
   response: PageDataResponse,
   noCache: boolean,
 ): boolean {
-  if (noCache) return response.fromCache || response.fromStore;
+  if (noCache) return !(response.fromCache || response.fromStore);
   return true;
 }
 
