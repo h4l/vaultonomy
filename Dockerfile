@@ -1,6 +1,7 @@
 # syntax=docker/dockerfile:1
 
 FROM node:22 AS node-base
+SHELL ["bash", "-euo", "pipefail", "-c"]
 WORKDIR /build
 
 
@@ -52,7 +53,6 @@ COPY --from=build /dist/ .
 
 
 FROM build AS package
-SHELL ["bash", "-euo", "pipefail", "-c"]
 ARG BROWSER RELEASE SOURCE_DATE_EPOCH=0 BUILD_TAG=
 RUN <<EOF
 set -x
@@ -74,3 +74,21 @@ EOF
 
 FROM scratch AS packaged-files
 COPY --from=package /packaged/* .
+
+
+FROM node-base AS lint-web-ext-base
+ARG BROWSER WEB_EXT_VERSION=^8
+RUN <<EOF
+if [[ ${BROWSER:?} != firefox ]]; then
+  echo "Error: web-ext-lint browser target must be firefox: BROWSER=${BROWSER@Q}" >&2
+  exit 1
+fi
+EOF
+RUN npm i -g "web-ext@${WEB_EXT_VERSION:?}"
+RUN apt-get update && apt-get install -y jq
+
+
+FROM lint-web-ext-base AS lint-web-ext
+RUN --mount=from=,source=scripts,target=scripts,rw \
+    --mount=from=built-files,target=/web-ext \
+    scripts/web-ext-lint.sh /web-ext

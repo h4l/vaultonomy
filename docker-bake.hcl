@@ -7,6 +7,12 @@ group "default" {
     targets = ["tasks"]
 }
 
+group "package" {
+  // Build the firefox and chrome packages, and run web-ext lint on the firefox
+  // package.
+  targets = ["packages", "lint-web-ext"]
+}
+
 target "tasks" {
     name = task
     matrix = {
@@ -42,10 +48,19 @@ target "packages" {
   matrix = {
     browser = ["chrome", "firefox"]
   }
+  target = "packaged-files"
   args = {
     BROWSER = browser
     RELEASE = "production"
     BUILD_TAG = build_tag()
   }
   output = ["type=local,dest=dist/packages/${browser}-production"]
+}
+
+// Runs web-ext lint on the Firefox build to catch issues that will be reported
+// when we submit to Firefox Add-ons.
+target "lint-web-ext" {
+  inherits = ["package-firefox"]
+  target = "lint-web-ext"
+  output = ["type=cacheonly"]
 }
