@@ -13,7 +13,8 @@ target "tasks" {
         task = ["lint", "prettier", "typecheck", "test"],
     }
     target = task
-    no-cache-filter = [task]
+    // tests can be non-deterministic, so always re-run them
+    no-cache-filter = ["test"]
     output = ["type=cacheonly"]
 }
 
