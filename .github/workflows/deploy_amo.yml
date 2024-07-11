@@ -1,0 +1,42 @@
+name: Submit extension release archive to Firefox Add-ons
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  submit:
+    runs-on: ubuntu-latest
+    environment: Firefox Add-ons
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - id: submit
+        name: Submit GitHub Release version to Firefox Add-ons
+        run: |
+          result_json=$(scripts/amo-submit.sh "${TAG:?}")
+          echo "result_json=${result_json:?}" >> "$GITHUB_OUTPUT"
+        env:
+          TAG: ${{ github.ref_name }}
+
+      - name: Create GitHub attestations for signed .xpi pre-release archive
+        uses: actions/attest-build-provenance@v1
+        # Pre-releases are signed by Mozilla which allows Firefox to install
+        # them, and ensures they came from someone with access to the Vaultonomy
+        # project on AMO. It's also beneficial to know that the .xpi came from
+        # this CI run, as we also verify the attestation chain on the release
+        # archive that shows it was built in CI here too.
+        #
+        # The attestation allows people to verify that we didn't privately
+        # upload a release with the same version.
+        if: fromJson(steps.submit.outputs.result_json).signed_xpi_file
+        with:
+          subject-path: ${{ fromJson(steps.submit.outputs.result_json).signed_xpi_file }}
+
+      - name: Attach signed .xpi pre-release archive to GitHub Release
+        if: fromJson(steps.submit.outputs.result_json).signed_xpi_file
+        run: |
+          gh release upload "${TAG:?}" "${SIGNED_XPI_FILE:?}"
+        env:
+          SIGNED_XPI_FILE: ${{ fromJson(steps.submit.outputs.result_json).signed_xpi_file }}
+          TAG: ${{ github.ref_name }}
