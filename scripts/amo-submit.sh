@@ -72,7 +72,7 @@ source_tarball_url=$(jq <<<"${release_json:?}" -er '.tarballUrl')
 source_tarball_file="${dir:?}/vaultonomy_${tag:?}.tar.gz"
 
 log_info "Downloading GitHub release archive and source tarball..."
-curl -#Lf --remove-on-error -o "${source_tarball_file:?}" "${source_tarball_url:?}" \
+curl -#Lf -o "${source_tarball_file:?}" "${source_tarball_url:?}" \
   -o "${release_archive_file:?}" "${release_archive_url:?}"
 
 # Validate the authenticity of the release archive by ensuring it was built in CI
