@@ -44,27 +44,28 @@ release_channel=$(
   jq <<<"${release_json:?}" -er 'if .isPrerelease then "unlisted" else "listed" end'
 )
 
-if [[ ${release_channel:?} == unlisted ]]; then
-  # If the signed .xpi already exists in the release then we can assume it's
-  # already been submitted to AMO.
-  signed_release_asset_name="vaultonomy_firefox_${tag:?}.xpi"
-  signed_release_asset_json=$(
-    signed_release_asset_name=${signed_release_asset_name:?} \
-      jq <<<"${release_json:?}" \
-      'first(.assets[] | select(.name == env.signed_release_asset_name)) // null'
-  )
-  if jq <<<"${signed_release_asset_json:?}" -e; then
-    log_info "GitHub Release ${tag:?} already contains ${signed_release_asset_name@Q}"
-    jq -cne '{release_channel: "unlisted", signed_xpi_exists: true}'
-    exit 0
-  fi
+
+# If the signed .xpi already exists in the release then we can assume it's
+# already been submitted to AMO.
+signed_release_asset_name="vaultonomy_firefox_${tag:?}.xpi"
+signed_release_asset_json=$(
+  signed_release_asset_name=${signed_release_asset_name:?} \
+    jq <<<"${release_json:?}" \
+    'first(.assets[] | select(.name == env.signed_release_asset_name)) // null'
+)
+
+if jq <<<"${signed_release_asset_json:?}" -e > /dev/null; then
+  log_info "GitHub Release ${tag:?} already contains ${signed_release_asset_name@Q}"
+  release_channel=${release_channel:?} jq -cne \
+    '{status: "release-has-xpi", release_channel: env.release_channel, signed_xpi_file: null}'
+  exit 0
 fi
 
+release_archive_name="vaultonomy_firefox_${tag:?}.zip"
 release_asset_json=$(
-  tag=${tag:?} jq <<<"${release_json:?}" -e \
-    'first(.assets[] | select(.name == "vaultonomy_firefox_\(env.tag).zip")))'
+  release_archive_name=${release_archive_name:?} jq <<<"${release_json:?}" -e \
+    'first(.assets[] | select(.name == env.release_archive_name))'
 )
-release_archive_name=$(jq <<<"${release_asset_json:?}" -er '.name')
 release_archive_url=$(jq <<<"${release_asset_json:?}" -er '.url')
 release_archive_file="${dir:?}/${release_archive_name:?}"
 source_tarball_url=$(jq <<<"${release_json:?}" -er '.tarballUrl')
@@ -141,44 +142,48 @@ else # Version not yet created
       -F "source=@${source_tarball_file:?}" -F license=MIT \
       "${AMO_BASE_URL:?}/api/v5/addons/addon/vaultonomy/versions/"
   )
-fi
-
-if [[ ${release_channel:?} == unlisted ]]; then
-log_info "Waiting for unlisted version to be approved & signed..."
-  for (( i = 0; ; i++ )); do
-    if (( i >= 120 )); then
-      err_exit "Timed out waiting for unlisted version to be approved & signed."
-    fi
-
-    # Status is initially "unreviewed" and becomes "public" when the zip is signed
-    if jq <<<"${version_detail_json:?}" -e '.file.status == "public"' > /dev/null
-    then break; fi
-
-    sleep 5
-
-    version_detail_json=$(
-      curl -# -f --retry 3 -H @<("${__scripts:?}/amo-auth.sh") \
-        "${AMO_BASE_URL:?}/api/v5/addons/addon/vaultonomy/versions/${manifest_version:?}"
-    )
-  done
-
-  signed_xpi_url=$(jq <<<"${version_detail_json:?}" -er '.file.url')
-  signed_xpi_file="${dir:?}/vaultonomy_firefox_${tag:?}.xpi"
-  # We have to send credentials to to the download URL so it seems prudent to
-  # ensure the URL is on the AMO server. (This URL is not under the /api path.)
-  [[ ${signed_xpi_url:?} == "${AMO_BASE_URL:?}"/*.xpi ]] \
-    || err_exit "Signed .xpi download URL is not under ${AMO_BASE_URL@Q}: ${signed_xpi_url@Q}"
-
-  log_info "Downloading signed release package:" "${signed_xpi_url:?}"
-  curl -# -f --retry 3 -H @<("${__scripts:?}/amo-auth.sh") \
-    -o "${signed_xpi_file:?}" "${signed_xpi_url:?}"
-
-  # Output the path of the downloaded signed .xpi file
-  signed_xpi_file=${signed_xpi_file:?} jq -cne \
-    '{release_channel: "unlisted", signed_xpi_exists: false, signed_xpi_file: env.signed_xpi_file}'
-else
   version_edit_url=$(jq <<<"${version_detail_json:?}" -er '.edit_url')
-  version_status=$(jq <<<"${version_detail_json:?}" -er '.file.status')
-  log_info "Not waiting for listed version to be approved; current status: ${version_status:?}; version URL: ${version_edit_url@Q}"
-  jq -cne '{release_channel: "listed"}'
+  log_info "Version created: ${version_edit_url@Q}"
 fi
+
+log_info "Waiting for version to be approved & signed..."
+
+# listed channel initially requires manual approval, but later it starts
+# auto-approving. unlisted auto-approves by default. Usually this happens within
+# a minute or two.
+for (( i = 0; ; i++ )); do
+  if (( i >= 120 )); then
+    release_channel=${release_channel:?} jq -cne \
+      '{status: "approve-timeout", release_channel: env.release_channel, signed_xpi_file: null}'
+    exit 0
+  fi
+
+  # Status is initially "unreviewed" and becomes "public" when the zip is signed
+  version_status=$(jq <<<"${version_detail_json:?}" -er '.file.status')
+  if [[ ${version_status:?} == public ]]; then break
+  elif [[ ${version_status:?} != "unreviewed" ]]; then
+    err_exit "Failed to wait for version to be approved; version has status: ${version_status@Q}"
+  fi
+
+  sleep 5
+
+  version_detail_json=$(
+    curl -# -f --retry 3 -H @<("${__scripts:?}/amo-auth.sh") \
+      "${AMO_BASE_URL:?}/api/v5/addons/addon/vaultonomy/versions/${manifest_version:?}"
+  )
+done
+
+signed_xpi_url=$(jq <<<"${version_detail_json:?}" -er '.file.url')
+signed_xpi_file="${dir:?}/vaultonomy_firefox_${tag:?}.xpi"
+# We have to send credentials to to the download URL so it seems prudent to
+# ensure the URL is on the AMO server. (This URL is not under the /api path.)
+[[ ${signed_xpi_url:?} == "${AMO_BASE_URL:?}"/*.xpi ]] \
+  || err_exit "Signed .xpi download URL is not under ${AMO_BASE_URL@Q}: ${signed_xpi_url@Q}"
+
+log_info "Downloading signed release package:" "${signed_xpi_url:?}"
+curl -# -f --retry 3 -H @<("${__scripts:?}/amo-auth.sh") \
+  -o "${signed_xpi_file:?}" "${signed_xpi_url:?}"
+
+# Output the path of the downloaded signed .xpi file
+release_channel=${release_channel:?} signed_xpi_file=${signed_xpi_file:?} jq -cne \
+  '{status: "approved", release_channel: env.release_channel, signed_xpi_file: env.signed_xpi_file}'

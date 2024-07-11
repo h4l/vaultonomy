@@ -20,7 +20,7 @@ jobs:
         name: Submit GitHub Release version to Firefox Add-ons
         run: |
           result_json=$(scripts/amo-submit.sh "${TAG:?}")
-          echo "result_json=${result_json:?}" >> "$GITHUB_OUTPUT"
+          echo "result_json=${result_json:?}" | tee -a "${GITHUB_OUTPUT:?}"
         env:
           TAG: ${{ github.ref_name }}
           AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
