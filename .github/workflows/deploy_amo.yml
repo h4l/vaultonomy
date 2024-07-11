@@ -20,6 +20,8 @@ jobs:
           echo "result_json=${result_json:?}" >> "$GITHUB_OUTPUT"
         env:
           TAG: ${{ github.ref_name }}
+          AMO_JWT_ISSUER: ${{ secrets.AMO_JWT_ISSUER }}
+          AMO_JWT_SECRET: ${{ secrets.AMO_JWT_SECRET }}
 
       - name: Create GitHub attestations for signed .xpi pre-release archive
         uses: actions/attest-build-provenance@v1
