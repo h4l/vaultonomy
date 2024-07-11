@@ -16,6 +16,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Install dependencies
+        run: apt-get update && apt-get install -y uuid jwt
+
       - id: submit
         name: Submit GitHub Release version to Firefox Add-ons
         run: |
