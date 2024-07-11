@@ -169,7 +169,7 @@ for (( i = 0; ; i++ )); do
 
   version_detail_json=$(
     curl -# -f --retry 3 -H @<("${__scripts:?}/amo-auth.sh") \
-      "${AMO_BASE_URL:?}/api/v5/addons/addon/vaultonomy/versions/${manifest_version:?}"
+      "${AMO_BASE_URL:?}/api/v5/addons/addon/vaultonomy/versions/${manifest_version:?}/"
   )
 done
 
