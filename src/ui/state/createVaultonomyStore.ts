@@ -74,6 +74,7 @@ export type VaultonomyStateActions = {
       source: "user-link-interaction" | "user-page-interaction";
     } | null,
   ): void;
+  setStatsConsent(statsConsent: StatsConsent | null): void;
 };
 
 export enum PairingChecklist {
@@ -94,6 +95,8 @@ export type PartialPairingState = RecursivePartial<PairingState>;
 
 export type RedditProviderProblem = "not-connected" | "not-logged-in";
 
+export type StatsConsent = "opt-in" | "opt-out";
+
 export type VaultonomyStateData = {
   hasHydrated: boolean;
   isOnDevServer: boolean;
@@ -113,6 +116,7 @@ export type VaultonomyStateData = {
   } | null;
   lastScrollPosition: number | null;
   stats: VaultonomyGA4MPClient | null;
+  statsConsent: StatsConsent | null;
 };
 
 type PersistedVaultonomyStateData = Pick<
@@ -124,6 +128,7 @@ type PersistedVaultonomyStateData = Pick<
   | "searchForUserQuery"
   | "userOfInterest"
   | "lastScrollPosition"
+  | "statsConsent"
 >;
 
 export type VaultonomyState = VaultonomyStateData & VaultonomyStateActions;
@@ -152,17 +157,6 @@ export const createVaultonomyStore = (
   return createStore<VaultonomyState>()(
     persist(
       (set) => {
-        const stats = createClient() ?? null;
-        if (stats) {
-          stats.logEvent({
-            name: "page_view",
-            params: {
-              page_location: window.location.href,
-              page_title: document.title,
-            },
-          });
-        }
-
         const state: VaultonomyState = {
           hasHydrated: false,
           isOnDevServer,
@@ -175,7 +169,8 @@ export const createVaultonomyStore = (
           searchForUserQuery: "",
           userOfInterest: null,
           lastScrollPosition: null,
-          stats: createClient() ?? null,
+          stats: null,
+          statsConsent: null,
           // actions
           setHasHydrated(hasHydrated: boolean): void {
             set({ hasHydrated });
@@ -263,7 +258,7 @@ export const createVaultonomyStore = (
                 userOfInterest.rawUsernameQuery !==
                   store.userOfInterest?.rawUsernameQuery
               ) {
-                stats?.logEvent({
+                store.stats?.logEvent({
                   name: "VT_search_triggered",
                   params: {
                     trigger: userOfInterest.source,
@@ -274,12 +269,39 @@ export const createVaultonomyStore = (
               return { userOfInterest };
             });
           },
+          setStatsConsent(statsConsent) {
+            set((store) => {
+              if (statsConsent === "opt-in") {
+                let stats = store.stats;
+                if (!stats) {
+                  // createClient() may itself be disabled if stats config is
+                  // not present in this build's constants.
+                  stats = createClient() ?? null;
+                  stats?.logEvent({
+                    name: "page_view",
+                    params: {
+                      page_location: window.location.href,
+                      page_title: document.title,
+                    },
+                  });
+                }
+                return { stats, statsConsent };
+              } else {
+                // Disable stats unless the user has opted-in. This also
+                // deletes any queued events without sending them.
+                if (store.stats) {
+                  store.stats[Symbol.dispose]();
+                }
+                return { stats: null, statsConsent };
+              }
+            });
+          },
         };
         return state;
       },
       {
         name: "vaultonomy-ui-state",
-        version: 6,
+        version: 7,
         partialize(store): PersistedVaultonomyStateData {
           return {
             currentUserId: store.currentUserId,
@@ -289,10 +311,14 @@ export const createVaultonomyStore = (
             searchForUserQuery: store.searchForUserQuery,
             userOfInterest: store.userOfInterest,
             lastScrollPosition: store.lastScrollPosition,
+            statsConsent: store.statsConsent,
           };
         },
         onRehydrateStorage(_statePre) {
           return (statePost) => {
+            // The state.stats client is created/destroyed when statsConsent
+            // changes, so we need to call setStatsConsent() to keep it in sync.
+            statePost?.setStatsConsent(statePost.statsConsent);
             statePost?.setHasHydrated(true);
           };
         },
