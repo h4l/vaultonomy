@@ -86,6 +86,7 @@ export class GA4MPClient<EventT extends GA4Event = GA4Event> {
   #loggedEventCount = 0;
   #sendQueuedEventsSoon: ReturnType<typeof debounce<() => void>>;
   #isIdle: boolean | undefined = undefined;
+  #isDisposed: boolean = false;
 
   constructor(options: GA4MPClientOptions) {
     this.endpoint = options.endpoint;
@@ -147,6 +148,9 @@ export class GA4MPClient<EventT extends GA4Event = GA4Event> {
    * in time, and sent as a batch.
    */
   logEvent(...events: EventT[]) {
+    // Ignore any events received after shutdown.
+    if (this.#isDisposed) return;
+
     const time = Date.now();
 
     for (const event of events) {
@@ -191,6 +195,8 @@ export class GA4MPClient<EventT extends GA4Event = GA4Event> {
 
   /** Immediately send any events previously recorded with `logEvent()`. */
   sendQueuedEvents(): void {
+    if (this.#isDisposed) return;
+
     for (const group of this.groupUnsentEventGroupsForSending()) {
       const rawPayload = this.buildPayload(group.time, group.events);
       const validatedPayload = AnyPayload.safeParse(rawPayload);
@@ -211,6 +217,11 @@ export class GA4MPClient<EventT extends GA4Event = GA4Event> {
   }
 
   [Symbol.dispose]() {
+    // We need to drop any queued events rather than flushing, so that dispose
+    // can be used to cleanly stop all event collection when a user opts out.
+    this.#isDisposed = true;
+    this.clearLoggedEvents();
+    this.#sendQueuedEventsSoon.cancel();
     this.emitter.emit("afterDispose");
   }
 
