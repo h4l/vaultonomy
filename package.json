@@ -17,7 +17,7 @@
     "build-ff": "VAULTONOMY_BROWSER=firefox npm run build",
     "build-dev-ff": "VAULTONOMY_BROWSER=firefox npm run build-dev",
     "check": "npm run typecheck && npm run lint",
-    "lint": "eslint src *.ts",
+    "lint": "eslint src *.ts *.js",
     "prettier": "prettier --check src *.ts",
     "test": "NODE_OPTIONS=--experimental-vm-modules npx jest",
     "typecheck": "tsc",
