@@ -251,6 +251,32 @@ export function RecommendIcon(props: {
   );
 }
 
+export function ScoreIcon(props: {
+  title?: string;
+  size?: number;
+  className?: string;
+}): JSX.Element {
+  return (
+    // https://fonts.google.com/icons?selected=Material+Symbols+Outlined:score:FILL@0;wght@400;GRAD@0;opsz@40&icon.size=40&icon.color=%235f6368&icon.query=score
+    <SvgIcon
+      title={props.title ?? "Score"}
+      {...props}
+      icon24={
+        <path
+          fill="currentColor"
+          d="M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h560q33 0 56.5 23.5T840-760v560q0 33-23.5 56.5T760-120H200Zm160-340 160 160 240-240v-220H200v460l160-160Zm120-20v-240h60v240h-60Zm140 0-80-120 80-120h68l-80 120 80 120h-68Zm-340 0v-150h100v-30H280v-60h160v150H340v30h100v60H280Zm80 120L200-200h560v-240L520-200 360-360ZM200-200v-560 560Z"
+        />
+      }
+      icon40={
+        <path
+          fill="currentColor"
+          d="M186.67-120q-27 0-46.84-19.83Q120-159.67 120-186.67v-586.66q0-27 19.83-46.84Q159.67-840 186.67-840h586.66q27 0 46.84 19.83Q840-800.33 840-773.33v586.66q0 27-19.83 46.84Q800.33-120 773.33-120H186.67Zm168.66-328.67L520-284l253.33-253.33v-236H186.67V-280l168.66-168.67ZM484-484v-240h53.33v240H484Zm116 0-62.67-120L600-724h62l-62 115.33L662-484h-62Zm-324.67 0v-149.33h102v-37.34h-102V-724h155.34v144h-102v42.67h102V-484H275.33Zm80 125.33-172 172h590v-260.66L520-194 355.33-358.67Zm-168.66 172v-586.66 586.66Z"
+        />
+      }
+    />
+  );
+}
+
 /**
  * `padding` adds padding around the logo consistent with the Google Fonts
  * icons.
