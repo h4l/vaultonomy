@@ -140,7 +140,7 @@ export function encodePairingStateKey({
   vaultAddress,
   walletAddress,
 }: PairingId): string {
-  // none of these can contain commas
+  // none of these values can contain :
   return `${userId}:${vaultAddress}:${walletAddress}`;
 }
 
