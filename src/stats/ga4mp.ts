@@ -368,10 +368,15 @@ export class EngagementReporter {
       this.startNewEngagementPeriod(this.currentPageParams);
     });
 
+    const stopAfterDispose = this.client.emitter.on("afterDispose", () => {
+      this[Symbol.dispose]();
+    });
+
     this.#stop = () => {
       stopOnEvent();
       stopBecameIdleEvent();
       stopBecameActiveEvent();
+      stopAfterDispose();
     };
   }
 
