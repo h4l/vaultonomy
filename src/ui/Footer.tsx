@@ -1,8 +1,15 @@
+import { LinkButton } from "./Button";
 import { Link } from "./Link";
 import { VaultonomyLogo } from "./VaultonomyLogo";
-import { GitHubLogo, RecommendIcon } from "./icons";
+import { GitHubLogo, RecommendIcon, ScoreIcon } from "./icons";
+import { useVaultonomyStore } from "./state/useVaultonomyStore";
 
 export function Footer(): JSX.Element {
+  const { statsConsent, setStatsConsent } = useVaultonomyStore((s) => ({
+    statsConsent: s.statsConsent,
+    setStatsConsent: s.setStatsConsent,
+  }));
+
   return (
     <footer
       className={[
@@ -29,12 +36,22 @@ export function Footer(): JSX.Element {
         </Link>
       </div>
       <div className="flex justify-start">
-        <div className="flex shrink">
+        <div className="flex gap-2 shrink">
           {/* TODO: link to Chrome / Mozilla store */}
-          <div className="flex flex-wrap gap-2 justify-center items-center text-center">
+          <div className="flex flex-wrap gap-1 justify-center items-center text-center leading-tight">
             <RecommendIcon className="w-full basis-6 -translate-y-[0.1rem]" />
             <div>Leave a review</div>
           </div>
+          <LinkButton
+            onClick={() => setStatsConsent(null)}
+            className="flex flex-wrap gap-1 justify-center items-center text-center leading-tight"
+          >
+            <ScoreIcon
+              size={24}
+              className="w-full basis-6 -translate-y-[0.1rem]"
+            />
+            <div>Metrics are {statsConsent === "opt-in" ? "on" : "off"}</div>
+          </LinkButton>
         </div>
       </div>
     </footer>
