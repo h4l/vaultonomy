@@ -43,7 +43,7 @@ export type GA4MPClientEvents<EventT> = {
    */
   becameIdle(): void;
   becameActive(): void;
-  beforeDispose(): void;
+  afterDispose(): void;
 };
 
 /**
@@ -211,7 +211,7 @@ export class GA4MPClient<EventT extends GA4Event = GA4Event> {
   }
 
   [Symbol.dispose]() {
-    this.emitter.emit("beforeDispose");
+    this.emitter.emit("afterDispose");
   }
 
   /** The endpoint URL with the GA4MP `measurement_id` and `api_secret` params. */
@@ -281,13 +281,13 @@ class VisibilityStateIdleController {
     };
     document.addEventListener("visibilitychange", onVisibilityChange);
 
-    const stopBeforeDispose = this.client.emitter.on("beforeDispose", () => {
+    const stopAfterDispose = this.client.emitter.on("afterDispose", () => {
       this[Symbol.dispose]();
     });
 
     this.#stop = () => {
       document.removeEventListener("visibilitychange", onVisibilityChange);
-      stopBeforeDispose();
+      stopAfterDispose();
     };
 
     this.reportVisibilityState();
