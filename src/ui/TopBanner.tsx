@@ -2,14 +2,18 @@ import { ReactNode, useEffect, useRef, useState } from "react";
 
 import { HelpMessageProps, WithInlineHelp } from "./Help";
 import { Link } from "./Link";
+import { StatsConsent } from "./StatsConsent";
 import { AriaLiveAlert } from "./a11y";
 import { useAnimateOnOffScreen } from "./hooks/useAnimateOnOffScreen";
 import { useRedditTabAvailability } from "./hooks/useRedditTabAvailability";
 import { useVaultonomySettings } from "./hooks/useVaultonomySettings";
 import { ErrorIcon, VaultonomyExtensionIcon } from "./icons";
-import { useVaultonomyStoreSingle } from "./state/useVaultonomyStore";
+import { useVaultonomyStore } from "./state/useVaultonomyStore";
 
-type AlertType = "reddit-logged-out" | "reddit-disconnected";
+type AlertType =
+  | "reddit-logged-out"
+  | "reddit-disconnected"
+  | "stats-consent-required";
 
 /**
  * The top banner that alerts the user of error states, like Reddit not being
@@ -17,11 +21,15 @@ type AlertType = "reddit-logged-out" | "reddit-disconnected";
  */
 export function TopBanner(): JSX.Element {
   const redditTabAvailability = useRedditTabAvailability();
-  const loggedOut = useVaultonomyStoreSingle((s) => s.redditWasLoggedOut);
+  const { loggedOut, statsConsentRequired } = useVaultonomyStore((s) => ({
+    loggedOut: s.redditWasLoggedOut,
+    statsConsentRequired: s.hasHydrated && s.statsConsent === null,
+  }));
   const [startupDelayElapsed, setStartupDelayElapsed] =
     useState<boolean>(false);
   const alertType: AlertType | null =
-    !startupDelayElapsed ? null
+    statsConsentRequired ? "stats-consent-required"
+    : !startupDelayElapsed ? null
     : !redditTabAvailability.data?.available ? "reddit-disconnected"
     : loggedOut ? "reddit-logged-out"
     : null;
@@ -37,7 +45,9 @@ export function TopBanner(): JSX.Element {
 
   return (
     <AlertBanner active={alertType !== null}>
-      {latestAlert === "reddit-disconnected" ?
+      {latestAlert === "stats-consent-required" ?
+        <StatsConsent />
+      : latestAlert === "reddit-disconnected" ?
         <RedditDisconnectedAlertMessage />
       : latestAlert === "reddit-logged-out" ?
         <AlertMessage
