@@ -29,6 +29,10 @@ function log_info() {
   echo "Info:" "$@" >&2
 }
 
+function log_warning() {
+  echo "Warning:" "$@" >&2
+}
+
 if [[ $# != 1 || ! $1 ]]; then
   err_exit $'Invalid arguments\n\n' "${usage:?}"
 fi
@@ -117,10 +121,25 @@ upload_resp=$(
 if [[ "${CWS_PUBLISH_TARGET?}" ]]; then
   log_info "Publishing item to ${CWS_PUBLISH_TARGET@Q}"
 
-  publish_resp=$(
+  publish_resp_file=$(mktemp)
+  publish_status=0
+  publish_http_status=$(
     curl -H @- <<<"${cws_auth_headers:?}" -fsS -X POST \
+      -o "${publish_resp_file:?}" \
+      -w "%{http_code}" \
       "${CWS_BASE:?}/chromewebstore/v1.1/items/${item_id:?}/publish?publishTarget=${CWS_PUBLISH_TARGET:?}"
-  ) || {
-    status=3 err_exit "Failed to publish item:"$'\n' "${publish_resp?}"
-  }
+  ) || publish_status=$?
+
+  if [[ ${publish_status:?} != 0 ]]; then
+    publish_resp_body=$(<"${publish_resp_file:?}")
+    if [[ ${publish_http_status:?} == 400 && ! "${publish_resp_body?}" ]]; then
+      log_warning "Publish request failed with 400 Bad Request and no body." \
+        "This can happen when an item is already queued for publishing and" \
+        "awaiting review. Check the item status in the Developer Dashboard:" \
+        "https://chrome.google.com/webstore/devconsole/"
+    else
+      status=3 err_exit "Publish request failed with status" \
+        "${publish_http_status:?}:"$'\n' "${publish_resp_body?}"
+    fi
+  fi
 fi
