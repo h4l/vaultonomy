@@ -87,7 +87,7 @@ cws_version=$(jq <<<"${version_detail_json:?}" -er '.crxVersion')
 # intended to be idempotent, so having already published is not an error.
 if manifest_version=${manifest_version:?} cws_version=${cws_version?} jq -ne '
     def digits(version): version | split(".") | map(tonumber);
-    digits(env.manifest_version) <= digits(cws_version)'; then
+    digits(env.manifest_version) <= digits(env.cws_version)'; then
   log_info "Up-to-date: Tag version ${tag:?} (${manifest_json:?}) is <= Chrome Web Store version ${cws_version@Q}"
   return 0
 fi
