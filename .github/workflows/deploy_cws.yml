@@ -1,0 +1,51 @@
+name: Submit extension release archive to Chrome Web Store
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  submit-stable:
+    name: Submit GitHub Release stable version to Chrome Web Store
+    runs-on: ubuntu-latest
+    environment: Chrome Web Store
+    if: startsWith(github.ref, 'refs/tags/v') && ! github.event.release.prerelease
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Submit
+        run: |
+          scripts/cws-submit.sh "${TAG:?}"
+        env:
+          CWS_ITEM_ID: ${{ vars.CWS_ITEM_ID }}
+          CWS_PUBLISH_TARGET: ${{ vars.CWS_PUBLISH_TARGET }}
+          CWS_NAME_SUFFIX: ""
+          TAG: ${{ github.ref_name }}
+          CWS_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
+          CWS_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
+          CWS_REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
+
+  submit-pre-release:
+    name: Submit GitHub Release stable and pre-release versions to Chrome Web Store Pre-release
+    runs-on: ubuntu-latest
+    environment: Chrome Web Store Pre-release
+    # We submit both stable and pre-release versions to the Pre-release item, so
+    # that it's up to date with the stable version when a stable is released.
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Submit
+        id: submit
+        run: |
+          scripts/cws-submit.sh "${TAG:?}"
+        env:
+          CWS_ITEM_ID: ${{ vars.CWS_ITEM_ID }}
+          CWS_PUBLISH_TARGET: ${{ vars.CWS_PUBLISH_TARGET }}
+          CWS_NAME_SUFFIX: " (Pre-release)"
+          TAG: ${{ github.ref_name }}
+          CWS_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
+          CWS_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
+          CWS_REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
