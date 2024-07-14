@@ -97,7 +97,7 @@ manifest_version=$(jq <<<"${manifest_json:?}" -er .version)
 log_info "Checking if release version already exists in AMO..."
 version_detail_json_file="${dir:?}/version.json"
 version_status=$(
-  curl -# -o "${version_detail_json_file:?}" -w "%{http_code}" \
+  curl -sSL -o "${version_detail_json_file:?}" -w "%{http_code}" \
     -H @<("${__scripts:?}/amo-auth.sh") \
     "${AMO_BASE_URL:?}/api/v5/addons/addon/vaultonomy/versions/${manifest_version:?}/"
 )
@@ -120,7 +120,7 @@ else # Version not yet created
   upload_uuid=$(jq <<<"${upload_detail_json:?}" -er .uuid)
   upload_uuid=${upload_uuid//\/}  # remove any / (should be no-op)
 
-  log_info "Waiting for upload to be validated..."
+  log_info $'Waiting for upload to be validated...\n↓'
   # Try for ~10 minutes max — normally only takes 10-20 seconds
   for (( i = 0; ; i++ )); do
     if (( i >= 120 )); then
@@ -137,9 +137,10 @@ else # Version not yet created
     sleep 5
 
     upload_detail_json=$(
-      curl -# -f --retry 3 -H @<("${__scripts:?}/amo-auth.sh") \
+      curl -fsSL --retry 3 -H @<("${__scripts:?}/amo-auth.sh") \
       "${AMO_BASE_URL:?}/api/v5/addons/upload/${upload_uuid:?}/"
     )
+    echo '⋮' >&2
   done
 
   log_info "Creating version ${manifest_version:?} from validated release archive"
@@ -153,7 +154,7 @@ else # Version not yet created
   log_info "Version created: ${version_edit_url@Q}"
 fi
 
-log_info "Waiting for version to be approved & signed..."
+log_info $'Waiting for version to be approved & signed...\n↓'
 
 # listed channel initially requires manual approval, but later it starts
 # auto-approving. unlisted auto-approves by default. Usually this happens within
@@ -175,9 +176,10 @@ for (( i = 0; ; i++ )); do
   sleep 5
 
   version_detail_json=$(
-    curl -# -f --retry 3 -H @<("${__scripts:?}/amo-auth.sh") \
+    curl -fsSL --retry 3 -H @<("${__scripts:?}/amo-auth.sh") \
       "${AMO_BASE_URL:?}/api/v5/addons/addon/vaultonomy/versions/${manifest_version:?}/"
   )
+  echo '⋮' >&2
 done
 
 signed_xpi_url=$(jq <<<"${version_detail_json:?}" -er '.file.url')
