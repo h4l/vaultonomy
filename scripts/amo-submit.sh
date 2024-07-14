@@ -97,7 +97,7 @@ manifest_version=$(jq <<<"${manifest_json:?}" -er .version)
 log_info "Checking if release version already exists in AMO..."
 version_detail_json_file="${dir:?}/version.json"
 version_status=$(
-  curl -# -o "${version_detail_json_file:?}" -w "%{http_code}" \
+  curl -sSL -o "${version_detail_json_file:?}" -w "%{http_code}" \
     -H @<("${__scripts:?}/amo-auth.sh") \
     "${AMO_BASE_URL:?}/api/v5/addons/addon/vaultonomy/versions/${manifest_version:?}/"
 )
@@ -120,16 +120,16 @@ else # Version not yet created
   upload_uuid=$(jq <<<"${upload_detail_json:?}" -er .uuid)
   upload_uuid=${upload_uuid//\/}  # remove any / (should be no-op)
 
-  log_info "Waiting for upload to be validated..."
+  log_info $'Waiting for upload to be validated...\n╰'
   # Try for ~10 minutes max — normally only takes 10-20 seconds
   for (( i = 0; ; i++ )); do
     if (( i >= 120 )); then
-      err_exit "Timed out waiting for uploaded .zip to be validated."
+      err_exit $'\n'"Timed out waiting for uploaded .zip to be validated."
     fi
 
     if jq <<<"${upload_detail_json:?}" -er '.processed' > /dev/null; then
       if ! jq <<<"${upload_detail_json:?}" -er '.valid' > /dev/null; then
-        err_exit "Release archive failed validation after upload:", $'\n' "${upload_detail_json:?}"
+        err_exit $'\n'"Release archive failed validation after upload:", $'\n' "${upload_detail_json:?}"
       fi
       break
     fi
@@ -137,10 +137,12 @@ else # Version not yet created
     sleep 5
 
     upload_detail_json=$(
-      curl -# -f --retry 3 -H @<("${__scripts:?}/amo-auth.sh") \
+      curl -fsSL --retry 3 -H @<("${__scripts:?}/amo-auth.sh") \
       "${AMO_BASE_URL:?}/api/v5/addons/upload/${upload_uuid:?}/"
     )
+    printf '•' >&2
   done
+  printf '\n' >&2
 
   log_info "Creating version ${manifest_version:?} from validated release archive"
   version_detail_json=$(
@@ -153,13 +155,14 @@ else # Version not yet created
   log_info "Version created: ${version_edit_url@Q}"
 fi
 
-log_info "Waiting for version to be approved & signed..."
+log_info $'Waiting for version to be approved & signed...\n╰'
 
 # listed channel initially requires manual approval, but later it starts
 # auto-approving. unlisted auto-approves by default. Usually this happens within
 # a minute or two.
 for (( i = 0; ; i++ )); do
   if (( i >= 120 )); then
+    printf '\n' >&2
     release_channel=${release_channel:?} jq -cne \
       '{status: "approve-timeout", release_channel: env.release_channel, signed_xpi_file: null}'
     exit 0
@@ -169,7 +172,7 @@ for (( i = 0; ; i++ )); do
   version_status=$(jq <<<"${version_detail_json:?}" -er '.file.status')
   if [[ ${version_status:?} == public ]]; then break
   elif [[ ${version_status:?} != "unreviewed" ]]; then
-    err_exit "Failed to wait for version to be approved; version has status: ${version_status@Q}"
+    err_exit $'\n'"Failed to wait for version to be approved; version has status: ${version_status@Q}"
   fi
 
   sleep 5
@@ -178,7 +181,9 @@ for (( i = 0; ; i++ )); do
     curl -# -f --retry 3 -H @<("${__scripts:?}/amo-auth.sh") \
       "${AMO_BASE_URL:?}/api/v5/addons/addon/vaultonomy/versions/${manifest_version:?}/"
   )
+  printf '•' >&2
 done
+printf '\n' >&2
 
 signed_xpi_url=$(jq <<<"${version_detail_json:?}" -er '.file.url')
 signed_xpi_file="${dir:?}/vaultonomy_firefox_${tag:?}.xpi"
