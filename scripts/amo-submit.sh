@@ -140,7 +140,7 @@ else # Version not yet created
       curl -fsSL --retry 3 -H @<("${__scripts:?}/amo-auth.sh") \
       "${AMO_BASE_URL:?}/api/v5/addons/upload/${upload_uuid:?}/"
     )
-    printf '•' >&2
+    stdbuf -o0 -e0 printf '•' >&2
   done
   printf '\n' >&2
 
@@ -178,10 +178,10 @@ for (( i = 0; ; i++ )); do
   sleep 5
 
   version_detail_json=$(
-    curl -# -f --retry 3 -H @<("${__scripts:?}/amo-auth.sh") \
+    curl -fsSL --retry 3 -H @<("${__scripts:?}/amo-auth.sh") \
       "${AMO_BASE_URL:?}/api/v5/addons/addon/vaultonomy/versions/${manifest_version:?}/"
   )
-  printf '•' >&2
+  stdbuf -o0 -e0 printf '•' >&2
 done
 printf '\n' >&2
 
