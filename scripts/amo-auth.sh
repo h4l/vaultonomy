@@ -17,7 +17,7 @@
 set -euo pipefail
 
 now=$(date +%s)
-expiry=$(($now + 300))
+expiry=$((now + 300))
 
 claim=$(
   issuer=${AMO_JWT_ISSUER:?} nonce=$(uuid) expiry=${expiry:?} now=${now:?} \
