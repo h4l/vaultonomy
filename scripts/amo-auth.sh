@@ -1,11 +1,19 @@
 #!/usr/bin/env bash
-# Create a JWT for the Firefox Add-ons API.
+# Print auth HTTP headers for the Firefox Add-ons API.
+#
+# Make an authenticated request with curl, like this:
+#   $ curl -H @<(./amo-auth.sh) ...
+#
+# The API uses single-use JWTs to authenticate, so you must run amo-auth.sh for
+# every request.
+#
+# The JWTs created here are documented here:
 # https://mozilla.github.io/addons-server/topics/api/auth.html#access-credentials
 #
 # Set API credentials in environment variables:
 #   AMO_JWT_ISSUER
 #   AMO_JWT_SECRET
-# Script dependencies: apt-get install jwt
+# Script dependencies: apt-get install jwt uuid
 set -euo pipefail
 
 now=$(date +%s)

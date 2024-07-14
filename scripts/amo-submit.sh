@@ -5,6 +5,13 @@ usage='Submit a Vaultonomy GitHub Release to Firefox Add-ons
 
 Usage:
   amo-submit.sh <tag>
+
+Environment Variables:
+  AMO_JWT_ISSUER
+  AMO_JWT_SECRET
+    API credentials to authenticate API calls. See the API authentication docs
+    for how to generate them for your account:
+    https://mozilla.github.io/addons-server/topics/api/auth.html#access-credentials
 '
 
 AMO_BASE_URL=https://addons.mozilla.org
