@@ -8,10 +8,12 @@ export function Link({
   className,
   onClick,
   children,
+  title,
 }: {
   className?: string;
   onClick?: (e: React.MouseEvent<HTMLAnchorElement, MouseEvent>) => void;
   children: ReactNode;
+  title?: string;
 } & ({ href: string; toId?: undefined } | { href?: undefined; toId: string })) {
   const isScreenReaderOnlyContext = useContext(ScreenReaderOnlyContext);
 
@@ -23,6 +25,7 @@ export function Link({
   return (
     <a
       {...params}
+      title={title}
       // prevent tab-focusing links in invisible sr-only areas
       tabIndex={isScreenReaderOnlyContext ? -1 : undefined}
       rel="noreferrer"
