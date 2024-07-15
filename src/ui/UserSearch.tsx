@@ -262,7 +262,7 @@ function SearchForm({
         helpId="vault-search"
         helpText={() => (
           <>
-            <div className="prose">
+            <div className="prose dark:prose-invert">
               <ul className="list-disc">
                 <li>
                   Find a Reddit user’s Vault address by searching for their

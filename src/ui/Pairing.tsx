@@ -302,7 +302,7 @@ function Dialogue({
       <div className="text-center font-medium">
         <ActorName>{name}</ActorName>
       </div>
-      <p className="prose">{children}</p>
+      <p className="prose dark:prose-invert">{children}</p>
     </div>
   );
   // return (
@@ -418,7 +418,7 @@ function PairingMessage({
         <Heading id={headingId} level={3} className="text-center mt-0">
           Reddit’s Message
         </Heading>
-        <div className="prose">
+        <div className="prose dark:prose-invert">
           {/* TODO: maybe more info here. Allow viewing/copying the typed data?  */}
           <p>
             Your Wallet should show you these fields when you sign the Message.
