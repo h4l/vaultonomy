@@ -12,7 +12,12 @@ export function Vault({
     <EthAccount
       type="connected-vault"
       title="Reddit Vault"
-      subtitle={!activeVault ? "No active Vault" : undefined}
+      subtitle={
+        !activeVault.isRedditAvailable ? "Not connected"
+        : !activeVault ?
+          "No active Vault"
+        : undefined
+      }
       ethAddress={activeVault?.data?.address}
       footer={
         activeVault?.data?.createdAt ?
