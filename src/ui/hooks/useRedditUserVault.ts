@@ -7,6 +7,7 @@ import type {
 } from "../../reddit/api-client";
 import { RedditProvider } from "../../reddit/reddit-interaction-client";
 import { RequiredNonNullable } from "../../types";
+import { useVaultonomyStoreSingle } from "../state/useVaultonomyStore";
 import { useRedditProvider } from "./useRedditProvider";
 
 export type UseRedditUserVaultParameters = RpcQueryOptions;
@@ -14,12 +15,17 @@ export type UseRedditUserVaultParameters = RpcQueryOptions;
 export type GetRedditUserVaultQueryOptions = {
   query: UseRedditUserVaultParameters | undefined;
   redditProvider: RedditProvider | undefined;
+  redditWasLoggedOut: boolean | null | undefined;
 };
 
 function isEnabled(
   options: GetRedditUserVaultQueryOptions,
 ): options is RequiredNonNullable<GetRedditUserVaultQueryOptions> {
-  return !!(options.redditProvider && options.query);
+  return !!(
+    options.redditProvider &&
+    options.redditWasLoggedOut === false &&
+    options.query
+  );
 }
 
 export function getRedditUserVaultQueryOptions(
@@ -42,9 +48,13 @@ export function useRedditUserVault({
   query: UseRedditUserVaultParameters | undefined;
 }) {
   const { redditProvider } = useRedditProvider();
+  const redditWasLoggedOut = useVaultonomyStoreSingle(
+    (s) => s.redditWasLoggedOut,
+  );
 
   const fullOptions = {
     redditProvider: redditProvider ?? undefined,
+    redditWasLoggedOut,
     query,
   };
   return useQuery({
