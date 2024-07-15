@@ -6,6 +6,7 @@ import {
 } from "../../reddit/reddit-interaction-client";
 import { ErrorCode } from "../../reddit/reddit-interaction-spec";
 import { AnyRedditUserProfile } from "../../reddit/types";
+import { useVaultonomyStoreSingle } from "../state/useVaultonomyStore";
 import { useRedditProvider } from "./useRedditProvider";
 import { normaliseUsername } from "./useSearchForUser";
 
@@ -14,17 +15,23 @@ export type UseRedditUserProfileParameters = { username: string | undefined };
 export type GetRedditUserProfileQueryOptions =
   UseRedditUserProfileParameters & {
     redditProvider: RedditProvider | undefined;
+    redditWasLoggedOut: boolean | null | undefined;
   };
 
 type EnabledOptions = {
   username: string;
   redditProvider: RedditProvider;
+  redditWasLoggedOut: false;
 };
 
 function isEnabled(
   options: GetRedditUserProfileQueryOptions,
 ): options is EnabledOptions {
-  return !!(options.redditProvider && options.username);
+  return !!(
+    options.redditProvider &&
+    options.redditWasLoggedOut === false &&
+    options.username
+  );
 }
 
 export function getRedditUserProfileQueryOptions(
@@ -67,10 +74,14 @@ export function useRedditUserProfile({
   username,
 }: Partial<UseRedditUserProfileParameters>) {
   const { redditProvider } = useRedditProvider();
+  const redditWasLoggedOut = useVaultonomyStoreSingle(
+    (s) => s.redditWasLoggedOut,
+  );
 
   const options = {
     redditProvider: redditProvider ?? undefined,
     username: username?.toLowerCase(),
+    redditWasLoggedOut,
   };
   return useQuery({
     ...getRedditUserProfileQueryOptions(options),
