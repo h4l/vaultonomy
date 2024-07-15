@@ -1,3 +1,4 @@
+import forms from "@tailwindcss/forms";
 import typography from "@tailwindcss/typography";
 
 const tailwindDefaultSansFontFamily =
@@ -6,7 +7,7 @@ const tailwindDefaultSansFontFamily =
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ["./src/**/*.{ts,tsx}", "./src/html/**/*.html", "./index.html"],
-  plugins: [typography],
+  plugins: [typography, forms],
   theme: {
     extend: {
       screens: {
