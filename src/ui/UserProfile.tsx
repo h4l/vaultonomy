@@ -8,10 +8,12 @@ import { BlockIcon } from "./icons";
 import { pxNumbersAsRem } from "./utils/units";
 
 export function UserProfile({
+  id,
   label = "Your",
   profile: anyProfile,
   fixedHeight = false,
 }: {
+  id?: string;
   label?: string;
   profile?: AnyRedditUserProfile;
   fixedHeight?: boolean;
@@ -19,7 +21,7 @@ export function UserProfile({
   const profile = anyProfile?.isSuspended ? undefined : anyProfile;
   return (
     <section
-      id={`${label.toLowerCase()}-account`}
+      id={id ?? `${label.toLowerCase()}-account`}
       aria-label={`${label} Reddit account details`}
       className="flex flex-col items-center"
     >

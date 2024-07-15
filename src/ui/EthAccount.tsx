@@ -38,6 +38,7 @@ export type AccountType =
 export function EthAccount({
   type,
   title,
+  titleId,
   subtitle,
   ethAddress: _ethAddress,
   footer,
@@ -45,6 +46,7 @@ export function EthAccount({
 }: {
   type: AccountType;
   title: string;
+  titleId?: string;
   subtitle?: string;
   ethAddress?: Address;
   head?: React.ReactNode;
@@ -58,7 +60,7 @@ export function EthAccount({
       ethAddress={_ethAddress}
       header={
         <Heading
-          id={title.toLowerCase().replaceAll(/\s+/g, "-")}
+          id={titleId ?? title.toLowerCase().replaceAll(/\s+/g, "-")}
           className={`row-start-1 col-start-1 col-span-6 flex flex-row justify-center`}
         >
           {subtitle ?

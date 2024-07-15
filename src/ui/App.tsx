@@ -22,6 +22,7 @@ import { Wallet } from "./Wallet";
 import { useRedditAccount } from "./hooks/useRedditAccount";
 import { useRedditAccountActiveVault } from "./hooks/useRedditAccountVaults";
 import { useVaultonomyBackgroundConnection } from "./hooks/useVaultonomyBackgroundProvider";
+import { YOUR_ACCOUNT } from "./ids";
 import { VaultonomyContext } from "./state/VaultonomyContext";
 import { VaultonomyStore } from "./state/createVaultonomyStore";
 import { useStoreCurrentUserId } from "./state/useStoreCurrentUserId";
@@ -98,7 +99,7 @@ export function AppUI() {
         <VaultonomyLogo className="" />
       </header>
       <main className="flex flex-col gap-20">
-        <UserProfile profile={redditAccount.data} />
+        <UserProfile id={YOUR_ACCOUNT} profile={redditAccount.data} />
 
         <div className="mx-10 flex flex-row flex-wrap justify-center gap-x-40 gap-y-20">
           <Vault activeVault={activeVault} />

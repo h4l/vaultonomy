@@ -7,7 +7,7 @@ import { ErrorCode } from "../../reddit/reddit-interaction-spec";
 import { Link } from "../Link";
 import { UseRedditAccountResult } from "../hooks/useRedditAccount";
 import { UseRedditAccountActiveVaultResult } from "../hooks/useRedditAccountVaults";
-import { WALLET } from "../ids";
+import { WALLET, YOUR_ACCOUNT } from "../ids";
 import { PairingStep, PairingStepState, StepAction } from "./components";
 import { RedditErrorStepAction } from "./steps";
 
@@ -62,7 +62,8 @@ function ConnectToReddit({
         headline="Vaultonomy is not connected to a Reddit tab"
         details={
           <>
-            <Link toId="account">Connect to a Reddit tab</Link> to continue.
+            <Link toId={YOUR_ACCOUNT}>Connect to a Reddit tab</Link> to
+            continue.
           </>
         }
       />

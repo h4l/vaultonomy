@@ -9,6 +9,7 @@ import { EthAccount, FadeOut } from "./EthAccount";
 import { WithInlineHelp } from "./Help";
 import { IndeterminateProgressBar } from "./IndeterminateProgressBar";
 import { useLazyConnectors } from "./hooks/wallet";
+import { WALLET } from "./ids";
 import { useVaultonomyStoreSingle } from "./state/useVaultonomyStore";
 import { pxNumbersAsRem } from "./utils/units";
 
@@ -38,6 +39,7 @@ export function Wallet({
         <EthAccount
           type="connected-wallet"
           title="Wallet"
+          titleId={WALLET}
           ethAddress={wallet.address}
           footer={
             <LinkButton onClick={() => disconnect()} className="italic text-sm">
