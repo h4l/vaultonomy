@@ -15,6 +15,7 @@ import { log } from "../../logging";
 import { RedditProvider } from "../../reddit/reddit-interaction-client";
 import { RequiredNonNullable } from "../../types";
 import { Result } from "../state/createVaultonomyStore";
+import { useVaultonomyStoreSingle } from "../state/useVaultonomyStore";
 import { useRedditProvider } from "./useRedditProvider";
 import { getRedditUserProfileQueryOptions } from "./useRedditUserProfile";
 
@@ -58,6 +59,7 @@ export type SearchForUserResult = Result<SearchForUser, SearchForUserError>;
 
 type GetSearchForUserQueryOptions = UseSearchForUserOptions & {
   redditProvider: RedditProvider | null | undefined;
+  redditWasLoggedOut: boolean | null | undefined;
   queryClient: QueryClient;
   wagmiConfig: Config;
 };
@@ -186,6 +188,9 @@ async function searchForUserByUsername({
   const result = await queryClient.fetchQuery(
     getRedditUserProfileQueryOptions({
       redditProvider,
+      // Assume we're not logged out when explicitly called. Should hold so long
+      // as queries that trigger this also pause when logged out.
+      redditWasLoggedOut: false,
       username: query.value,
     }),
   );
@@ -260,7 +265,11 @@ async function searchForUserByEnsNameTxtRecord({
 function isEnabled(
   options: GetSearchForUserQueryOptions,
 ): options is RequiredNonNullable<GetSearchForUserQueryOptions> {
-  return !!(options.redditProvider && options.query);
+  return !!(
+    options.redditProvider &&
+    options.redditWasLoggedOut === false &&
+    options.query
+  );
 }
 
 export function getSearchForUserQueryKey(
@@ -291,11 +300,15 @@ export function useSearchForUser({ query }: UseSearchForUserOptions) {
   const queryClient = useQueryClient();
   const wagmiConfig = useConfig();
   const { redditProvider } = useRedditProvider();
+  const redditWasLoggedOut = useVaultonomyStoreSingle(
+    (s) => s.redditWasLoggedOut,
+  );
 
   const options: GetSearchForUserQueryOptions = {
     query,
     queryClient,
     redditProvider,
+    redditWasLoggedOut,
     wagmiConfig,
   };
   return useQuery({

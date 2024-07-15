@@ -1,5 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useConfig } from "wagmi";
 
 import { log } from "../../logging";
@@ -16,6 +16,7 @@ export function useVaultonomyBackgroundConnection() {
   const wagmiConfig = useConfig();
   const [
     isOnDevServer,
+    redditWasLoggedOut,
     setProvider,
     removeProvider,
     onRedditLoggedOut,
@@ -23,12 +24,22 @@ export function useVaultonomyBackgroundConnection() {
     setUserOfInterest,
   ] = useVaultonomyStore((s) => [
     s.isOnDevServer,
+    s.redditWasLoggedOut,
     s.setProvider,
     s.removeProvider,
     s.onRedditLoggedOut,
     s.onRedditNotLoggedOut,
     s.setUserOfInterest,
   ]);
+
+  // We need to know the current logged-out state to decide whether to pre-fetch
+  // user search queries, but we don't want to re-bind all the event handlers
+  // in response to logging out, so we maintain this state in a mutable ref
+  const redditWasLoggedOutRef = useRef<boolean | null>();
+  useEffect(() => {
+    redditWasLoggedOutRef.current = redditWasLoggedOut;
+  }, [redditWasLoggedOut]);
+
   useEffect(() => {
     let stopped = false;
     const createdProvider = createVaultonomyBackgroundProvider({
@@ -63,6 +74,7 @@ export function useVaultonomyBackgroundConnection() {
               query,
               queryClient,
               redditProvider: createdProvider.redditProvider,
+              redditWasLoggedOut: redditWasLoggedOutRef.current,
               wagmiConfig,
             });
           }
@@ -93,7 +105,7 @@ export function useVaultonomyBackgroundConnection() {
       createdProvider.disconnect();
       removeProvider(createdProvider);
     };
-  }, []);
+  }, [redditWasLoggedOutRef]);
 
   // This needs to happen exactly once, so it makes sense to do it here as the
   // provider is created.
