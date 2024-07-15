@@ -38,7 +38,13 @@ export function Pairing({
     s.setPairingInterest,
   ]);
   const pairingId = getPairingId({
-    userId: redditAccount.data?.userID,
+    userId:
+      // Reddit account data will be cached when Reddit is disconnected, but we
+      // need an active connection to perform pairing steps, so we ignore the
+      // cached userID when determining the pairingId. This ensures the pairing
+      // UI cannot pass the first step (connecting to Reddit/Wallet) without an
+      // active connection.
+      redditAccount.isRedditAvailable ? redditAccount.data?.userID : undefined,
     vaultAddress:
       // null means no active vault, undefined means not loaded
       activeVault.data === null ? null : activeVault.data?.address,
