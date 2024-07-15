@@ -1,4 +1,4 @@
-import { EthAccount } from "./EthAccount";
+import { EthAccount, FadeOut } from "./EthAccount";
 import { WithInlineHelp } from "./Help";
 import { RelativeTime } from "./RelativeTime";
 import { UseRedditAccountActiveVaultResult } from "./hooks/useRedditAccountVaults";
@@ -29,6 +29,8 @@ export function Vault({
               <RelativeTime when={activeVault.data.createdAt} />
             </span>
           </WithInlineHelp>
+        : !activeVault?.data?.address ?
+          <FadeOut />
         : undefined
       }
     />
