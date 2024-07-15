@@ -99,7 +99,11 @@ export function AppUI() {
         <VaultonomyLogo className="" />
       </header>
       <main className="flex flex-col gap-20">
-        <UserProfile id={YOUR_ACCOUNT} profile={redditAccount.data} />
+        <UserProfile
+          id={YOUR_ACCOUNT}
+          profile={redditAccount.data}
+          disconnected={!redditAccount.isRedditAvailable}
+        />
 
         <div className="mx-10 flex flex-row flex-wrap justify-center gap-x-40 gap-y-20">
           <Vault activeVault={activeVault} />

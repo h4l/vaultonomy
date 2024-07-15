@@ -10,11 +10,13 @@ import { pxNumbersAsRem } from "./utils/units";
 export function UserProfile({
   id,
   label = "Your",
+  disconnected = false,
   profile: anyProfile,
   fixedHeight = false,
 }: {
   id?: string;
   label?: string;
+  disconnected?: boolean;
   profile?: AnyRedditUserProfile;
   fixedHeight?: boolean;
 }): JSX.Element {
@@ -41,7 +43,10 @@ export function UserProfile({
           >
             <UserAvatar
               title={`${profile.username}'s Reddit Profile`}
-              className="w-40"
+              className={twMerge(
+                "w-40",
+                disconnected ? "grayscale-[0.85]" : undefined,
+              )}
               avatarUrl={profile.accountIconFullBodyURL ?? undefined}
               fixedHeight={fixedHeight}
             />
