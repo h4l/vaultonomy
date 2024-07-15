@@ -105,11 +105,6 @@ const menus: Array<MenuEntry> = [
             title: ADDRESS_TOOLS[id].name,
           })),
       },
-      {
-        title: "Automatically search for users",
-        type: "checkbox",
-        checked: true,
-      },
     ],
   },
 ];
