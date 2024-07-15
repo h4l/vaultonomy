@@ -7,6 +7,7 @@ import { WithInlineHelp } from "./Help";
 import { IndeterminateProgressBar } from "./IndeterminateProgressBar";
 import { Link } from "./Link";
 import { UserProfile } from "./UserProfile";
+import { useRedditTabAvailability } from "./hooks/useRedditTabAvailability";
 import { useRedditUserProfile } from "./hooks/useRedditUserProfile";
 import { useRedditUserVault } from "./hooks/useRedditUserVault";
 import {
@@ -33,6 +34,7 @@ export function UserSearch(): JSX.Element {
     userOfInterestQuery,
     setUserOfInterest,
     stats,
+    loggedOut,
   ] = useVaultonomyStore((store) => {
     const userOfInterestQuery = parseQuery(
       store.userOfInterest?.rawUsernameQuery ?? "",
@@ -44,8 +46,10 @@ export function UserSearch(): JSX.Element {
       userOfInterestQuery.type === "username" ? userOfInterestQuery : undefined,
       store.setUserOfInterest,
       store.stats,
+      store.redditWasLoggedOut,
     ];
   });
+  const redditTabAvailability = useRedditTabAvailability();
 
   const [currentQuery, setCurrentQuery] = useState<
     ValidParsedQuery | undefined
@@ -65,8 +69,16 @@ export function UserSearch(): JSX.Element {
   });
   const hasVault =
     resultUserVault.isFetched ? !!resultUserVault.data?.address : undefined;
+  const isSearching = !!(currentQuery ?? userOfInterestQuery);
 
   const errors: string[] = [
+    // Only warn about disconnected or logged out when actually trying to search
+    isSearching ?
+      !redditTabAvailability.data?.available ?
+        "Cannot search while disconnected"
+      : loggedOut ? "Cannot search while logged out"
+      : undefined
+    : undefined,
     search.isError ? "Vaultonomy hit an error while searching" : undefined,
     resultUserProfile.isError ?
       "Vaultonomy hit an error while loading the user’s profile"
