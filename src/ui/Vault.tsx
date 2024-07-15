@@ -13,8 +13,9 @@ export function Vault({
       type="connected-vault"
       title="Reddit Vault"
       subtitle={
-        !activeVault.isRedditAvailable ? "Not connected"
-        : !activeVault ?
+        !activeVault.isRedditAvailable && activeVault.data === undefined ?
+          "Not connected"
+        : activeVault.data === null ?
           "No active Vault"
         : undefined
       }
