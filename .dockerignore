@@ -7,4 +7,5 @@
 dist*
 docker-bake.hcl
 Dockerfile
+docs
 node_modules
