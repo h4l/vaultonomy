@@ -1,3 +1,5 @@
+[![The Vaultonomy logo on top of screenshots](./docs/assets/vaultonomy-header-2x.png)](./docs/assets/vaultonomy-screenshot-grid-2x.png "9 screenshots of the Vaultonomy UI in 3x3 layout")
+
 # Vaultonomy
 
 A browser extension for [Reddit Vaults]. Vaultonomy can:
