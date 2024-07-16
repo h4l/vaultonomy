@@ -19,13 +19,28 @@ wallet while using them on Reddit.
 
 ## Install
 
-**Vaultonomy undergoing pre-release testing.** It will be available from the
-Chrome Web Store and Firefox Add-Ons in a few weeks.
+**Vaultonomy undergoing pre-release testing.** It is available to install from
+the Chrome Web store, and soon Firefox Add-ons. There are likely to be bugs in
+this release.
 
-> We'll be running a pre-release beta test before public release, if you'd like
-> to participate in pre-release testing, DM
-> [/u/h4l on Reddit](https://www.reddit.com/u/h4l). You'll need a desktop Chrome
-> browser (including Chrome-based, like Brave, Edge) or Firefox.
+If you'd like to participate in pre-release testing, look for posts from
+[u/h4l](https://www.reddit.com/u/h4l) on the
+[r/Vaultonomy](https://www.reddit.com/r/Vaultonomy) subreddit.
+
+<dl>
+  <dt>Chrome / Edge / Brave / Opera</dt>
+
+  <dd>
+  <a target="_blank" href="https://chromewebstore.google.com/detail/vaultonomy/jchkniacnpkclejcbhajgajhjbgnfagi?utm_source=vaultonomy-github&utm_medium=web&utm_campaign=readme-button"><img alt="Available in the Chrome Web Store" src="./docs/assets/chrome-web-store-button.png"></a>
+  </dd>
+
+  <dt>Firefox</dt>
+
+  <dd><p>
+  <a target="_blank" href="https://addons.mozilla.org/firefox/addon/vaultonomy/?utm_source=vaultonomy-github&utm_medium=web&utm_campaign=readme-button"><img alt="Available from Firefox Browser Add-Ons" src="./docs/assets/addons-mozilla-org-button.png"></a></p>
+
+  <p>Vaultonomy is awaiting from approval from Firefox Add-ons — <strong>the listing is not yet public</strong>. In the mean time you can install from the signed <code>.xpi</code> file in the <a href="https://github.com/h4l/vaultonomy/releases">Releases page</a>.</p></dd>
+</dl>
 
 ## Demo Video
 
